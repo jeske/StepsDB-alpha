@@ -38,18 +38,18 @@ namespace Bend
         }
 
         public Stream readRegionAddr(uint region_addr) {
-            String filename = String.Format("addr{0}.region", region_addr);
+            String filename = String.Format("\\addr{0}.reg", region_addr);
             FileStream reader = File.Open(dir_path + filename, FileMode.Open);
             return reader;
         }
         public Stream writeRegionAddr(uint region_addr) {
-            String filename = String.Format("addr{0}.region", region_addr);
+            String filename = String.Format("\\addr{0}.reg", region_addr);
             FileStream reader = File.Open(dir_path + filename, FileMode.CreateNew);
             return reader;
         }
         public void disposeRegionAddr(uint region_addr) {
-            String filename = String.Format("addr{0}.region", DateTime.Now, region_addr);
-            String del_filename = String.Format("del{0}addr{1}.region",  region_addr);
+            String filename = String.Format("\\addr{0}.reg", DateTime.Now, region_addr);
+            String del_filename = String.Format("\\del{0}addr{1}.region",  region_addr);
             File.Move(dir_path + filename, dir_path + del_filename);
         }
     }
@@ -132,7 +132,7 @@ namespace Bend
                 // create the log and root record
                 root.magic = RootBlock.MAGIC;
                 root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
-                root.logsize = 8 * 1024 * 1024;
+                root.logsize = LogWriter.DEFAULT_LOG_SIZE;
                 root.loghead = 0;
                 root.root_checksum = 0;
                 Stream rootblockwritestream = regionmgr.writeRegionAddr(0);

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 
+using NUnit.Framework;
+
 // TODO: handle circular log
 // TODO: reserve enough space for a log truncation record, prevent us from "filling" the log without a
 //       special flag saying we are allowed to take up the reserved space
@@ -15,6 +17,8 @@ namespace Bend
         Stream logstream;
         BinaryWriter nextChunkBuffer;
 
+        static UInt32 LOG_MAGIC = 44332211;
+        public static UInt32 DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
 
         LogWriter() {
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
@@ -30,12 +34,13 @@ namespace Bend
             this.rootblockstream = rootblockstream;
 
             // fill the log empty 
-            logstream.Seek(root.logsize, SeekOrigin.Begin);
+            logstream.Seek(root.logsize-1, SeekOrigin.Begin);
+            logstream.WriteByte(0x00);
+            logstream.Flush();
 
             // write the initial "log-end" record
             logstream.Seek(0, SeekOrigin.Begin);
-            // TODO: write the record
-            logstream.Flush();
+            flushPendingCommands();  // there should be no pending commands
 
             // now write the root record
             rootblockstream.Seek(0, SeekOrigin.Begin);
@@ -56,7 +61,7 @@ namespace Bend
             recoverLog();
         }
 
-        static UInt32 LOG_MAGIC = 0x11223344;
+
 
         void recoverLog() {
             logstream.Seek(root.loghead, SeekOrigin.Begin);
@@ -116,6 +121,9 @@ namespace Bend
 
             long savePosition = logbr.BaseStream.Position;
             // TODO: write "end of log" marker  (magic, size=0, checksum=0);
+            logbr.Write((UInt32)LOG_MAGIC);
+            logbr.Write((UInt32)0); // size
+            logbr.Write((UInt16)0); // checksum
             
             // ..then, seek back so it will be overwritten when the next log entry is written
             logbr.BaseStream.Seek(savePosition, SeekOrigin.Begin);
@@ -129,10 +137,39 @@ namespace Bend
         }
     }
 
-    class LogTests
+    [TestFixture]
+    public class LogTests
     {
-        public void TestLogRead() {
-            // we need to provide a sample log to read
+        [Test]
+        public void TestLogInit() {
+            
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION,"c:\\test");
+            RootBlock root = new RootBlock();
+            root.magic = RootBlock.MAGIC;
+            root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
+            root.logsize = LogWriter.DEFAULT_LOG_SIZE;
+            root.loghead = 0;
+            Stream rootblockstream = rmgr.writeRegionAddr(0);
+            Stream logstream = rmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE);
+
+            LogWriter lr = new LogWriter(InitMode.NEW_REGION, logstream, rootblockstream, root);
+
+            // check rootblock
+            rootblockstream.Seek(0, SeekOrigin.Begin);
+            RootBlock root2 = Util.readStruct<RootBlock>(rootblockstream);
+            Assert.AreEqual(root, root2, "root block written correctly");
+            
+            // check that log contains magic and final log record
+            logstream.Seek(0, SeekOrigin.Begin);
+
+            rootblockstream.Close();
+            logstream.Close();
         }
+
+        // TEST log resume
+        // TEST log full
+        // TEST log truncate
+        // TEST log circulation
+
     }
 }
