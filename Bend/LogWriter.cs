@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (C) 2008, by David W. Jeske
+// All Rights Reserved.
+
+using System;
 using System.IO;
 
 using NUnit.Framework;
@@ -56,7 +59,9 @@ namespace Bend
             }
             this.rootblockstream = regionmgr.readRegionAddr(0);
             root = Util.readStruct<RootBlock>(rootblockstream);
-
+            if (!root.IsValid()) {
+                throw new Exception("invalid root block");
+            }
             this.logstream = regionmgr.readRegionAddr(root.logstart);
             recoverLog();
         }
@@ -71,7 +76,7 @@ namespace Bend
             while (!LogEndReached) {
                 UInt32 magic = br.ReadUInt32();
                 if (magic != LOG_MAGIC) {
-                    abortCorrupt("invalid magic");
+                    abortCorrupt("invalid magic: " + magic );
                 }
                 UInt32 chunksize = br.ReadUInt32();
                 UInt16 checksum = br.ReadUInt16();
@@ -143,7 +148,7 @@ namespace Bend
         [Test]
         public void TestLogInit() {
             
-            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION,"c:\\test");
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION,"c:\\test");  // TODO, create random directory
             RootBlock root = new RootBlock();
             root.magic = RootBlock.MAGIC;
             root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
@@ -166,10 +171,21 @@ namespace Bend
             logstream.Close();
         }
 
-        // TEST log resume
-        // TEST log full
-        // TEST log truncate
-        // TEST log circulation
+        [Test]
+        public void TestResumeEmpty() {
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test");
+            LogWriter lr = new LogWriter(InitMode.RESUME, rmgr);
+        }
 
+        // TEST log resume with records
+        // TEST log hitting full-state (and erroring)
+        // TEST log full does not obliterate the start of the log
+        // TEST log truncate
+        // TEST log re-circulation
+
+        // TEST log random data committ and recovery
+        // TEST log corruption (write over valid log data and recover)
+        // TEST log corruption error & "abort" setting 
+        // TEST log corruption error & "perserve log and continue" setting 
     }
 }
