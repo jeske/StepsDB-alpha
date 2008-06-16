@@ -17,7 +17,9 @@ namespace Bend
     {
         static void Main(string[] args)
         {
-            LayerManager db = new LayerManager(LayerManager.InitMode.NEW_SEGMENT,"c:\\test");
+            // Util.utilStruct_test();
+
+            LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\test");
             
 
             db.setValue("test/3","a");

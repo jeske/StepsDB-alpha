@@ -1,9 +1,9 @@
 ﻿using System;
 
-#if false
-
-public static class Helper
+public static partial class Util
 {
+
+#if false
 
     // forum topic on this when I'm done
     // http://forums.msdn.microsoft.com/en-US/csharplanguage/thread/cfb98802-d1ec-4d46-b346-e46a8885daff/
@@ -55,6 +55,6 @@ public static class Helper
         return -1; // NOT FOUND
     }
 
-}
-
+    
 #endif
+}
