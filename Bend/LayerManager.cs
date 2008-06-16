@@ -110,12 +110,17 @@ namespace Bend
         IRegionManager regionmgr;
 
 
-
+        public class Receiver : ILogReceiver
+        {
+            public void handleCommand(byte cmd, byte[] cmddata) {
+            }
+        }
 
         public LayerManager(InitMode mode, String dir_path)
         {
             this.dir_path = dir_path;
             LogWriter logwriter;
+            Receiver receiver;
 
             if (mode == InitMode.NEW_REGION) {
                 // right now we only have one region type
@@ -149,7 +154,8 @@ namespace Bend
 
             } else {
                 regionmgr = new RegionExposedFiles(InitMode.RESUME, dir_path);
-                logwriter = new LogWriter(InitMode.RESUME, regionmgr);
+                receiver = new Receiver();
+                logwriter = new LogWriter(InitMode.RESUME, regionmgr, receiver );
 
             }
 

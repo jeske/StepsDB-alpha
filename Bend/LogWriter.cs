@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
@@ -12,13 +13,19 @@ using NUnit.Framework;
 
 namespace Bend
 {
+    interface ILogReceiver
+    {
+        void handleCommand(byte cmd, byte[] cmddata);
+    }
 
-    class LogWriter
+
+    class LogWriter : IDisposable
     {
         RootBlock root;
         Stream rootblockstream;
         Stream logstream;
         BinaryWriter nextChunkBuffer;
+        ILogReceiver receiver;
 
         static UInt32 LOG_MAGIC = 44332211;
         public static UInt32 DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
@@ -52,8 +59,10 @@ namespace Bend
         }
 
         // standard open/resume
-        public LogWriter(InitMode mode, IRegionManager regionmgr)
+        public LogWriter(InitMode mode, IRegionManager regionmgr, ILogReceiver receiver)
             : this() {
+            this.receiver = receiver;
+
             if (mode != InitMode.RESUME)  {
                 throw new Exception("init method must be called with RESUME init");
             }
@@ -66,20 +75,24 @@ namespace Bend
             recoverLog();
         }
 
-
-
         void recoverLog() {
             logstream.Seek(root.loghead, SeekOrigin.Begin);
-            bool LogEndReached = false;
             BinaryReader br = new BinaryReader(logstream);
 
-            while (!LogEndReached) {
+            while (true) {
                 UInt32 magic = br.ReadUInt32();
                 if (magic != LOG_MAGIC) {
                     abortCorrupt("invalid magic: " + magic );
                 }
                 UInt32 chunksize = br.ReadUInt32();
                 UInt16 checksum = br.ReadUInt16();
+
+                if (chunksize == 0 && checksum == 0) {
+                    // we reached the end-of-chunks marker, seek back
+                    br.BaseStream.Seek(- (4 + 4 + 2), SeekOrigin.Current);
+                    break;
+                }
+
                 byte[] logchunk = new byte[chunksize];
                 if (br.Read(logchunk, 0, (int)chunksize) != chunksize) {
                     abortCorrupt("chunksize bytes not available");
@@ -99,15 +112,12 @@ namespace Bend
                     if (mbr.Read(cmdbytes, 0, (int)cmdsize) != cmdsize) {
                         abortCorrupt("error reading command bytes");
                     }
-                    recoverCommand(cmdtype, cmdbytes);
+                    receiver.handleCommand(cmdtype, cmdbytes);
                 }
                 // log resume complete...
             }
         }
-        void recoverCommand(byte cmdtype, byte[] cmdbytes) {
-
-        }
-        void addCommand(byte cmdtype, byte[] cmdbytes) {
+        public void addCommand(byte cmdtype, byte[] cmdbytes) {
             nextChunkBuffer.Write((UInt32)cmdbytes.Length);
             nextChunkBuffer.Write((byte)cmdtype);
             nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
@@ -115,30 +125,37 @@ namespace Bend
         public void flushPendingCommands() {
             nextChunkBuffer.Seek(0, SeekOrigin.Begin);
             byte[] cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
-
-            UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
-
             BinaryWriter logbr = new BinaryWriter(logstream);
-            logbr.Write((UInt32)LOG_MAGIC);
-            logbr.Write((UInt32)cmds.Length);
-            logbr.Write((UInt16)checksum);
-            logbr.Write(cmds);
 
-            long savePosition = logbr.BaseStream.Position;
+            if (cmds.Length != 0) {
+                UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
+
+                logbr.Write((UInt32)LOG_MAGIC);
+                logbr.Write((UInt32)cmds.Length);
+                logbr.Write((UInt16)checksum);
+                logbr.Write(cmds);
+            }
+
             // TODO: write "end of log" marker  (magic, size=0, checksum=0);
             logbr.Write((UInt32)LOG_MAGIC);
             logbr.Write((UInt32)0); // size
             logbr.Write((UInt16)0); // checksum
-            
-            // ..then, seek back so it will be overwritten when the next log entry is written
-            logbr.BaseStream.Seek(savePosition, SeekOrigin.Begin);
             logbr.Flush();
+
+            // ..then, seek back so it will be overwritten when the next log entry is written
+            logbr.BaseStream.Seek(- (4+4+2), SeekOrigin.Current);
+        
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
         }
 
         void abortCorrupt(String reason) {
             throw new Exception(String.Format("aborting from corrupt log near {0}, reason: {1}",
                 logstream.Position, reason));
+        }
+
+        public void Dispose() {
+            if (this.logstream != null) { this.logstream.Close(); this.logstream = null; }
+            if (this.rootblockstream != null) { this.rootblockstream.Close(); this.rootblockstream = null; }
         }
     }
 
@@ -148,7 +165,7 @@ namespace Bend
         [Test]
         public void TestLogInit() {
             
-            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION,"c:\\test");  // TODO, create random directory
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION,"c:\\test\\1");  // TODO, create random directory
             RootBlock root = new RootBlock();
             root.magic = RootBlock.MAGIC;
             root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
@@ -171,13 +188,73 @@ namespace Bend
             logstream.Close();
         }
 
-        [Test]
-        public void TestResumeEmpty() {
-            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test");
-            LogWriter lr = new LogWriter(InitMode.RESUME, rmgr);
+        class TestReceiver : ILogReceiver
+        {
+            public struct cmdstruct
+            {
+                public byte cmd;
+                public byte[] cmdbytes;
+            }
+            public List<cmdstruct> cmds;
+            public TestReceiver() {
+                cmds = new List<cmdstruct>();
+            }
+            public void handleCommand(byte cmd, byte[] cmdbytes) {
+                cmdstruct newcmd = new cmdstruct();
+                newcmd.cmd = cmd;
+                newcmd.cmdbytes = cmdbytes;
+
+                this.cmds.Add(newcmd);
+            }
         }
 
-        // TEST log resume with records
+        [Test]
+        public void TestResumeEmpty() {
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");
+            TestReceiver receiver = new TestReceiver();
+            LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
+            // TODO: add a log handler that asserts there were no log events
+            Assert.AreEqual(receiver.cmds.Count, 0, "there should be no log records");
+        }
+
+        [Test]
+        public void TestResumeWithRecords() {
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\2");
+    
+            byte cmd = 0x01;
+            byte[] cmddata = { 0x81, 0x82, 0x83 };
+
+            // make a new empty log
+            {
+                RootBlock root = new RootBlock();
+                root.magic = RootBlock.MAGIC;
+                root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
+                root.logsize = LogWriter.DEFAULT_LOG_SIZE;
+                root.loghead = 0;
+                Stream rootblockstream = rmgr.writeRegionAddr(0);
+                Stream logstream = rmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE);
+
+                LogWriter lr = new LogWriter(InitMode.NEW_REGION, logstream, rootblockstream, root);
+                
+                // add ONE record to the log
+                lr.addCommand(cmd, cmddata);
+                lr.flushPendingCommands();
+                rootblockstream.Close();
+                logstream.Close();
+            }
+            // reinit and resume from the log
+            {
+                TestReceiver receiver = new TestReceiver();
+                LogWriter lr = new LogWriter(InitMode.RESUME, rmgr,receiver);
+                
+                Assert.AreEqual(receiver.cmds.Count, 1, "there should be one record" );
+                Assert.AreEqual(receiver.cmds[0].cmd, cmd, "cmdbyte should match");
+                Assert.AreEqual(receiver.cmds[0].cmdbytes, cmddata, "cmddata should match");
+
+            }
+            // assert the log had the records
+        }
+
         // TEST log hitting full-state (and erroring)
         // TEST log full does not obliterate the start of the log
         // TEST log truncate
