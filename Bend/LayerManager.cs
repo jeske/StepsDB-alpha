@@ -15,106 +15,137 @@ namespace Bend
 
    
 
-    // ---------------------------------------------------------
-    // The on-disk layout is initialized as:
-    // 
-    // 0 -> MAX_ROOTBLOCK_SIZE : root block
-    // MAX_ROOTBLOCK_SIZE -> (MAX_ROOTBLOCK_SIZE+logsize) : log
-    // (remainder) : freespace
-
-
-    // [StructLayout(LayoutKind.Sequential,Pack=1)]
-    struct RootBlock
-    {
-        public uint magic;
-        public uint mysize;
-        public uint logstart;   // absolute pointer to the start of the log on the region/volume
-        public uint logsize;    // size of the current log segment in bytes
-        public uint loghead;    // relative pointer to the head of the log
-        public uint root_checksum;
-
-        // static values don't consume space
-        public static uint MAGIC = 0xFE82a292;
-        public static uint MAX_ROOTBLOCK_SIZE = 4096;
-
-        public bool IsValid() {
-            if (magic != MAGIC) {
-                return false;
-            }
-            // check size
-            // check root_checksum
-            return true;
-        }
-    }
-
     public enum InitMode
     {
         NEW_REGION,    // initialize the region fresh, error if it looks like there is a region still there
         RESUME         // standard resume/recover from an existing region
     }
 
-    
+
 
     // ---------------[ LayerManager ]---------------------------------------------------------
 
-    class LayerManager
+    public class LayerManager : IDisposable
     {
+        internal List<ISortedSegment> segmentlayers;
+        internal SegmentBuilder workingSegment;
+        internal String dir_path;   // should change this to not assume directories/files
+        internal IRegionManager regionmgr;
+        internal List<WeakReference<Txn>> pending_txns;
 
-        List<ISortedSegment> segmentlayers;
-        SegmentBuilder workingSegment;
-        String dir_path;   // should change this to not assume directories/files
-        IRegionManager regionmgr;
+        LogWriter logwriter;
+        Receiver receiver;
 
-
-        public class Receiver : ILogReceiver
+        public struct Receiver : ILogReceiver
         {
+            LayerManager mylayer;
+            public Receiver(LayerManager mylayer) {
+                this.mylayer = mylayer;
+            }
             public void handleCommand(byte cmd, byte[] cmddata) {
+                if (cmd == 0x00) {
+                    // decode basic block key/value writes
+                    MemoryStream ms = new MemoryStream(cmddata);
+                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ms, 0, cmddata.Length);
+                    foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in decoder.sortedWalk()) {
+                        // populate our working segment
+                        mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
+                    }
+                } else {
+                    throw new Exception("unimplemented command");
+                }
             }
         }
 
-        public LayerManager(InitMode mode, String dir_path)
+
+        public class Txn
+        {
+            LayerManager mylayer;
+            internal Txn(LayerManager _layer) {
+                this.mylayer = _layer;
+            }
+            public void setValue(String skey, String svalue) {
+                RecordKey key = new RecordKey();
+                key.appendKeyPart(skey);
+
+                RecordUpdate update = new RecordUpdate(RecordUpdateTypes.FULL, svalue);
+                mylayer.workingSegment.setRecord(key, update);
+                
+
+                // build a byte[] for the updates using the basic block encoder
+                {
+                    MemoryStream writer = new MemoryStream();
+                    ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
+                    encoder.setStream(writer);
+                    encoder.add(key,update);
+                    encoder.flush();
+                    mylayer.logwriter.addCommand(0, writer.ToArray());
+                    mylayer.logwriter.flushPendingCommands();
+                }
+            }
+            public void commit() {
+                // TODO: commit should be what finalizes pending writes into final writes
+                //     and cleans up locks and state
+            }
+        }
+
+        public LayerManager() {
+            pending_txns = new List<WeakReference<Txn>>();
+
+            segmentlayers = new List<ISortedSegment>();   // a list of segment layers, newest to oldest
+            workingSegment = new SegmentBuilder();
+            segmentlayers.Add(workingSegment);
+
+        }
+
+        public LayerManager(InitMode mode, String dir_path) : this()
         {
             this.dir_path = dir_path;
-            LogWriter logwriter;
-            Receiver receiver;
+            
 
             if (mode == InitMode.NEW_REGION) {
                 // right now we only have one region type
                 regionmgr = new RegionExposedFiles(InitMode.NEW_REGION, dir_path);
 
                 // first write a log init record into the log
-                logwriter = new LogWriter(InitMode.NEW_REGION,
-                    regionmgr);
+                logwriter = new LogWriter(InitMode.NEW_REGION, regionmgr);
 
-            } else {
+            } else if (mode == InitMode.RESUME) {
                 regionmgr = new RegionExposedFiles(InitMode.RESUME, dir_path);
-                receiver = new Receiver();
-                logwriter = new LogWriter(InitMode.RESUME, regionmgr, receiver );
-
+                receiver = new Receiver(this);
+                logwriter = new LogWriter(InitMode.RESUME, regionmgr, receiver);
+            } else {
+                throw new Exception("unknown init mode");
             }
 
-            segmentlayers = new List<ISortedSegment>();   // a list of segment layers, newest to oldest
-            workingSegment = new SegmentBuilder();
+            
+        }
 
-            segmentlayers.Add(workingSegment);
+        public Txn newTxn() {
+            Txn newtx = new Txn(this);
+            pending_txns.Add(new WeakReference<Txn>(newtx));  // make sure we don't prevent collection
+            return newtx;
         }
 
         public void flushWorkingSegment()
         {
+            // create a new working segment
+            SegmentBuilder checkpointSegment = workingSegment;
+            workingSegment = new SegmentBuilder();
+            segmentlayers.Add(workingSegment);
+
+            // TODO: allocate new segment address from freespace
             // write the current segment and flush
             FileStream writer = File.Create(dir_path + "\\curseg.sg");
-            workingSegment.writeToStream(writer);
+            checkpointSegment.writeToStream(writer);
             writer.Close();
             
-            
-            // reopen that segment
+            // reopen that segment, and use it to replace the checkpoint segment
+            // TODO: make this atomic
             FileStream reader = File.Open(dir_path + "\\curseg.sg", FileMode.Open);
             SegmentReader sr = new SegmentReader(reader);
             segmentlayers.Add(sr);
-
-            // replace the old working segment with the new one (TODO: make this atomic?)
-            segmentlayers.Remove(workingSegment);
-            workingSegment = new SegmentBuilder();
+            segmentlayers.Remove(checkpointSegment);
         }
 
         public GetStatus getRecord(RecordKey key)
@@ -159,11 +190,19 @@ namespace Bend
 
         public void setValue(String skey, String svalue)
         {
-            RecordKey key = new RecordKey();
-            key.appendKeyPart(skey);
+            Txn implicit_txn = this.newTxn();
+            implicit_txn.setValue(skey, svalue);
+            implicit_txn.commit();
+        }
 
-            RecordUpdate update = new RecordUpdate(RecordUpdateTypes.FULL, svalue);
-            workingSegment.setRecord(key, update);
+        public void Dispose() {
+            if (logwriter != null) {
+                logwriter.Dispose(); logwriter = null;
+            }
         }
     }
+
+
+
+
 }

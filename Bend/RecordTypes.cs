@@ -83,6 +83,11 @@ public class RecordUpdate
 
     public override String ToString()
     {
+        return this.data;
+    }
+
+
+    public String DebugToString() {
         return "RU(" + this.data + ")";
     }
 
@@ -152,7 +157,7 @@ public class RecordKey : IComparable<RecordKey>
         return cur_result;
     }
 
-    public override string ToString()
+    public string DebugToString()
     {
         String srep = "K(";
         foreach (String part in key_parts)
@@ -160,6 +165,14 @@ public class RecordKey : IComparable<RecordKey>
             srep += part + ":";
         }
         return srep + ")";
+    }
+
+    public override string ToString() {
+        String srep = "";
+        foreach (String part in key_parts) {
+            srep += part + ":";
+        }
+        return srep;
     }
 
 

@@ -17,8 +17,12 @@ namespace Bend
         [Test]
         public void TestLogInit() {
 
+
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");  // TODO, create random directory
-            LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr);
+            {
+                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr);
+                lr.Dispose();
+            }
 
             Stream rootblockstream = rmgr.writeRegionAddr(0);
             Stream logstream = rmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE);
@@ -62,6 +66,7 @@ namespace Bend
 
         [Test]
         public void TestResumeEmpty() {
+            TestLogInit();
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");
             TestReceiver receiver = new TestReceiver();
             LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
@@ -84,6 +89,7 @@ namespace Bend
                 // add ONE record to the log
                 lr.addCommand(cmd, cmddata);
                 lr.flushPendingCommands();
+                lr.Dispose();
             }
             // reinit and resume from the log
             {
@@ -93,7 +99,7 @@ namespace Bend
                 Assert.AreEqual(receiver.cmds.Count, 1, "there should be one record");
                 Assert.AreEqual(receiver.cmds[0].cmd, cmd, "cmdbyte should match");
                 Assert.AreEqual(receiver.cmds[0].cmdbytes, cmddata, "cmddata should match");
-
+                lr.Dispose();
             }
             // assert the log had the records
         }

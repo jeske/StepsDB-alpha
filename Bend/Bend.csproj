@@ -66,6 +66,7 @@
     <Compile Include="LogWriterTest.cs" />
     <Compile Include="LogWriter.cs" />
     <Compile Include="RegionManager.cs" />
+    <Compile Include="SegmentBlockBasicTest.cs" />
     <Compile Include="Util\Checksum.cs" />
     <Compile Include="Util\FastScan.cs" />
     <Compile Include="Util\BinStruct.cs" />
@@ -73,6 +74,8 @@
     <Compile Include="SortedSegment.cs" />
     <Compile Include="RecordTypes.cs" />
     <Compile Include="LayerManager.cs" />
+    <Compile Include="Util\GenericWeakReference.cs" />
+    <Compile Include="LayerManagerTest.cs" />
     <Compile Include="_Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

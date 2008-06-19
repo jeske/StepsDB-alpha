@@ -16,8 +16,6 @@ namespace Bend
         void handleCommand(byte cmd, byte[] cmddata);
     }
 
-
-
     // ---------------------------------------------------------
     // The on-disk layout is initialized as:
     // 
@@ -30,7 +28,7 @@ namespace Bend
     struct RootBlock
     {
         public uint magic;
-        public uint mysize;
+        // public uint mysize;
         public uint logstart;   // absolute pointer to the start of the log on the region/volume
         public uint logsize;    // size of the current log segment in bytes
         public uint loghead;    // relative pointer to the head of the log
@@ -68,7 +66,7 @@ namespace Bend
         // special "init" of a region
         public LogWriter(InitMode mode, IRegionManager regionmgr)
             : this() {
-            if (mode != InitMode.NEW_REGION)  {
+            if (mode != InitMode.NEW_REGION) {
                 throw new Exception("init method must be called with NEW_REGION init");
             }
 
@@ -76,12 +74,17 @@ namespace Bend
             int regionsize = 20 * 1024 * 1024;
 
             // test to see if there is already a root record there
+            {
+                Stream testrootblockstream = regionmgr.readRegionAddr(0);
+                if (testrootblockstream != null) {
+                    RootBlock nroot = Util.readStruct<RootBlock>(testrootblockstream);
+                    long rtblksz = testrootblockstream.Position;
+                    if (nroot.IsValid()) {
+                        // we should be careful not to override this...
+                    }
+                    testrootblockstream.Close();
+                } 
 
-            Stream rootblockstream = regionmgr.readRegionAddr(0);
-            RootBlock root = Util.readStruct<RootBlock>(rootblockstream);
-            long rtblksz = rootblockstream.Position;
-            if (root.IsValid()) {
-                // we should be careful not to override this...
             }
 
             // create the log and root record
@@ -91,7 +94,6 @@ namespace Bend
             root.loghead = 0;
             root.root_checksum = 0;
             Stream rootblockwritestream = regionmgr.writeRegionAddr(0);
-
             Stream logwritestream = regionmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE);
 
 
@@ -100,7 +102,7 @@ namespace Bend
             this.rootblockstream = rootblockwritestream;
 
             // fill the log empty 
-            logstream.Seek(root.logsize-1, SeekOrigin.Begin);
+            logstream.Seek(root.logsize - 1, SeekOrigin.Begin);
             logstream.WriteByte(0x00);
             logstream.Flush();
 

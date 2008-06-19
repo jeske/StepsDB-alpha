@@ -39,13 +39,17 @@ namespace Bend
         }
 
         public Stream readRegionAddr(uint region_addr) {
-            String filename = String.Format("\\addr{0}.reg", region_addr);
-            FileStream reader = File.Open(dir_path + filename, FileMode.Open);
-            return reader;
+            String filename = dir_path + String.Format("\\addr{0}.reg", region_addr);
+            if (File.Exists(filename)) {
+                FileStream reader = File.Open(filename, FileMode.Open);
+                return reader;
+            } else {
+                return null;
+            }
         }
         public Stream writeRegionAddr(uint region_addr) {
             String filename = String.Format("\\addr{0}.reg", region_addr);
-            FileStream reader = File.Open(dir_path + filename, FileMode.CreateNew);
+            FileStream reader = File.Open(dir_path + filename, FileMode.OpenOrCreate);
             return reader;
         }
         public void disposeRegionAddr(uint region_addr) {

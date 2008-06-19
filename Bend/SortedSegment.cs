@@ -15,7 +15,7 @@ namespace Bend
 
     // ---------------[ SortedSegment interface]------------------------------------------------
 
-    enum GetStatus
+    public enum GetStatus
     {
         PRESENT,
         MISSING
@@ -56,6 +56,11 @@ namespace Bend
         public SegmentBuilder() {
             items = new SortedList<RecordKey, RecordUpdate>();
         }
+
+        public int RowCount {
+            get { return this.items.Count; }
+        }
+          
 
         public void setRecord(RecordKey key, RecordUpdate value) {
             int index = items.IndexOfKey(key);
