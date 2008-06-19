@@ -21,6 +21,22 @@ namespace Bend
         RESUME         // standard resume/recover from an existing region
     }
 
+    // .ROOT metadata
+    // TODO: make a class to encapsulate this
+
+    // RANGEs are represented with an implicit prefix '='. This allows use special endpoint markers:
+    // "<" - the key before all keys
+    // "=KEYDATA" - keys after and including "KEYDATA"
+    // ">" - the key after all keys
+
+    // Number representation - we will start with a simple positive integer zero-padded representation
+
+    // .ROOT/VARS/NUMGENERATIONS -> 1
+    // .ROOT/FREELIST/(address start:10)/(address end:10) -> ()
+    // .ROOT/FREELIST/0000004000/0000008000 -> ()
+    // .ROOT/GEN/(gen #:3)/(start key)/(end key) -> (segment metadata)
+    // .ROOT/GEN/000/</> -> addr
+    
 
 
     // ---------------[ LayerManager ]---------------------------------------------------------

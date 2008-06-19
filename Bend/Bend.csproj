@@ -76,6 +76,7 @@
     <Compile Include="LayerManager.cs" />
     <Compile Include="Util\GenericWeakReference.cs" />
     <Compile Include="LayerManagerTest.cs" />
+    <Compile Include="Util\NumberFormat.cs" />
     <Compile Include="_Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

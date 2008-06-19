@@ -89,7 +89,8 @@ namespace Bend
             Assert.AreEqual(2, db.segmentlayers.Count);
             Assert.AreEqual(0, db.workingSegment.RowCount);
 
-            // assure we allocated a new range record
+            // assure we allocated a new range record (walk .ROOT range map)
+
 
             // assure we subtracted the new range record from the freespace
 
@@ -99,6 +100,8 @@ namespace Bend
 
        // TEST: double flush and restore 2 segments  (walk .ROOT range map)
        // TEST: Tombstones
+
+       // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
 
        // ----------------------------[ TEST MERGING ]-----------------------------
 
