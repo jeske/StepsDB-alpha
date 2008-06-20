@@ -7,196 +7,301 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using NUnit.Framework;
+
 namespace Bend
 {
 
-// ---------------[ Record* ]---------------------------------------------------------
+    // ---------------[ Record* ]---------------------------------------------------------
 
-public enum RecordDataState
-{
-    NOT_PROVIDED,
-    FULL,
-    INCOMPLETE
-}
-public enum RecordUpdateResult
-{
-    SUCCESS,
-    FINAL
-
-}
-class RecordData
-{
-    RecordKey key;
-    RecordDataState state;
-    String data;
-    public RecordData(RecordDataState initialState, RecordKey key, String data)
+    public enum RecordDataState
     {
-        this.key = key;
-        this.state = initialState;
-        this.data = data;
+        NOT_PROVIDED,
+        FULL,
+        INCOMPLETE
     }
-    public RecordData(RecordDataState initialState, RecordKey key) :
-        this(initialState, key, null) { }
-
-    public RecordUpdateResult applyUpdate(RecordUpdate update)
+    public enum RecordUpdateResult
     {
-        switch (update.type)
+        SUCCESS,
+        FINAL
+
+    }
+    class RecordData
+    {
+        RecordKey key;
+        RecordDataState state;
+        String data;
+        public RecordData(RecordDataState initialState, RecordKey key, String data)
         {
-            case RecordUpdateTypes.DELETION_TOMBSTONE:
-                return RecordUpdateResult.FINAL;
-            case RecordUpdateTypes.FULL:
-                this.state = RecordDataState.FULL;
-                this.data = update.data;
-                return RecordUpdateResult.FINAL;
-            case RecordUpdateTypes.NONE:
-                return RecordUpdateResult.SUCCESS;
-            case RecordUpdateTypes.PARTIAL:
-                throw new Exception("partial update not implemented");
-            default:
-                throw new Exception("unknown update type");
-
+            this.key = key;
+            this.state = initialState;
+            this.data = data;
         }
-    }
+        public RecordData(RecordDataState initialState, RecordKey key) :
+            this(initialState, key, null) { }
 
-    public override String ToString()
-    {
-        return "RD(" + this.data + ")";
-    }
-}
-
-public enum RecordUpdateTypes
-{
-    DELETION_TOMBSTONE,
-    PARTIAL,
-    FULL,
-    NONE
-}
-public class RecordUpdate
-{
-    public RecordUpdateTypes type;
-    public String data;
-    public RecordUpdate(RecordUpdateTypes type, String data)
-    {
-        this.type = type;
-        this.data = data;
-    }
-
-    public override String ToString()
-    {
-        return this.data;
-    }
-
-
-    public String DebugToString() {
-        return "RU(" + this.data + ")";
-    }
-
-    public byte[] encode() {
-        System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-        byte[] data = enc.GetBytes(this.data);
-        return data;
-    }
-
-}
-
-
-public class RecordKey : IComparable<RecordKey>
-{
-    List<String> key_parts;
-    
-    public RecordKey()
-    {
-        key_parts = new List<String>();
-    }
-    public RecordKey(byte[] data)
-        : this() {
-        decode(data);
-    }
-
-
-    public void appendKeyPart(String part)
-    {
-        key_parts.Add(part);
-    }
-
-
-    // TODO: deal with field types (i.e. number sorting)
-    public int CompareTo(RecordKey obj)
-    {
-        int pos = 0;
-        int cur_result = 0;
-
-        int thislen = key_parts.Count;
-        int objlen = key_parts.Count;
-
-        while (cur_result == 0)  // while equal
+        public RecordUpdateResult applyUpdate(RecordUpdate update)
         {
-            if (((thislen - pos) == 0) &&
-                 ((objlen - pos) == 0))
+            switch (update.type)
             {
-                // equal and at the end
-                return 0; // equal
+                case RecordUpdateTypes.DELETION_TOMBSTONE:
+                    return RecordUpdateResult.FINAL;
+                case RecordUpdateTypes.FULL:
+                    this.state = RecordDataState.FULL;
+                    this.data = update.ToString();
+                    return RecordUpdateResult.FINAL;
+                case RecordUpdateTypes.NONE:
+                    return RecordUpdateResult.SUCCESS;
+                case RecordUpdateTypes.PARTIAL:
+                    throw new Exception("partial update not implemented");
+                default:
+                    throw new Exception("unknown update type");
+
             }
-            if (((thislen - pos) == 0) &&
-                 ((objlen - pos) > 0))
-            {
-                // equal and obj longer
-                return -1; // obj longer, so obj is greater
-            }
-            if (((thislen - pos) > 0) &&
-                 ((objlen - pos) == 0))
-            {
-                // equal and this longer
-                return 1; // this longer, so this greater
-            }
-            cur_result = this.key_parts[pos].CompareTo(obj.key_parts[pos]);
-            pos++; // consider the next keypart
         }
 
-
-        return cur_result;
-    }
-
-    public string DebugToString()
-    {
-        String srep = "K(";
-        foreach (String part in key_parts)
+        public override String ToString()
         {
-            srep += part + ":";
+            return "RD(" + this.data + ")";
         }
-        return srep + ")";
     }
 
-    public override string ToString() {
-        String srep = "";
-        foreach (String part in key_parts) {
-            srep += part + ":";
+    public enum RecordUpdateTypes
+    {
+        DELETION_TOMBSTONE,
+        PARTIAL,
+        FULL,
+        NONE
+    }
+    public class RecordUpdate
+    {
+        public RecordUpdateTypes type;
+        public byte[] data;
+        public RecordUpdate(RecordUpdateTypes type, String sdata)
+        {
+            this.type = type;
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            this.data = enc.GetBytes(sdata);
+           
         }
-        return srep;
+        public RecordUpdate(RecordUpdateTypes type, byte[] data) {
+            this.type = type;
+            this.data = data;
+        }
+
+
+        public override String ToString()
+        {
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            String keystring = enc.GetString(data);
+            return keystring;
+        }
+
+
+        public String DebugToString() {
+            return "RU(" + this.ToString() + ")";
+        }
+
+        public byte[] encode() {
+            return data;
+        }
+
     }
 
+    //-----------------------------------[ RecordKey ]------------------------------------
 
-    // -----------------------------------------------------------
-    // encoding/decoding of keyparts
-
-
-    // decode
-    void decode(byte[] data) {
-        char[] delimiters = { ':' };
-        System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-        String keystring = enc.GetString(data);
-        String[] keystring_parts = keystring.Split(delimiters);
+    public class RecordKey : IComparable<RecordKey>
+    {
+        List<String> key_parts;
+        public static char DELIMITER = ':';
         
-        key_parts.AddRange(keystring_parts);
+        public RecordKey()
+        {
+            key_parts = new List<String>();
+        }
+        public RecordKey(byte[] data)
+            : this() {
+            decode(data);
+        }
+
+        public void appendKeyParts(params object[] args) {
+            foreach (object arg in args) {
+                if (arg.GetType() == typeof(String)) {
+                    this.appendKeyPart((String)arg);
+                } else if (arg.GetType() == typeof(byte[])) {
+                    this.appendKeyPart((byte[])arg);
+                } else {
+                    throw new Exception("unknown argument type");
+                }
+            }
+        }
+
+        public void appendKeyPart(String part) {
+            key_parts.Add(part);
+        }
+        public void appendKeyPart(byte[] data) {
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            String keystring = enc.GetString(data);
+            key_parts.Add(keystring);
+        }
+
+
+        public int numParts() {
+            return key_parts.Count;
+        }
+
+        // TODO: deal with field types (i.e. number sorting)
+        public int CompareTo(RecordKey obj)
+        {
+            int pos = 0;
+            int cur_result = 0;
+
+            int thislen = key_parts.Count;
+            int objlen = key_parts.Count;
+
+            while (cur_result == 0)  // while equal
+            {
+                if (((thislen - pos) == 0) &&
+                     ((objlen - pos) == 0))
+                {
+                    // equal and at the end
+                    return 0; // equal
+                }
+                if (((thislen - pos) == 0) &&
+                     ((objlen - pos) > 0))
+                {
+                    // equal and obj longer
+                    return -1; // obj longer, so obj is greater
+                }
+                if (((thislen - pos) > 0) &&
+                     ((objlen - pos) == 0))
+                {
+                    // equal and this longer
+                    return 1; // this longer, so this greater
+                }
+                cur_result = this.key_parts[pos].CompareTo(obj.key_parts[pos]);
+                pos++; // consider the next keypart
+            }
+
+
+            return cur_result;
+        }
+
+        public string DebugToString()
+        {
+            String srep = "K(";
+            foreach (String part in key_parts)
+            {
+                srep += part + DELIMITER;
+            }
+            return srep + ")";
+        }
+
+        public override string ToString() {
+            String srep = "";
+            foreach (String part in key_parts) {
+                srep += part + DELIMITER;
+            }
+            return srep;
+        }
+
+
+        // -----------------------------------------------------------
+        // encoding/decoding of keyparts
+
+
+        // decode
+        void decode(byte[] data) {
+            char[] delimiters = { DELIMITER };
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            String keystring = enc.GetString(data);
+            String[] keystring_parts = keystring.Split(delimiters);
+            
+            key_parts.AddRange(keystring_parts);
+        }
+
+        // encode
+        public byte[] encode() {
+            String srep = String.Join(new String(DELIMITER,1), key_parts.ToArray());
+
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            byte[] data = enc.GetBytes(srep);
+            return data;
+        }
     }
 
-    // encode
-    public byte[] encode() {
-        String srep = String.Join(":", key_parts.ToArray());
 
-        System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-        byte[] data = enc.GetBytes(srep);
-        return data;
+    [TestFixture]
+    public class TestRecordClasses
+    {
+        [Test]
+        public void Test01RecordKey() {
+            String[] parts1 = { "test", "test2", "blah" };
+            
+            RecordKey key = new RecordKey();
+            key.appendKeyParts(parts1);
+            byte[] data = key.encode();
+
+            // decode
+            RecordKey key2 = new RecordKey(data);
+
+            // verify tostring matches
+            Assert.AreEqual(key.ToString(),key2.ToString());
+
+            // verify comparison
+            Assert.AreEqual(0, key.CompareTo(key2));
+
+            // verify individual parts            
+        }
+        [Test]
+        public void Test02RecordSort() {
+            String[] parts1 = { "test", "test2", "blah" };
+            String[] parts2 = { "test", "test3", "blah" }; // > parts 1
+            String[] parts3 = { "test", "test2a", "blah" }; // > parts 1 (testing per-segment sorting order!)
+
+            RecordKey key1 = new RecordKey();
+            key1.appendKeyParts(parts1);
+
+            RecordKey key2 = new RecordKey();
+            key2.appendKeyParts(parts2);
+
+            RecordKey key3 = new RecordKey();
+            key3.appendKeyParts(parts3);
+
+            // key2 > key1
+            Assert.AreEqual(1,key2.CompareTo(key1));
+            Assert.AreEqual(-1,key1.CompareTo(key2));
+
+            // key3 > key1
+            Assert.AreEqual(1,key3.CompareTo(key1));
+            Assert.AreEqual(-1, key1.CompareTo(key3));
+
+        }
+
+        [Test]
+        public void Test03RecordKeyDelimiterEscape() {
+            string DELIM = new String(RecordKey.DELIMITER, 1);  
+            
+
+            RecordKey key1 = new RecordKey();
+            key1.appendKeyParts("1", "2", "3");
+            Assert.AreEqual(3, key1.numParts());
+            RecordKey dkey1 = new RecordKey(key1.encode());
+            Assert.AreEqual(3, dkey1.numParts(),"dkey1 delimiter decode");
+
+            RecordKey key2 = new RecordKey();
+            key2.appendKeyPart("1" + DELIM + "2" + DELIM + "3");
+            Assert.AreEqual(1, key2.numParts());
+            RecordKey dkey2 = new RecordKey(key2.encode());
+            Assert.AreEqual(1, dkey2.numParts(),"dkey2 delimiter decode");
+
+            // key2 > key1
+            Assert.AreEqual(1, key2.CompareTo(key1));
+            Assert.AreEqual(-1, key1.CompareTo(key2));
+
+        }
+
     }
-}
+
+
 }
