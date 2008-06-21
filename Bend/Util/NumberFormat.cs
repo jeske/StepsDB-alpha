@@ -20,7 +20,7 @@ namespace Bend
 
             // build the LSBs
             int digit;
-            while (num > 10) {
+            while (num >= 10) {
                 num = Math.DivRem(num, 10, out digit);
                 builder.Insert(0,(byte)((int)'0' + digit));
             }
@@ -49,8 +49,13 @@ namespace Bend
 
             // multiply and grab the next digit
             while (pos < bytes.Length) {
+                // verify char in range
+                byte cur = bytes[pos];
+                if (cur < '0' || cur > '9') { 
+                    throw new Exception("invalid char in lsdToNumber: " + cur + " " + new String((char)cur,1)); 
+                }
                 number = number * 10;
-                number = number + (bytes[pos] - (int)'0');
+                number = number + (cur - (int)'0');
                 pos++;
             }
             return (uint)number;
@@ -78,8 +83,18 @@ namespace Bend
                 Assert.AreEqual(encode_length,encodednum.Length, "encoded length not correct");
                 Assert.AreEqual(testnumbers[i], Lsd.lsdToNumber(encodednum), "decode not equal {0}", ToHexString(encodednum));
             }
+        }
 
-
+        [Test]
+        public void TestInvalidCharacter() {
+            byte[] test = { (byte)'0', (byte)'1', (byte)':', (byte)'3' };
+            bool err = false;
+            try {
+                uint num = Lsd.lsdToNumber(test);
+            } catch {
+                err = true;
+            }
+            Assert.AreEqual(true, err, "invalid character should throw exception");
         }
     }
 
