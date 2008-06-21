@@ -15,8 +15,9 @@ namespace Bend
     
     class Lsd {
 
-        public static byte[] numberToLsd(int num,int pad_to_digits) {
+        public static byte[] numberToLsd(int encodenum,int pad_to_digits) {
             List<byte> builder = new List<byte>();
+            int num = encodenum;
 
             // build the LSBs
             int digit;
@@ -27,7 +28,7 @@ namespace Bend
             builder.Insert(0,(byte)((int)'0' + num));
             int digit_count = builder.Count;
             if (digit_count > pad_to_digits) {
-                throw new Exception(String.Format("number {0} too big to encode in {1} digits", num, pad_to_digits));
+                throw new Exception(String.Format("number {0} too big to encode in {1} digits", encodenum, pad_to_digits));
             }
 
             // zero pad the number
@@ -95,6 +96,26 @@ namespace Bend
                 err = true;
             }
             Assert.AreEqual(true, err, "invalid character should throw exception");
+        }
+
+        [Test]
+        public void TestEncodeLengthError() {
+            int test_encode_length = 3;
+            int[] passnumbers = { 0, 1, 5, 12, 134, 999 };
+            int[] failnumbers = { 1000, 1005, 3001, 113023, 2130192 };
+
+            for (int i = 0; i < passnumbers.Length; i++) {
+                bool err = false;
+                try { Lsd.numberToLsd(passnumbers[i], test_encode_length); } catch { err = true; }
+                Assert.AreEqual(false, err, "numbers shorted than encode length should encode");
+            }
+            for (int i = 0; i < failnumbers.Length; i++) {
+                bool err = false;
+                try { Lsd.numberToLsd(failnumbers[i], test_encode_length); } catch { err = true; }
+                Assert.AreEqual(true, err, "numbers longer than encode length should error");
+            }
+
+
         }
     }
 
