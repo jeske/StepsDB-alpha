@@ -25,7 +25,7 @@ namespace Bend
 
     public class LayerManager : IDisposable
     {
-        internal List<ISortedSegment> segmentlayers;  // newest to oldest, TODO: convert to SortedList
+        internal List<SegmentBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentBuilder workingSegment;
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
@@ -41,7 +41,7 @@ namespace Bend
         public LayerManager() {
             pending_txns = new List<WeakReference<Txn>>();
 
-            segmentlayers = new List<ISortedSegment>();   // a list of segment layers, newest to oldest
+            segmentlayers = new List<SegmentBuilder>();   // a list of segment layers, newest to oldest
             workingSegment = new SegmentBuilder();
             segmentlayers.Add(workingSegment);
             
@@ -241,7 +241,17 @@ namespace Bend
 
         }
 
-        public GetStatus getRecord(RecordKey key, out RecordData record)
+        public GetStatus getRecord(RecordKey key, out RecordData record) {
+            record = new RecordData(RecordDataState.NOT_PROVIDED, key);
+
+            if (rangemapmgr.segmentWalkForKey(key, workingSegment, ref record) == RecordUpdateResult.FINAL) {
+                return GetStatus.PRESENT;
+            } else {
+                return GetStatus.MISSING;
+            }
+        }
+
+        public GetStatus getRecordOLD(RecordKey key, out RecordData record)
         {
             RecordUpdate update;
             // we need to go through layers from newest to oldest. If we find a full record
@@ -251,7 +261,8 @@ namespace Bend
             record = new RecordData(RecordDataState.NOT_PROVIDED, key);
             GetStatus cur_status = GetStatus.MISSING;
 
-            // start with a quick check of working segment(s) for the key
+            // start with a quick check of working segment for the key
+            // TODO: check all in-memory segments
             if (workingSegment.getRecordUpdate(key, out update) == GetStatus.PRESENT) {
                 cur_status = GetStatus.PRESENT;
                 if (record.applyUpdate(update) == RecordUpdateResult.FINAL) {
@@ -266,7 +277,18 @@ namespace Bend
             }
             int numgen = (int)Lsd.lsdToNumber(update.data);
 
+            // find all (relevant) occurances of our record in decreasing generation order
+            //   - in order to do this, we first need to find the specific segments which
+            //     contain our records. This means finding the following records. 
+            //          .ROOT/GEN/<maxgen>/<key> -> metadata
+            //          .ROOT/GEN/001/<key>
+            //          .ROOT/GEN/000/<key>
+            //     These records form a "tree" of pointers from newest to oldest segments.
+            //     ( see FindSegments() ) 
+
+
             while (numgen-- > 0) {
+
                 ISortedSegment layer = this.rangemapmgr.getSegmentForKey(key, numgen);
                 if (layer != null && layer.getRecordUpdate(key, out update) == GetStatus.PRESENT)
                 {
@@ -280,7 +302,6 @@ namespace Bend
             }
             return cur_status;
         }
-
 
         public void debugDump()
         {

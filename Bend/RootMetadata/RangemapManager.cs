@@ -90,6 +90,79 @@ namespace Bend
             return num_generations;
         }
 
+        // ------------[ public segmentWalkForKey ] --------------
+
+        public RecordUpdateResult segmentWalkForKey(
+            RecordKey key,
+            ISortedSegment curseg,
+            ref RecordData record) {
+
+            HashSet<int> handledGenerations = new HashSet<int>();
+            return this.segmentWalkForKey(
+                key, curseg, handledGenerations, num_generations, ref record);
+        }
+
+        // ------------[ ** INTERNAL ** segmentWalkForKey ]-------
+        //
+        // This is the meaty internal function that does the "magic"
+        // of the segment walk.
+        
+        private RecordUpdateResult segmentWalkForKey(
+            RecordKey key,
+            ISortedSegment curseg,
+            HashSet<int> handledGenerations,
+            int maxgen,
+            ref RecordData record) {
+
+            // first look in this segment for the key
+            {
+                RecordUpdate update;
+                if (curseg.getRecordUpdate(key, out update) == GetStatus.PRESENT) {
+                    if (record.applyUpdate(update) == RecordUpdateResult.FINAL) {
+                        return RecordUpdateResult.FINAL;
+                    }
+                }
+            }
+
+            // make a note of which generation range references have precedence in this segment
+            HashSet<int> nextHandledGenerations = new HashSet<int>(handledGenerations);
+            for (int i = maxgen; i >= 0; i--) {
+                RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(Lsd.numberToLsd(i,GEN_LSD_PAD)).appendParsedKey("</>");
+                RecordUpdate update;  
+                // TODO: make a "getRecordExists()" call in ISortedSegment to make this more efficient
+                //  .. then make sure we use that optimization to avoid calling getRecordUpdate on those
+                //  .. entries in the next loop below.
+                if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
+                    nextHandledGenerations.Add(i);  // mark the generation handled at this level
+                }
+            }
+
+            // now repeat the walk of range references in this segment, this time actually descending
+            for (int i = maxgen; i >= 0; i--) {
+                RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(Lsd.numberToLsd(i,3)).appendParsedKey("</>");
+                RecordUpdate update;  
+                if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
+                    // TODO:unpack the update data when we change it to "<addr>:<length>"
+                    byte[] segmetadata_addr = update.data;
+                    
+                    // we now have a pointer to a segment addres for the gen pointer
+                    uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
+                                        
+                    IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
+                    SegmentReader sr = new SegmentReader(region.getStream());
+
+                    // RECURSE
+                    if (segmentWalkForKey(key,sr,nextHandledGenerations,maxgen-1,ref record) == RecordUpdateResult.FINAL) {
+                        return RecordUpdateResult.FINAL;
+                    }
+                }
+            }
+
+            return RecordUpdateResult.SUCCESS;
+        }
+
     }
 
 }
