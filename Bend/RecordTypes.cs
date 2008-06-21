@@ -29,7 +29,7 @@ namespace Bend
     {
         RecordKey key;
         RecordDataState state;
-        byte[] data;
+        public byte[] data;
         public RecordData(RecordDataState initialState, RecordKey key)
         {
             this.key = key;
@@ -140,7 +140,7 @@ namespace Bend
             return this;
         }
 
-        public void appendKeyParts(params object[] args) {
+        public RecordKey appendKeyParts(params object[] args) {
             foreach (object arg in args) {
                 if (arg.GetType() == typeof(String)) {
                     this.appendKeyPart((String)arg);
@@ -150,15 +150,18 @@ namespace Bend
                     throw new Exception("unknown argument type");
                 }
             }
+            return this;
         }
 
-        public void appendKeyPart(String part) {
+        public RecordKey appendKeyPart(String part) {
             key_parts.Add(part);
+            return this;
         }
-        public void appendKeyPart(byte[] data) {
+        public RecordKey appendKeyPart(byte[] data) {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String keystring = enc.GetString(data);
             key_parts.Add(keystring);
+            return this;
         }
 
 

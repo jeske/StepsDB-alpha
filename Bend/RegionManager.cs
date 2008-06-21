@@ -17,6 +17,7 @@ namespace Bend
     public interface IRegionManager
     {
         IRegion readRegionAddr(uint region_addr);
+        IRegion readRegionAddrNonExcl(uint region_addr);
         IRegion writeRegionAddr(uint region_addr);
         void disposeRegionAddr(uint region_addr);
     }
@@ -66,6 +67,9 @@ namespace Bend
             }
         }
        
+        public class RegionMissingException : Exception { 
+            public RegionMissingException(String msg) : base(msg) { }
+        }
         public RegionExposedFiles(String location) {
             this.dir_path = location;
         }
@@ -95,7 +99,19 @@ namespace Bend
                 FileStream reader = File.Open(filepath, FileMode.Open);
                 return new EFRegion(region_addr, reader.Length, reader);
             } else {
-                return new EFRegion(-1, 0, null);
+                throw new RegionMissingException("no such region address: " + region_addr);
+                
+            }
+        }
+
+        public IRegion readRegionAddrNonExcl(uint region_addr) {
+            String filepath = makeFilepath(region_addr);
+            if (File.Exists(filepath)) {
+                // open non-exclusive
+                FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read,FileShare.Read);
+                return new EFRegion(region_addr, reader.Length, reader);
+            } else {
+                throw new RegionMissingException("no such region address: " + region_addr);
             }
         }
         public IRegion writeRegionAddr(uint region_addr) {

@@ -72,15 +72,21 @@ namespace Bend
 
             // test to see if there is already a root record there
             {
-                Stream testrootblockstream = regionmgr.readRegionAddr(0).getStream();
-                if (testrootblockstream != null) {
+                try {
+                    Stream testrootblockstream = regionmgr.readRegionAddr(0).getStream();
+
                     RootBlock nroot = Util.readStruct<RootBlock>(testrootblockstream);
                     long rtblksz = testrootblockstream.Position;
                     if (nroot.IsValid()) {
                         // we should be careful not to override this...
                     }
                     testrootblockstream.Close();
-                } 
+
+                } catch (RegionExposedFiles.RegionMissingException) {
+                    
+                }
+                
+
 
             }
 

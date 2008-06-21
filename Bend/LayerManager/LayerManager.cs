@@ -59,6 +59,8 @@ namespace Bend
                 // get our log online...
                 logwriter = new LogWriter(InitMode.NEW_REGION, regionmgr);
 
+                // setup the initial numgenerations record
+                RangemapManager.Init(this);
                 // TODO: do something sane with initial freespace setup
             } else if (mode == InitMode.RESUME) {
                 regionmgr = new RegionExposedFiles(dir_path);
@@ -226,19 +228,22 @@ namespace Bend
 
             }
 
-            // re-read the segment and use it to replace the checkpoint segment
+            
             // TODO: make this atomic            
-            SegmentReader sr = new SegmentReader(reader.getStream());
-            segmentlayers.Insert(1, sr); // working segment is zero, so insert this after it
+            
+            // FIXME: don't do this anymore, because we are now rangemap walking!!
+              // re-read the segment and use it to replace the checkpoint segment            
+              // SegmentReader sr = new SegmentReader(reader.getStream());
+              // segmentlayers.Insert(1, sr); // working segment is zero, so insert this after it
+            reader.getStream().Close(); // force close the reader
+
             segmentlayers.Remove(checkpointSegment);
-            {
-                byte[] emptydata = new byte[0];
-            }
 
         }
 
         public GetStatus getRecord(RecordKey key, out RecordData record)
         {
+            RecordUpdate update;
             // we need to go through layers from newest to oldest. If we find a full record
             // or a deletion tombstone we can stop, otherwise we need to merge the
             // partial recordupdates we find.
@@ -246,19 +251,33 @@ namespace Bend
             record = new RecordData(RecordDataState.NOT_PROVIDED, key);
             GetStatus cur_status = GetStatus.MISSING;
 
-            foreach (ISortedSegment layer in segmentlayers)
-            {
-                RecordUpdate update;
-                if (layer.getRecordUpdate(key, out update) == GetStatus.PRESENT)
+            // start with a quick check of working segment(s) for the key
+            if (workingSegment.getRecordUpdate(key, out update) == GetStatus.PRESENT) {
+                cur_status = GetStatus.PRESENT;
+                if (record.applyUpdate(update) == RecordUpdateResult.FINAL) {
+                    return cur_status;
+                }
+            }
+            // if we're still here, we need to do a generation scan, start with the rangemap lookups
+            
+            if (workingSegment.getRecordUpdate(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"), 
+                out update) == GetStatus.MISSING) {
+                throw new Exception("missing NUMGENERATIONS record");
+            }
+            int numgen = (int)Lsd.lsdToNumber(update.data);
+
+            while (numgen-- > 0) {
+                ISortedSegment layer = this.rangemapmgr.getSegmentForKey(key, numgen);
+                if (layer != null && layer.getRecordUpdate(key, out update) == GetStatus.PRESENT)
                 {
                     cur_status = GetStatus.PRESENT;
                     if (record.applyUpdate(update) == RecordUpdateResult.FINAL)
                     {
-                        break; // we received a final update
+                        return cur_status; // we received a final update
                     }
                 }
+                layer.Dispose();
             }
-
             return cur_status;
         }
 

@@ -21,7 +21,7 @@ namespace Bend
         MISSING
     };
 
-    interface ISortedSegment : IDisposable
+    public interface ISortedSegment : IDisposable
     {
         GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update);
         IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk();
@@ -187,9 +187,9 @@ namespace Bend
             }
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
+
             foreach (_SegBlock block in blocks) {
                 // TODO: if the block is applicable to the scan
-                
                 ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(fs,block.datastart,block.dataend);
                 foreach(KeyValuePair<RecordKey,RecordUpdate> kvp in decoder.sortedWalk()) {
                     yield return kvp;

@@ -38,7 +38,8 @@ namespace Bend
             RecordData data;
             GetStatus status = db.getRecord(new RecordKey().appendParsedKey("test/3"), out data);
             System.Console.WriteLine("getRecord({0}) returned {1}", "test/3", data.ToString());
-
+            
+            Console.WriteLine("--- make lots of segments");
             db.setValueParsed("test/4", "d");
             db.flushWorkingSegment();
             db.setValueParsed("test/5", "e");

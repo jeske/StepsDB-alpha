@@ -22,12 +22,19 @@ namespace Bend
     // and so the table format can be read by the higher level table manager
     public class FreespaceManager
     {
-        int next_allocation = (int)(RootBlock.MAX_ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
+        int next_allocation;
         static int DEFAULT_SEGMENT_SIZE = 8 * 1024 * 1024;
         LayerManager store;
         public FreespaceManager(LayerManager store) {
             this.store = store;
-            // read the freelist and "index" into memory for now (TODO: fix this hack)
+            // read the freelist and "index" into memory for now (TODO: use a real freelist)
+            RecordData data;
+            if (store.getRecord(new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD"), out data) == GetStatus.MISSING) {
+                // TODO: fix this init hack
+                next_allocation = (int)(RootBlock.MAX_ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
+            } else {
+                next_allocation = (int)Lsd.lsdToNumber(data.data);
+            }
         }
 
         // right now we're going to use a "top of heap" allocation strategy with no reclamation
@@ -41,8 +48,7 @@ namespace Bend
 
             // write our new top of heap pointer
             {
-                RecordKey key = new RecordKey();
-                key.appendKeyParts(".ROOT", "FREELIST", "HEAD");
+                RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
                 tx.setValue(key, new RecordUpdate(RecordUpdateTypes.FULL, Lsd.numberToLsd(next_allocation, 10)));
             }
 

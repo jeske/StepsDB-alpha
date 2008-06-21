@@ -17,15 +17,27 @@ namespace Bend
 
         }
         [Test]
-        public void Test00EmptyLayerInitAndResume() {
+        public void Test000EmptyLayerInitAndResume() {
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\3");
 
             Assert.AreEqual(1, db.segmentlayers.Count);
             Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
-            Assert.AreEqual(0, db.workingSegment.RowCount);
+            Assert.AreEqual(1, db.workingSegment.RowCount); // expecting only the boostrap NUMGENERATIONS record
 
             // TEST: log is empty
             // TEST: freespace record established!
+        }
+
+        [Test]
+        public void Test001FullScanWithOnlyWorkingSegment() {
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\31");
+            db.setValueParsed("test/1", "a");
+            Assert.Fail("test not implemented");
+        }
+        
+        [Test]
+        public void Test002PartialScanWithOnlyWorkingSegment() {
+            Assert.Fail("test not implemented");
         }
 
         [Test]
@@ -49,7 +61,9 @@ namespace Bend
                 Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
 
                 // assure the working segment contains the right data
-                Assert.AreEqual(3, db.workingSegment.RowCount);
+                // 3 test records, and the NUMGENERATIONS record 
+                // TODO: make a more robust way to do this test (i.e. count non .ROOT records)
+                Assert.AreEqual(4, db.workingSegment.RowCount);
                 db.Dispose();
             }
 
@@ -61,7 +75,7 @@ namespace Bend
                 Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
 
                 // assure the working segment contains the right data
-                Assert.AreEqual(3, db.workingSegment.RowCount);
+                Assert.AreEqual(4, db.workingSegment.RowCount);
                 for (int i = 0; i < keys.Length; i++) {
                     RecordKey key = new RecordKey();
                     key.appendKeyPart(keys[i]);
@@ -103,17 +117,21 @@ namespace Bend
             txn.commit();
             db.flushWorkingSegment();
 
-            // assure we have an extra segment
-            Assert.AreEqual(2, db.segmentlayers.Count);
+            // assure that we checkpointed down to a single working segment
+            Assert.AreEqual(1, db.segmentlayers.Count, "segment layer count");
 
             // assure we allocated a new generation and gen0 range record (walk .ROOT range map)
             // TODO: move this test to RangemapManager, to remove this cross-dependency
             {
                 RecordData data;
-                Assert.AreEqual(GetStatus.PRESENT,
-                    db.getRecord(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"), out data),
-                    "missing numgenerations record");
+                RecordKey key = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
+                Assert.AreEqual(GetStatus.PRESENT,db.getRecord(key, out data),"missing numgenerations record");
                 Assert.AreEqual("1", data.ToString(),"generation count");
+
+                RecordUpdate update;
+                Assert.AreEqual(GetStatus.PRESENT,
+                    db.workingSegment.getRecordUpdate(key, out update), "missing workingsegment numgenerations record");
+                    Assert.AreEqual("1", update.ToString(), "generation count");  
             }
             {
                 RecordData data;
@@ -261,12 +279,11 @@ namespace Bend
             // ... and then perform a resume
             LayerManager db = new LayerManager(InitMode.RESUME, "c:\\test\\6");
 
-            // verify that it has the same data...
-            // now write the same keys again with different values into the working segment
-            {
-                String[] keys = { "test-1", "test-2", "test-3" };
-                String[] values = { "a-second", "b-second", "c-second" };
+            String[] keys = { "test-1", "test-2", "test-3" };
+            String[] values = { "a-second", "b-second", "c-second" };
 
+            // verify that it has the same data as before the RESUME
+            {
                 // working segment should be empty
                 for (int i = 0; i < keys.Length; i++) {
                     RecordKey key = new RecordKey();
@@ -274,7 +291,7 @@ namespace Bend
 
                     // look directly in the working segment, they should be MISSING
                     //   This is testing the checkpoint as well. If log resume didn't
-                    //   also checkpoint, then the values will be duplicated in the working segment.
+                    //   CHECKPOINT_DROP, then the values will be duplicated in the working segment.
                     {
                         RecordUpdate update;
                         GetStatus status =
@@ -291,9 +308,73 @@ namespace Bend
                     }
                 }
 
-                // TODO: how can this possibly succeed?!?!?!? We're not walking the rangeroot yet.
+                // now generate a BUNCH of new segments...
+                {
+                    String[] secondkeys = { "second-test-1", "second-test-2", "second-test-3" };
+                    String[] secondvalues = { "a-second", "b-second", "c-second" };
 
-                // now we should write some more data, close, restore
+                    // put each new record in its OWN segment
+                    for (int i = 0; i < secondkeys.Length; i++) {
+                        LayerManager.Txn txn = db.newTxn();
+                        txn.setValueParsed(keys[i], secondvalues[i]);
+                        txn.commit();
+                        db.flushWorkingSegment();
+                    }
+
+                    db.Dispose();
+
+                    // RESUME
+                    db = new LayerManager(InitMode.RESUME, "c:\\test\\6");
+
+                    // working set should not contain these records, first test records should still be visible
+                    for (int i = 0; i < keys.Length; i++) {
+                        RecordKey key = new RecordKey();
+                        key.appendKeyPart(keys[i]);
+
+                        // look directly in the working segment, they should be MISSING
+                        //   This is testing the checkpoint as well. If log resume didn't
+                        //   CHECKPOINT_DROP, then the values will be duplicated in the working segment.
+                        {
+                            RecordUpdate update;
+                            GetStatus status =
+                                db.workingSegment.getRecordUpdate(key, out update);
+                            Assert.AreEqual(GetStatus.MISSING, status, "working segment should be MISSING");
+                        }
+
+                        // assure the global query interface finds the NEW VALUES
+                        {
+                            RecordData data;
+                            GetStatus status = db.getRecord(key, out data);
+                            Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
+                            Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                        }
+                    }
+
+                    // verify that the secondkeys/values are still in there
+                    for (int i = 0; i < secondkeys.Length; i++) {
+                        RecordKey key = new RecordKey();
+                        key.appendKeyPart(secondkeys[i]);
+
+                        // look directly in the working segment, they should be MISSING
+                        //   This is testing the checkpoint as well. If log resume didn't
+                        //   CHECKPOINT_DROP, then the values will be duplicated in the working segment.
+                        {
+                            RecordUpdate update;
+                            GetStatus status =
+                                db.workingSegment.getRecordUpdate(key, out update);
+                            Assert.AreEqual(GetStatus.MISSING, status, "working segment should be MISSING");
+                        }
+
+                        // assure the global query interface finds the NEW VALUES
+                        {
+                            RecordData data;
+                            GetStatus status = db.getRecord(key, out data);
+                            Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
+                            Assert.AreEqual(secondvalues[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                        }
+                    }
+
+                }
             }
 
             Assert.Fail("test not done");
