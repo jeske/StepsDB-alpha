@@ -213,6 +213,22 @@ namespace Bend
             return cur_result;
         }
 
+        public bool isSubkeyOf(RecordKey potential_parent_key) {
+            // we are a subkey of the other key if they are shorter or equal length,
+            // and all their parts match our parts
+
+            if (potential_parent_key.key_parts.Count > this.key_parts.Count) {
+                return false; // they are longer, so we can't be a subkey
+            }
+
+            for (int pos = 0; pos < potential_parent_key.key_parts.Count; pos++) {
+                if (potential_parent_key.key_parts[pos] != this.key_parts[pos]) {
+                    return false; // one of their parts didn't match
+                }
+            }
+            return true; // all their parts matched, and they were shorter or equal, so we are a subkey
+        }
+
         public override bool Equals(object obj) {
             if (obj.GetType() != this.GetType()) {
                 return false;
