@@ -133,6 +133,13 @@ namespace Bend
 
         public RecordKey appendParsedKey(String keyToParse) {
             char[] delimiters = { DELIMITER };
+
+            if (keyToParse[keyToParse.Length - 1] == DELIMITER) {
+                throw new Exception(
+                    String.Format("appendParsedKey({0}) may not end in DELIMTER({1})",
+                    keyToParse, DELIMITER));
+            }
+
             String[] keystring_parts = keyToParse.Split(delimiters);
             foreach (String keypart in keystring_parts) {
                 this.appendKeyPart(keypart);

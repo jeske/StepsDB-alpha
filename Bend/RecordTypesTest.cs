@@ -150,8 +150,19 @@ namespace Bend
             Assert.AreEqual(-1, key1.CompareTo(key2));
 
         }
+        [Test]
+        public void Test07RecordKeyParsedEndInDelimiter() {
+            // ending a parsed key with the delimiter should be an error, it's just too 
+            // easily a source of bugs..
 
-
+            bool err = false;
+            try {
+                RecordKey key = new RecordKey().appendParsedKey("TEST/1" + new String(RecordKey.DELIMITER,1));
+            } catch {
+                err = true;
+            }
+            Assert.AreEqual(true, err, "ending a parsed key with the delimiter should throw an error");
+        }
     }
 
 }
