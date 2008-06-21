@@ -63,6 +63,7 @@ namespace Bend
 
         }
 
+        [Obsolete]
         public ISortedSegment getSegmentForKey(RecordKey key, int generation) {
             RecordUpdate update; 
 
@@ -84,6 +85,19 @@ namespace Bend
             SegmentReader sr = new SegmentReader(region.getStream());
             return sr;
         
+        }
+
+        public ISortedSegment getSegmentFromMetadata(RecordUpdate update) {
+            // TODO:unpack the update data when we change it to "<addr>:<length>"
+            byte[] segmetadata_addr = update.data;
+
+            // we now have a pointer to a segment addres for GEN<max>
+            uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
+
+
+            IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
+            SegmentReader sr = new SegmentReader(region.getStream());
+            return sr;
         }
 
         public int genCount() {
