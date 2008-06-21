@@ -21,7 +21,7 @@ namespace Bend
         MISSING
     };
 
-    interface ISortedSegment
+    interface ISortedSegment : IDisposable
     {
         GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update);
         IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk();
@@ -72,8 +72,13 @@ namespace Bend
 
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
             // TODO handle missing exception
-            update = items[key];
-            return GetStatus.PRESENT;
+            try {
+                update = items[key];
+                return GetStatus.PRESENT;
+            } catch (KeyNotFoundException) {
+                update = null;
+                return GetStatus.MISSING;
+            }
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -105,6 +110,10 @@ namespace Bend
             // write the fixed footer   
             byte[] indexlenbuf = BitConverter.GetBytes((int)indexlength);
             writer.Write(indexlenbuf, 0, indexlenbuf.Length);
+        }
+
+        public void Dispose() {
+            // pass
         }
     }
 
@@ -195,10 +204,10 @@ namespace Bend
 
     class SegmentReader : ISortedSegment
     {
-        FileStream fs;
+        Stream fs;
         SortedSegmentIndex index;
 
-        public SegmentReader(FileStream _fs) {
+        public SegmentReader(Stream _fs) {
             fs = _fs;
             
             // read the footer index size
@@ -217,13 +226,23 @@ namespace Bend
         }
 
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
-            // need to scan for the key
-            update = new RecordUpdate(RecordUpdateTypes.FULL, "");
-            return GetStatus.PRESENT;
+            // TODO: need to BINARY SEARCH!!!! for the key
+            foreach (KeyValuePair<RecordKey,RecordUpdate> kvp in this.sortedWalk()) {
+                if (kvp.Key.Equals(key)) {
+                    update = kvp.Value;
+                    return GetStatus.PRESENT;
+                }
+            }
+            update = new RecordUpdate(RecordUpdateTypes.NONE, "");
+            return GetStatus.MISSING;
 
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
             return index.sortedWalk();
+        }
+
+        public void Dispose() {
+            if (fs != null) { fs.Close(); fs = null; }
         }
     }
 

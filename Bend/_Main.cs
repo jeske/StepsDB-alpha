@@ -23,18 +23,33 @@ namespace Bend
         {
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\test\\main");
-            
-
-            db.setValue("test/3","a");
-            db.setValue("test/2","b");
-            db.setValue("test/1","c");
+         
+            db.setValueParsed("test/3","a");
+            db.setValueParsed("test/2","b");
+            db.setValueParsed("test/1","c");
             db.debugDump();
 
             db.flushWorkingSegment();    // this will flush and read the current segment
-
-
             Console.WriteLine("--- after flush");
+            db.debugDump();
 
+
+            Console.WriteLine("--- check record read");
+            RecordData data;
+            GetStatus status = db.getRecord(new RecordKey().appendParsedKey("test/3"), out data);
+            System.Console.WriteLine("getRecord({0}) returned {1}", "test/3", data.ToString());
+
+            db.setValueParsed("test/4", "d");
+            db.flushWorkingSegment();
+            db.setValueParsed("test/5", "e");
+            db.flushWorkingSegment();
+            db.setValueParsed("test/6", "f");
+            db.flushWorkingSegment();
+            db.debugDump();
+            db.Dispose();
+
+            System.Console.WriteLine("-------- NOW RESUME ---------------------------------");
+            db = new LayerManager(InitMode.RESUME, "c:\\test\\main");
             db.debugDump();
 
             Console.WriteLine("press any key...");

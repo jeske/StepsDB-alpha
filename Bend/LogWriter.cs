@@ -70,12 +70,9 @@ namespace Bend
                 throw new Exception("init method must be called with NEW_REGION init");
             }
 
-            // TODO: establish the size of the region
-            int regionsize = 20 * 1024 * 1024;
-
             // test to see if there is already a root record there
             {
-                Stream testrootblockstream = regionmgr.readRegionAddr(0);
+                Stream testrootblockstream = regionmgr.readRegionAddr(0).getStream();
                 if (testrootblockstream != null) {
                     RootBlock nroot = Util.readStruct<RootBlock>(testrootblockstream);
                     long rtblksz = testrootblockstream.Position;
@@ -93,11 +90,9 @@ namespace Bend
             root.logsize = LogWriter.DEFAULT_LOG_SIZE;
             root.loghead = 0;
             root.root_checksum = 0;
-            Stream rootblockwritestream = regionmgr.writeRegionAddr(0);
-            Stream logwritestream = regionmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE);
+            Stream rootblockwritestream = regionmgr.writeRegionAddr(0).getStream();
+            Stream logwritestream = regionmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
 
-
-            this.root = root;
             this.logstream = logwritestream;
             this.rootblockstream = rootblockwritestream;
 
@@ -124,12 +119,12 @@ namespace Bend
             if (mode != InitMode.RESUME)  {
                 throw new Exception("init method must be called with RESUME init");
             }
-            this.rootblockstream = regionmgr.readRegionAddr(0);
+            this.rootblockstream = regionmgr.readRegionAddr(0).getStream();
             root = Util.readStruct<RootBlock>(rootblockstream);
             if (!root.IsValid()) {
                 throw new Exception("invalid root block");
             }
-            this.logstream = regionmgr.readRegionAddr(root.logstart);
+            this.logstream = regionmgr.readRegionAddr(root.logstart).getStream();
             recoverLog();
         }
 

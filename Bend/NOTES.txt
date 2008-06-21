@@ -1,0 +1,9 @@
+﻿
+
+
+Visual Studio
+
+Custom Tools
+
+http://www.codeproject.com/KB/dotnet/Custom_Tool_Registration.aspx
+http://msdn.microsoft.com/en-us/library/aa301694(VS.71).aspx

@@ -1,13 +1,10 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
-using NUnit.Framework;
 
 namespace Bend
 {
@@ -26,29 +23,32 @@ namespace Bend
         FINAL
 
     }
-    class RecordData
+
+    //-----------------------------------[ RecordData ]------------------------------------
+    public class RecordData
     {
         RecordKey key;
         RecordDataState state;
-        String data;
-        public RecordData(RecordDataState initialState, RecordKey key, String data)
+        byte[] data;
+        public RecordData(RecordDataState initialState, RecordKey key)
         {
             this.key = key;
             this.state = initialState;
-            this.data = data;
+            this.data = new byte[0];
         }
-        public RecordData(RecordDataState initialState, RecordKey key) :
-            this(initialState, key, null) { }
 
         public RecordUpdateResult applyUpdate(RecordUpdate update)
         {
+            if (state == RecordDataState.FULL) {
+                throw new Exception("applyUpdate() called on fully populated record!");
+            }
             switch (update.type)
             {
                 case RecordUpdateTypes.DELETION_TOMBSTONE:
                     return RecordUpdateResult.FINAL;
                 case RecordUpdateTypes.FULL:
                     this.state = RecordDataState.FULL;
-                    this.data = update.ToString();
+                    this.data = update.data;
                     return RecordUpdateResult.FINAL;
                 case RecordUpdateTypes.NONE:
                     return RecordUpdateResult.SUCCESS;
@@ -60,9 +60,14 @@ namespace Bend
             }
         }
 
-        public override String ToString()
+        public override String ToString() {
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            return enc.GetString(data);
+        }
+
+        public String DebugToString()
         {
-            return "RD(" + this.data + ")";
+            return "RD(" + this.ToString() + ")";
         }
     }
 
@@ -73,6 +78,8 @@ namespace Bend
         FULL,
         NONE
     }
+    //-----------------------------------[ RecordUpdate ]------------------------------------
+
     public class RecordUpdate
     {
         public RecordUpdateTypes type;
@@ -113,7 +120,7 @@ namespace Bend
     public class RecordKey : IComparable<RecordKey>
     {
         List<String> key_parts;
-        public static char DELIMITER = ':';
+        public static char DELIMITER = '/';
         
         public RecordKey()
         {
@@ -122,6 +129,15 @@ namespace Bend
         public RecordKey(byte[] data)
             : this() {
             decode(data);
+        }
+
+        public RecordKey appendParsedKey(String keyToParse) {
+            char[] delimiters = { DELIMITER };
+            String[] keystring_parts = keyToParse.Split(delimiters);
+            foreach (String keypart in keystring_parts) {
+                this.appendKeyPart(keypart);
+            }
+            return this;
         }
 
         public void appendKeyParts(params object[] args) {
@@ -187,22 +203,21 @@ namespace Bend
             return cur_result;
         }
 
+        public override bool Equals(object obj) {
+            if (obj.GetType() != this.GetType()) {
+                return false;
+            }
+            RecordKey okey = (RecordKey)obj;
+            return this.CompareTo(okey) == 0;
+        }
+
         public string DebugToString()
         {
-            String srep = "K(";
-            foreach (String part in key_parts)
-            {
-                srep += part + DELIMITER;
-            }
-            return srep + ")";
+            return "K(" + this.ToString() + ")";
         }
 
         public override string ToString() {
-            String srep = "";
-            foreach (String part in key_parts) {
-                srep += part + DELIMITER;
-            }
-            return srep;
+            return String.Join(new String(DELIMITER, 1), key_parts.ToArray());
         }
 
 
@@ -228,79 +243,6 @@ namespace Bend
             byte[] data = enc.GetBytes(srep);
             return data;
         }
-    }
-
-
-    [TestFixture]
-    public class TestRecordClasses
-    {
-        [Test]
-        public void Test01RecordKey() {
-            String[] parts1 = { "test", "test2", "blah" };
-            
-            RecordKey key = new RecordKey();
-            key.appendKeyParts(parts1);
-            byte[] data = key.encode();
-
-            // decode
-            RecordKey key2 = new RecordKey(data);
-
-            // verify tostring matches
-            Assert.AreEqual(key.ToString(),key2.ToString());
-
-            // verify comparison
-            Assert.AreEqual(0, key.CompareTo(key2));
-
-            // verify individual parts            
-        }
-        [Test]
-        public void Test02RecordSort() {
-            String[] parts1 = { "test", "test2", "blah" };
-            String[] parts2 = { "test", "test3", "blah" }; // > parts 1
-            String[] parts3 = { "test", "test2a", "blah" }; // > parts 1 (testing per-segment sorting order!)
-
-            RecordKey key1 = new RecordKey();
-            key1.appendKeyParts(parts1);
-
-            RecordKey key2 = new RecordKey();
-            key2.appendKeyParts(parts2);
-
-            RecordKey key3 = new RecordKey();
-            key3.appendKeyParts(parts3);
-
-            // key2 > key1
-            Assert.AreEqual(1,key2.CompareTo(key1));
-            Assert.AreEqual(-1,key1.CompareTo(key2));
-
-            // key3 > key1
-            Assert.AreEqual(1,key3.CompareTo(key1));
-            Assert.AreEqual(-1, key1.CompareTo(key3));
-
-        }
-
-        [Test]
-        public void Test03RecordKeyDelimiterEscape() {
-            string DELIM = new String(RecordKey.DELIMITER, 1);  
-            
-
-            RecordKey key1 = new RecordKey();
-            key1.appendKeyParts("1", "2", "3");
-            Assert.AreEqual(3, key1.numParts());
-            RecordKey dkey1 = new RecordKey(key1.encode());
-            Assert.AreEqual(3, dkey1.numParts(),"dkey1 delimiter decode");
-
-            RecordKey key2 = new RecordKey();
-            key2.appendKeyPart("1" + DELIM + "2" + DELIM + "3");
-            Assert.AreEqual(1, key2.numParts());
-            RecordKey dkey2 = new RecordKey(key2.encode());
-            Assert.AreEqual(1, dkey2.numParts(),"dkey2 delimiter decode");
-
-            // key2 > key1
-            Assert.AreEqual(1, key2.CompareTo(key1));
-            Assert.AreEqual(-1, key1.CompareTo(key2));
-
-        }
-
     }
 
 

@@ -63,19 +63,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="RecordTypesTest.cs" />
+    <Compile Include="Segment\SortedSegmentTest.cs" />
     <Compile Include="LogWriterTest.cs" />
     <Compile Include="LogWriter.cs" />
     <Compile Include="RegionManager.cs" />
-    <Compile Include="SegmentBlockBasicTest.cs" />
+    <Compile Include="RootMetadata\FreespaceManager.cs" />
+    <Compile Include="RootMetadata\RangemapManager.cs" />
+    <Compile Include="Segment\SegmentBlockBasicTest.cs" />
     <Compile Include="Util\Checksum.cs" />
     <Compile Include="Util\FastScan.cs" />
     <Compile Include="Util\BinStruct.cs" />
-    <Compile Include="SegmentBlockBasic.cs" />
-    <Compile Include="SortedSegment.cs" />
+    <Compile Include="Segment\SegmentBlockBasic.cs" />
+    <Compile Include="Segment\SortedSegment.cs" />
     <Compile Include="RecordTypes.cs" />
-    <Compile Include="LayerManager.cs" />
+    <Compile Include="LayerManager\LayerManager.cs" />
     <Compile Include="Util\GenericWeakReference.cs" />
-    <Compile Include="LayerManagerTest.cs" />
+    <Compile Include="LayerManager\LayerManagerTest.cs" />
     <Compile Include="Util\NumberFormat.cs" />
     <Compile Include="_Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -101,6 +105,9 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="NOTES.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
