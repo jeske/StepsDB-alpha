@@ -251,7 +251,8 @@ namespace Bend
             }
         }
 
-        public GetStatus getRecordOLD(RecordKey key, out RecordData record)
+        [Obsolete]
+        public GetStatus getRecordZZ(RecordKey key, out RecordData record)
         {
             RecordUpdate update;
             // we need to go through layers from newest to oldest. If we find a full record
@@ -305,12 +306,29 @@ namespace Bend
 
         public void debugDump()
         {
-            foreach (ISortedSegment layer in segmentlayers)
-            {
-                Console.WriteLine("--- Layer");
-                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in layer.sortedWalk())
-                {
-                    Console.WriteLine("  " + kvp.Key + " : " + kvp.Value);
+            
+            foreach (ISortedSegment layer in segmentlayers) {
+                Console.WriteLine("--- Memory Layer : " + layer.GetHashCode());
+                debugDump(layer, "  ");
+            }
+        }
+        private void debugDump(ISortedSegment seg, String indent) {
+
+            // first, print all our keys
+            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
+                Console.WriteLine(indent + kvp.Key + " : " + kvp.Value);
+            }
+
+            // second, walk the rangemap
+            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
+                // see if this is a range key (i.e.   .ROOT/GEN/###/</>   )
+                // .. if so, recurse
+
+                RecordKey key = new RecordKey().appendParsedKey(".ROOT/GEN");
+                if (kvp.Key.isSubkeyOf(key)) {
+                    Console.WriteLine("--- Layer for Keys: " + kvp.Key.ToString());
+                    ISortedSegment newseg = rangemapmgr.getSegmentFromMetadata(kvp.Value);
+                    debugDump(newseg, indent + " ");
                 }
             }
 
