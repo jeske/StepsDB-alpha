@@ -81,6 +81,7 @@
     <Compile Include="Util\GenericWeakReference.cs" />
     <Compile Include="LayerManager\LayerManagerTest.cs" />
     <Compile Include="Util\NumberFormat.cs" />
+    <Compile Include="Util\SortedMergeExtension.cs" />
     <Compile Include="_Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
