@@ -12,10 +12,11 @@ namespace Bend
     [TestFixture]
     public class LayerManagerTests : LayerManager
     {
-        public LayerManagerTests() {
-
-
+        [SetUp]
+        public void TestSetup() {
+            System.GC.Collect(); // cause full collection to try and dispose/free filehandles
         }
+
         [Test]
         public void Test000EmptyLayerInitAndResume() {
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\3");
@@ -169,6 +170,8 @@ namespace Bend
 
         [Test]
         public void Test03SegmentLayerGetRecordApplicationOrder() {
+            // Assure that when records are written more than once, the updates are applied in the correct
+            // order so we see the proper current data value
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\6");
 
@@ -273,6 +276,8 @@ namespace Bend
         
         [Test]
         public void Test04SingleSegmentRootMetadataLogRecovery() {
+            // TEST: test multiple segments flushed, and "log resumed"  (walk .ROOT range map)
+            
             // perform the previous test
             Test03SegmentLayerGetRecordApplicationOrder();
 
@@ -316,7 +321,7 @@ namespace Bend
                     // put each new record in its OWN segment
                     for (int i = 0; i < secondkeys.Length; i++) {
                         LayerManager.Txn txn = db.newTxn();
-                        txn.setValueParsed(keys[i], secondvalues[i]);
+                        txn.setValueParsed(secondkeys[i], secondvalues[i]);
                         txn.commit();
                         db.flushWorkingSegment();
                     }
@@ -326,7 +331,7 @@ namespace Bend
                     // RESUME
                     db = new LayerManager(InitMode.RESUME, "c:\\test\\6");
 
-                    // working set should not contain these records, first test records should still be visible
+                    // first test records should still be visible
                     for (int i = 0; i < keys.Length; i++) {
                         RecordKey key = new RecordKey();
                         key.appendKeyPart(keys[i]);
@@ -349,7 +354,7 @@ namespace Bend
                             Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
                         }
                     }
-
+                    db.debugDump();
                     // verify that the secondkeys/values are still in there
                     for (int i = 0; i < secondkeys.Length; i++) {
                         RecordKey key = new RecordKey();
@@ -369,18 +374,18 @@ namespace Bend
                         {
                             RecordData data;
                             GetStatus status = db.getRecord(key, out data);
-                            Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
+                            Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES, where is: " + key);
                             Assert.AreEqual(secondvalues[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
                         }
                     }
-
+                   
                 }
+                db.Dispose();
             }
-
-            Assert.Fail("test not done");
         }
 
-       // TEST: test multiple segments flushed, and "log resumed"  (walk .ROOT range map)
+       // TEST: that our record-get will see data in ALL in-memory segments (currently broken)
+
        // TEST: Tombstones
 
        // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity

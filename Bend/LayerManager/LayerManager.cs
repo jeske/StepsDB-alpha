@@ -238,70 +238,20 @@ namespace Bend
             reader.getStream().Close(); // force close the reader
 
             segmentlayers.Remove(checkpointSegment);
-
         }
 
         public GetStatus getRecord(RecordKey key, out RecordData record) {
             record = new RecordData(RecordDataState.NOT_PROVIDED, key);
+
+            // TODO: fix this so that there is a transparent merging of the in-memory workingSegments!!
+            //    currently this will miss records if we allow another thread to do a get during the
+            //    period where we're writing out a new segment (and there are multiple workingsegments in segmentlayers)
 
             if (rangemapmgr.segmentWalkForKey(key, workingSegment, ref record) == RecordUpdateResult.FINAL) {
                 return GetStatus.PRESENT;
             } else {
                 return GetStatus.MISSING;
             }
-        }
-
-        [Obsolete]
-        public GetStatus getRecordZZ(RecordKey key, out RecordData record)
-        {
-            RecordUpdate update;
-            // we need to go through layers from newest to oldest. If we find a full record
-            // or a deletion tombstone we can stop, otherwise we need to merge the
-            // partial recordupdates we find.
-
-            record = new RecordData(RecordDataState.NOT_PROVIDED, key);
-            GetStatus cur_status = GetStatus.MISSING;
-
-            // start with a quick check of working segment for the key
-            // TODO: check all in-memory segments
-            if (workingSegment.getRecordUpdate(key, out update) == GetStatus.PRESENT) {
-                cur_status = GetStatus.PRESENT;
-                if (record.applyUpdate(update) == RecordUpdateResult.FINAL) {
-                    return cur_status;
-                }
-            }
-            // if we're still here, we need to do a generation scan, start with the rangemap lookups
-            
-            if (workingSegment.getRecordUpdate(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"), 
-                out update) == GetStatus.MISSING) {
-                throw new Exception("missing NUMGENERATIONS record");
-            }
-            int numgen = (int)Lsd.lsdToNumber(update.data);
-
-            // find all (relevant) occurances of our record in decreasing generation order
-            //   - in order to do this, we first need to find the specific segments which
-            //     contain our records. This means finding the following records. 
-            //          .ROOT/GEN/<maxgen>/<key> -> metadata
-            //          .ROOT/GEN/001/<key>
-            //          .ROOT/GEN/000/<key>
-            //     These records form a "tree" of pointers from newest to oldest segments.
-            //     ( see FindSegments() ) 
-
-
-            while (numgen-- > 0) {
-
-                ISortedSegment layer = this.rangemapmgr.getSegmentForKey(key, numgen);
-                if (layer != null && layer.getRecordUpdate(key, out update) == GetStatus.PRESENT)
-                {
-                    cur_status = GetStatus.PRESENT;
-                    if (record.applyUpdate(update) == RecordUpdateResult.FINAL)
-                    {
-                        return cur_status; // we received a final update
-                    }
-                }
-                layer.Dispose();
-            }
-            return cur_status;
         }
 
         public void debugDump()
