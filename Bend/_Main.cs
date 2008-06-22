@@ -48,6 +48,10 @@ namespace Bend
             db = new LayerManager(InitMode.RESUME, "c:\\test\\main");
             db.debugDump();
 
+            System.Console.WriteLine("-------- NOW MERGE ---------------------------------");
+            db.mergeAllSegments();
+            db.debugDump();
+
             Console.WriteLine("press any key...");
             Console.ReadKey();
         }

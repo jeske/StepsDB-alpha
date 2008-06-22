@@ -251,23 +251,23 @@ namespace Bend
                 return;
             }
             
-            RecordKey[] keys = new RecordKey[gen_count];
-            RecordData[] rangemeta = new RecordData[gen_count];
+            RecordKey[] sourcesegkeys = new RecordKey[gen_count];
+            RecordData[] sourcesegmeta = new RecordData[gen_count];
             
             IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> chain = null;
 
             for (int i = 0; i < gen_count; i++) {
-                keys[i] = new RecordKey()
+                sourcesegkeys[i] = new RecordKey()
                     .appendParsedKey(".ROOT/GEN")
                     .appendKeyPart(Lsd.numberToLsd(i, 3))
                     .appendParsedKey("</>");
 
-                if (this.getRecord(keys[i], out rangemeta[i]) == GetStatus.MISSING) {
-                    throw new Exception("couldn't get segment range record for key: " + keys[i]);
+                if (this.getRecord(sourcesegkeys[i], out sourcesegmeta[i]) == GetStatus.MISSING) {
+                    throw new Exception("couldn't get segment range record for key: " + sourcesegkeys[i]);
                 }
 
                 IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> nextchain = 
-                    rangemapmgr.getSegmentFromMetadata(rangemeta[i]).sortedWalk();
+                    rangemapmgr.getSegmentFromMetadata(sourcesegmeta[i]).sortedWalk();
                 if (chain == null) {
                     chain = nextchain;
                 } else {
@@ -282,7 +282,8 @@ namespace Bend
                 IRegion writer = freespacemgr.allocateNewSegment(tx, -1);
                 
                 // merge the segments into the output stream, and flush                
-                // TODO: MERGE!!
+                SegmentWriter segWriter = new SegmentWriter(chain);
+                segWriter.writeToStream(writer.getStream());
                 writer.getStream().Flush();
                 writer.getStream().Close();
 
@@ -292,7 +293,11 @@ namespace Bend
                 IRegion reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
 
                 rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
-                // delete the previous rangemap records!
+                // TODO: delete the previous rangemap records!
+                foreach (RecordKey oldsegkey in sourcesegkeys) {
+                    this.setValue(oldsegkey, RecordUpdate.DeletionTombstone());
+                    // TODO regionmgr.disposeRegionAddr
+                }
                 tx.commit();                             // commit the freespace and rangemap transaction
                 
                 reader.getStream().Close();  // forceclose the reader
@@ -316,17 +321,26 @@ namespace Bend
 
         public void debugDump()
         {
-            
+                
             foreach (ISortedSegment layer in segmentlayers) {
                 Console.WriteLine("--- Memory Layer : " + layer.GetHashCode());
-                debugDump(layer, "  ");
+                debugDump(layer, "  ", new HashSet<string>());
             }
         }
-        private void debugDump(ISortedSegment seg, String indent) {
+
+
+        private void debugDump(ISortedSegment seg, String indent, HashSet<string> seenGenerations) {
+            HashSet<string> nextSeenGenerations = new HashSet<string>(seenGenerations);
+            RecordKey genkey = new RecordKey().appendParsedKey(".ROOT/GEN");
 
             // first, print all our keys
             foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
                 Console.WriteLine(indent + kvp.Key + " : " + kvp.Value);
+                
+                if (kvp.Key.isSubkeyOf(genkey)) {
+                    nextSeenGenerations.Add(kvp.Key.ToString());
+                }
+                
             }
 
             // second, walk the rangemap
@@ -334,11 +348,14 @@ namespace Bend
                 // see if this is a range key (i.e.   .ROOT/GEN/###/</>   )
                 // .. if so, recurse
 
-                RecordKey key = new RecordKey().appendParsedKey(".ROOT/GEN");
-                if (kvp.Key.isSubkeyOf(key)) {
-                    Console.WriteLine("--- Layer for Keys: " + kvp.Key.ToString());
-                    ISortedSegment newseg = rangemapmgr.getSegmentFromMetadata(kvp.Value);
-                    debugDump(newseg, indent + " ");
+                if (kvp.Key.isSubkeyOf(genkey) && kvp.Value.type == RecordUpdateTypes.FULL) {
+                    if (seenGenerations.Contains(kvp.Key.ToString())) {
+                        Console.WriteLine("--- Skipping Tombstoned layer for Key " + kvp.Key.ToString());
+                    } else {
+                        Console.WriteLine("--- Layer for Keys: " + kvp.Key.ToString());
+                        ISortedSegment newseg = rangemapmgr.getSegmentFromMetadata(kvp.Value);
+                        debugDump(newseg, indent + " ",nextSeenGenerations);
+                    }
                 }
             }
 

@@ -137,6 +137,9 @@ namespace Bend
         {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String keystring = enc.GetString(data);
+            if (type != RecordUpdateTypes.FULL) {
+                keystring = keystring + " [" + type.ToString() + "]";
+            }
             return keystring;
         }
 
