@@ -13,13 +13,14 @@ namespace Bend
     {
         [Test]
         public void TestBuilderReader() {
-            SegmentBuilder builder = new SegmentBuilder();
+            SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
             builder.setRecord(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("3"));
 
             MemoryStream ms = new MemoryStream();
 
-            builder.writeToStream(ms);
+            SegmentWriter segmentWriter = new SegmentWriter(builder.sortedWalk());
+            segmentWriter.writeToStream(ms);
 
             // rewind
             ms.Seek(0, SeekOrigin.Begin);

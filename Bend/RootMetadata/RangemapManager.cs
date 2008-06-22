@@ -62,9 +62,9 @@ namespace Bend
             tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
         }
 
-        public ISortedSegment getSegmentFromMetadata(RecordUpdate update) {
+        private ISortedSegment getSegmentFromMetadataBytes(byte[] data) {
             // TODO:unpack the update data when we change it to "<addr>:<length>"
-            byte[] segmetadata_addr = update.data;
+            byte[] segmetadata_addr = data;
 
             // we now have a pointer to a segment addres for GEN<max>
             uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
@@ -73,6 +73,15 @@ namespace Bend
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
             SegmentReader sr = new SegmentReader(region.getStream());
             return sr;
+
+        }
+
+        public ISortedSegment getSegmentFromMetadata(RecordData data) {
+            return getSegmentFromMetadataBytes(data.data);
+        }
+
+        public ISortedSegment getSegmentFromMetadata(RecordUpdate update) {
+            return getSegmentFromMetadataBytes(update.data);
         }
 
         public int genCount() {

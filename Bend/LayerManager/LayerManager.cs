@@ -25,8 +25,8 @@ namespace Bend
 
     public class LayerManager : IDisposable
     {
-        internal List<SegmentBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
-        internal SegmentBuilder workingSegment;
+        internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
+        internal SegmentMemoryBuilder workingSegment;
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
         internal List<WeakReference<Txn>> pending_txns;
@@ -41,8 +41,8 @@ namespace Bend
         public LayerManager() {
             pending_txns = new List<WeakReference<Txn>>();
 
-            segmentlayers = new List<SegmentBuilder>();   // a list of segment layers, newest to oldest
-            workingSegment = new SegmentBuilder();
+            segmentlayers = new List<SegmentMemoryBuilder>();   // a list of segment layers, newest to oldest
+            workingSegment = new SegmentMemoryBuilder();
             segmentlayers.Add(workingSegment);
             
         }
@@ -79,7 +79,7 @@ namespace Bend
         public struct Receiver : ILogReceiver
         {
             LayerManager mylayer;
-            SegmentBuilder checkpointSegment;
+            SegmentMemoryBuilder checkpointSegment;
             public Receiver(LayerManager mylayer) {
                 this.mylayer = mylayer;
                 checkpointSegment = null;
@@ -96,7 +96,7 @@ namespace Bend
                 } else if (cmd == (byte)LogCommands.CHECKPOINT) {
                     // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
                     checkpointSegment = mylayer.workingSegment;
-                    mylayer.workingSegment = new SegmentBuilder();
+                    mylayer.workingSegment = new SegmentMemoryBuilder();
                     mylayer.segmentlayers.Insert(0, mylayer.workingSegment);
                 } else if (cmd == (byte)LogCommands.CHECKPOINT_DROP) {
                     // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
@@ -195,8 +195,8 @@ namespace Bend
 
         public void flushWorkingSegment() {
             // create a new working segment
-            SegmentBuilder checkpointSegment = workingSegment;
-            workingSegment = new SegmentBuilder();
+            SegmentMemoryBuilder checkpointSegment = workingSegment;
+            workingSegment = new SegmentMemoryBuilder();
             segmentlayers.Insert(0, workingSegment);
             {
                 byte[] emptydata = new byte[0];
@@ -210,7 +210,10 @@ namespace Bend
                 IRegion writer = freespacemgr.allocateNewSegment(tx, -1);
 
                 // write the checkpoint segment and flush
-                checkpointSegment.writeToStream(writer.getStream());
+                // TODO: make this happen in the background!!
+                SegmentWriter segmentWriter = new SegmentWriter(checkpointSegment.sortedWalk());
+                segmentWriter.writeToStream(writer.getStream());
+                writer.getStream().Flush();
                 writer.getStream().Close();
 
                 // reopen that segment for reading
@@ -228,7 +231,6 @@ namespace Bend
 
             }
 
-            
             // TODO: make this atomic            
             
             // FIXME: don't do this anymore, because we are now rangemap walking!!
@@ -238,6 +240,64 @@ namespace Bend
             reader.getStream().Close(); // force close the reader
 
             segmentlayers.Remove(checkpointSegment);
+        }
+
+        public void mergeAllSegments() {
+            // get a handle to all the segments we wish to merge
+            int gen_count = rangemapmgr.genCount();
+
+            if (gen_count < 1) {
+                // nothing to even reprocess
+                return;
+            }
+            
+            RecordKey[] keys = new RecordKey[gen_count];
+            RecordData[] rangemeta = new RecordData[gen_count];
+            
+            IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> chain = null;
+
+            for (int i = 0; i < gen_count; i++) {
+                keys[i] = new RecordKey()
+                    .appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(Lsd.numberToLsd(i, 3))
+                    .appendParsedKey("</>");
+
+                if (this.getRecord(keys[i], out rangemeta[i]) == GetStatus.MISSING) {
+                    throw new Exception("couldn't get segment range record for key: " + keys[i]);
+                }
+
+                IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> nextchain = 
+                    rangemapmgr.getSegmentFromMetadata(rangemeta[i]).sortedWalk();
+                if (chain == null) {
+                    chain = nextchain;
+                } else {
+                    chain = SortedMergeExtension.MergeSort(chain, nextchain);
+                }
+            }
+
+            // now perform the merge!!
+            {
+                Txn tx = new Txn(this);
+                // allocate new segment address from freespace
+                IRegion writer = freespacemgr.allocateNewSegment(tx, -1);
+                
+                // merge the segments into the output stream, and flush                
+                // TODO: MERGE!!
+                writer.getStream().Flush();
+                writer.getStream().Close();
+
+                // reopen that segment for reading
+                // TODO: figure out how much data we wrote exactly, adjust the freespace, and 
+                //       'truncate' the segment, then pass that length to the reader instantiation
+                IRegion reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
+
+                rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
+                // delete the previous rangemap records!
+                tx.commit();                             // commit the freespace and rangemap transaction
+                
+                reader.getStream().Close();  // forceclose the reader
+            }
+
         }
 
         public GetStatus getRecord(RecordKey key, out RecordData record) {

@@ -13,7 +13,7 @@ namespace Bend
     {
         public static IEnumerable<KeyValuePair<K, V>> MergeSort<K, V>(
             this IEnumerable<KeyValuePair<K, V>> one,
-            IEnumerable<KeyValuePair<K, V>> two) where K : IComparable {
+            IEnumerable<KeyValuePair<K, V>> two) where K : IComparable<K> {
 
             IEnumerator<KeyValuePair<K, V>> oneenum = one.GetEnumerator();
             IEnumerator<KeyValuePair<K, V>> twoenum = two.GetEnumerator();

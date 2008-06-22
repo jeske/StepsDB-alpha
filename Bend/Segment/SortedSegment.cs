@@ -45,7 +45,7 @@ namespace Bend
 
 
 
-    class SegmentBuilder : ISortedSegment
+    class SegmentMemoryBuilder : ISortedSegment
     {
         // sortedlist perf: http://www.codeproject.com/KB/recipes/SplitArrayDictionary.aspx
         SortedList<RecordKey, RecordUpdate> items;
@@ -53,7 +53,7 @@ namespace Bend
         // int approx_size = 0;
         // int num_deletions = 0;
 
-        public SegmentBuilder() {
+        public SegmentMemoryBuilder() {
             items = new SortedList<RecordKey, RecordUpdate>();
         }
 
@@ -83,33 +83,6 @@ namespace Bend
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
             return items;
-        }
-
-        public void writeToStream(Stream writer) {
-            SortedSegmentIndex index = new SortedSegmentIndex();
-
-            // start with the simple case of a "single basic datablock" for the whole segment
-            ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
-            encoder.setStream(writer);
-            long startpos = writer.Position;
-            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in sortedWalk()) {
-                encoder.add(kvp.Key, kvp.Value);
-            }
-            encoder.flush();
-            long endpos = writer.Position;
-
-            // add the single index entry
-            index.addBlock(encoder, startpos, endpos);
-
-            // write the index data
-            long indexstartpos = writer.Position;
-            index.writeToStream(writer);
-            long indexendpos = writer.Position;
-            int indexlength = (int)(indexendpos - indexstartpos);
-
-            // write the fixed footer   
-            byte[] indexlenbuf = BitConverter.GetBytes((int)indexlength);
-            writer.Write(indexlenbuf, 0, indexlenbuf.Length);
         }
 
         public void Dispose() {
@@ -201,7 +174,6 @@ namespace Bend
 
     // ---------------[ SegmentReader ]---------------------------------------------------------
 
-
     class SegmentReader : ISortedSegment
     {
         Stream fs;
@@ -246,5 +218,44 @@ namespace Bend
         }
     }
 
+    // ---------------------------[  SegmentWriter  ]--------------------------------
+
+    class SegmentWriter
+    {
+        IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> enumeration;
+        
+        public SegmentWriter(IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> enumeration) {
+            this.enumeration = enumeration;
+            
+        }
+
+        public void writeToStream(Stream writer) {
+            SortedSegmentIndex index = new SortedSegmentIndex();
+
+            // start with the simple case of a "single basic datablock" for the whole segment
+            ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
+            encoder.setStream(writer);
+            long startpos = writer.Position;
+            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in enumeration) {
+                encoder.add(kvp.Key, kvp.Value);
+            }
+            encoder.flush();
+            long endpos = writer.Position;
+
+            // add the single index entry
+            index.addBlock(encoder, startpos, endpos);
+
+            // write the index data
+            long indexstartpos = writer.Position;
+            index.writeToStream(writer);
+            long indexendpos = writer.Position;
+            int indexlength = (int)(indexendpos - indexstartpos);
+
+            // write the fixed footer   
+            byte[] indexlenbuf = BitConverter.GetBytes((int)indexlength);
+            writer.Write(indexlenbuf, 0, indexlenbuf.Length);
+        }
+    }
+    
 
 }
