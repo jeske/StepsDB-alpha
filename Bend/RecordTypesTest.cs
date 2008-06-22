@@ -75,23 +75,23 @@ namespace Bend
             RecordUpdateResult result;
 
 
-            result = data.applyUpdate(new RecordUpdate(RecordUpdateTypes.NONE, ""));
+            result = data.applyUpdate(RecordUpdate.NoUpdate());
             Assert.AreEqual("", data.ToString());
             Assert.AreEqual(result, RecordUpdateResult.SUCCESS);
 
-            result = data.applyUpdate(new RecordUpdate(RecordUpdateTypes.FULL, "1"));
+            result = data.applyUpdate(RecordUpdate.WithPayload("1"));
             Assert.AreEqual("1", data.ToString());
             Assert.AreEqual(result, RecordUpdateResult.FINAL);
 
             // if we already have a full update, it should be an error
             {
                 bool err = false;
-                try { data.applyUpdate(new RecordUpdate(RecordUpdateTypes.FULL, "2")); } catch { err = true; }
+                try { data.applyUpdate(RecordUpdate.WithPayload("2")); } catch { err = true; }
                 Assert.AreEqual(true, err);
             }
             {
                 bool err = false;
-                try { data.applyUpdate(new RecordUpdate(RecordUpdateTypes.DELETION_TOMBSTONE, "")); } catch { err = true; }
+                try { data.applyUpdate(RecordUpdate.DeletionTombstone()); } catch { err = true; }
                 Assert.AreEqual(true, err);
             }
             Assert.AreEqual("1", data.ToString());
@@ -103,14 +103,14 @@ namespace Bend
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
             Assert.AreEqual("", data.ToString());
 
-            RecordUpdateResult result = data.applyUpdate(new RecordUpdate(RecordUpdateTypes.DELETION_TOMBSTONE, ""));
+            RecordUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());
             Assert.AreEqual("", data.ToString());
             Assert.AreEqual(result, RecordUpdateResult.FINAL);
 
             bool err = false;
             try {
-                data.applyUpdate(new RecordUpdate(RecordUpdateTypes.FULL, "2"));
-                data.applyUpdate(new RecordUpdate(RecordUpdateTypes.DELETION_TOMBSTONE, ""));
+                data.applyUpdate(RecordUpdate.WithPayload("2"));
+                data.applyUpdate(RecordUpdate.DeletionTombstone());
             } catch {
                 err = true;
             }
@@ -162,6 +162,22 @@ namespace Bend
                 err = true;
             }
             Assert.AreEqual(true, err, "ending a parsed key with the delimiter should throw an error");
+        }
+
+        [Test]
+        public void Test08TombstoneEncodeDecode() {
+            RecordUpdate update = RecordUpdate.DeletionTombstone();
+            RecordUpdate decoded_update = RecordUpdate.FromEncodedData(update.encode());
+
+            Assert.AreEqual(RecordUpdateTypes.DELETION_TOMBSTONE,decoded_update.type);
+        }
+
+        [Test]
+        public void Test09ImplementTombstonesWithAttributes() {
+            // TODO: we really need to move tombstones into the keyspace and implement them as
+            //       key-transaction-attributes, so they properly participate in
+            //       transaction-attribute merge.
+            Assert.Fail("implement tombstones with attributes");
         }
     }
 

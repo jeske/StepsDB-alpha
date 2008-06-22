@@ -233,7 +233,7 @@ namespace Bend
                     return GetStatus.PRESENT;
                 }
             }
-            update = new RecordUpdate(RecordUpdateTypes.NONE, "");
+            update = RecordUpdate.NoUpdate();
             return GetStatus.MISSING;
 
         }

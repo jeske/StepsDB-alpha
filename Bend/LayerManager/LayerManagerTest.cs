@@ -384,12 +384,10 @@ namespace Bend
             }
         }
 
-       // TEST: that our record-get will see data in ALL in-memory segments (currently broken)
 
        // TEST: Tombstones
-
-       // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
-
+       
+       
        // ----------------------------[ TEST MERGING ]-----------------------------
 
        // TEST: double flush and merge 2 segments into 1
@@ -405,8 +403,10 @@ namespace Bend
 
        // ----------------------------[    TEST CONCURRENCY    ]------------------
 
-        // TEST: assure the atomicity of a LogCommitGroup (Txn?)
+       // TEST: that our record-get will see data in ALL in-memory segments (currently broken)
+       // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
 
+       // TEST: assure the atomicity of a LogCommitGroup (Txn?)
 
        // ----------------------------[   TEST MVCC    ]---------------------------
        // TEST: MVCC Row Read Locking

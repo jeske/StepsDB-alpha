@@ -49,7 +49,7 @@ namespace Bend
             // write our new top of heap pointer
             {
                 RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
-                tx.setValue(key, new RecordUpdate(RecordUpdateTypes.FULL, Lsd.numberToLsd(next_allocation, 10)));
+                tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 10)));
             }
 
             return store.regionmgr.writeRegionAddr((uint)new_addr);

@@ -153,7 +153,7 @@ namespace Bend
             public void setValueParsed(String skey, String svalue) {
                 RecordKey key = new RecordKey();
                 key.appendParsedKey(skey);
-                RecordUpdate update = new RecordUpdate(RecordUpdateTypes.FULL, svalue);
+                RecordUpdate update = RecordUpdate.WithPayload(svalue);
 
                 this.setValue(key, update);
             }

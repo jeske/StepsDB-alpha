@@ -164,7 +164,7 @@ namespace Bend {
                 }
 
                 RecordKey key = new RecordKey(keystr.ToArray());
-                RecordUpdate value = new RecordUpdate(RecordUpdateTypes.FULL, valuestr.ToString());
+                RecordUpdate value = RecordUpdate.FromEncodedData(valuestr.ToString());
                 Debug.WriteLine("scanning " + key.ToString() + " : " + value.ToString());
                 yield return new KeyValuePair<RecordKey, RecordUpdate>(key, value);
             }

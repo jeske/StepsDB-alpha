@@ -84,18 +84,54 @@ namespace Bend
     {
         public RecordUpdateTypes type;
         public byte[] data;
-        public RecordUpdate(RecordUpdateTypes type, String sdata)
+        private RecordUpdate(RecordUpdateTypes type, String sdata)
         {
             this.type = type;
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             this.data = enc.GetBytes(sdata);
            
         }
-        public RecordUpdate(RecordUpdateTypes type, byte[] data) {
+        private  RecordUpdate(RecordUpdateTypes type, byte[] data) {
             this.type = type;
             this.data = data;
         }
 
+        private RecordUpdate() {
+        }
+        public static RecordUpdate WithPayload(byte[] payload) {
+            return new RecordUpdate(RecordUpdateTypes.FULL, payload);
+        }
+
+        public static RecordUpdate WithPayload(String payload) {
+            return new RecordUpdate(RecordUpdateTypes.FULL, payload);
+        }
+        public static RecordUpdate NoUpdate() {
+            RecordUpdate update = new RecordUpdate();
+            update.type = RecordUpdateTypes.NONE;
+            update.data = new byte[0];
+            return update;
+        }
+        public static RecordUpdate FromEncodedData(byte[] encoded_data) {
+            RecordUpdate update = new RecordUpdate();
+            update.type = (RecordUpdateTypes)encoded_data[0];
+
+            update.data = encoded_data.Skip(1).ToArray();
+            return update;
+        }
+
+        [Obsolete]
+        public static RecordUpdate FromEncodedData(String encoded_data) {
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            byte[] data = enc.GetBytes(encoded_data);
+            return RecordUpdate.FromEncodedData(data);
+        }
+        public static RecordUpdate DeletionTombstone() {
+            // TODO: should make this object a singleton
+            RecordUpdate update = new RecordUpdate();
+            update.type = RecordUpdateTypes.DELETION_TOMBSTONE;
+            update.data = new byte[0];
+            return update;
+        }
 
         public override String ToString()
         {
@@ -110,7 +146,8 @@ namespace Bend
         }
 
         public byte[] encode() {
-            return data;
+            byte[] typeprefix = { (byte)this.type };
+            return typeprefix.Concat(this.data).ToArray();
         }
 
     }

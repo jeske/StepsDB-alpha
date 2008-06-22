@@ -14,8 +14,8 @@ namespace Bend
         [Test]
         public void TestBuilderReader() {
             SegmentBuilder builder = new SegmentBuilder();
-            builder.setRecord(new RecordKey().appendParsedKey("test/1"), 
-                new RecordUpdate(RecordUpdateTypes.FULL, "3"));
+            builder.setRecord(new RecordKey().appendParsedKey("test/1"),
+                RecordUpdate.WithPayload("3"));
 
             MemoryStream ms = new MemoryStream();
 

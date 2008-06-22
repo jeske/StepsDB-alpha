@@ -39,7 +39,7 @@ namespace Bend
         public static void Init(LayerManager store) {
             // setup "zero" initial generations
             store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
-                new RecordUpdate(RecordUpdateTypes.FULL,0.ToString()));
+                RecordUpdate.WithPayload(0.ToString())); // TODO: this should be a var-enc number
         }
         public void newGeneration(LayerManager.Txn tx, IRegion region) {
             // allocate a new generation number
@@ -49,7 +49,7 @@ namespace Bend
             // TODO: write the new generation count, and the rangemap entry for the generation
 
             tx.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
-                new RecordUpdate(RecordUpdateTypes.FULL,num_generations.ToString()));
+                RecordUpdate.WithPayload(num_generations.ToString()));
 
             RecordKey key = new RecordKey();
             key.appendParsedKey(".ROOT/GEN");
@@ -58,9 +58,8 @@ namespace Bend
             
             // TODO: pack the metdata record <addr>:<size>
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
-            String segmetadata = "" + region.getStartAddress();
-            tx.setValue(key, new RecordUpdate(RecordUpdateTypes.FULL, segmetadata));
-
+            String seg_metadata = "" + region.getStartAddress();
+            tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
         }
 
         public ISortedSegment getSegmentFromMetadata(RecordUpdate update) {
@@ -134,19 +133,27 @@ namespace Bend
                     .appendKeyPart(Lsd.numberToLsd(i,3)).appendParsedKey("</>");
                 RecordUpdate update;  
                 if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
-                    // TODO:unpack the update data when we change it to "<addr>:<length>"
-                    byte[] segmetadata_addr = update.data;
-                    
-                    // we now have a pointer to a segment addres for the gen pointer
-                    uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
-                                        
-                    IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-                    SegmentReader sr = new SegmentReader(region.getStream());
+                    if (update.type == RecordUpdateTypes.FULL) {
+                        // TODO:unpack the update data when we change it to "<addr>:<length>"
+                        byte[] segmetadata_addr = update.data;
 
-                    // RECURSE
-                    if (segmentWalkForKey(key,sr,nextHandledGenerations,maxgen-1,ref record) == RecordUpdateResult.FINAL) {
-                        return RecordUpdateResult.FINAL;
+                        // we now have a pointer to a segment addres for the gen pointer
+                        uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
+
+                        IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
+                        SegmentReader sr = new SegmentReader(region.getStream());
+
+                        // RECURSE
+                        if (segmentWalkForKey(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {
+                            return RecordUpdateResult.FINAL;
+                        }
+                    } else if (update.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                        // TODO: handle tombstones for ranges!
+                        throw new Exception("TBD: implement handling for rangemap tombstones");
+                    } else {
+                        throw new Exception("Invalid rangerecord updatetype in walk: " + update.type.ToString());
                     }
+
                 }
             }
 
