@@ -9,10 +9,10 @@ namespace Bend
 {
 
     [TestFixture]
-    public class SortedSegmentTests
+    public class A02_SortedSegmentTests
     {
         [Test]
-        public void TestBuilderReader() {
+        public void T00_BuilderReader() {
             SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
             builder.setRecord(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("3"));

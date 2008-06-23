@@ -65,7 +65,7 @@ namespace Bend
 
 
     [TestFixture]
-    public class TestLsd
+    public class A00_LsdTest
     {
         public String ToHexString(byte[] bytes) {
             String str = "";
@@ -75,7 +75,7 @@ namespace Bend
             return str;
         }
         [Test]
-        public void TestEncodeDecode() {
+        public void T00_EncodeDecode() {
             int[] testnumbers = { 0, 1, 2, 14, 23, 99, 105, 4020, 82925, 199292, 2992022 };
             
             int encode_length = 10;
@@ -87,7 +87,7 @@ namespace Bend
         }
 
         [Test]
-        public void TestInvalidCharacter() {
+        public void T00_InvalidCharacter() {
             byte[] test = { (byte)'0', (byte)'1', (byte)':', (byte)'3' };
             bool err = false;
             try {
@@ -99,7 +99,7 @@ namespace Bend
         }
 
         [Test]
-        public void TestEncodeLengthError() {
+        public void T00_EncodeLengthError() {
             int test_encode_length = 3;
             int[] passnumbers = { 0, 1, 5, 12, 134, 999 };
             int[] failnumbers = { 1000, 1005, 3001, 113023, 2130192 };

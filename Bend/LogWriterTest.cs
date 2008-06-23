@@ -12,10 +12,10 @@ namespace Bend
     // ---------------------------------[ LogTests ]-----------------------------------------------------------------
 
     [TestFixture]
-    public class LogTests
+    public class A02_LogTests
     {
         [Test]
-        public void TestLogInit() {
+        public void T00_LogInit() {
 
 
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");  // TODO, create random directory
@@ -65,8 +65,8 @@ namespace Bend
         }
 
         [Test]
-        public void TestResumeEmpty() {
-            TestLogInit();
+        public void T00_ResumeEmpty() {
+            T00_LogInit();
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");
             TestReceiver receiver = new TestReceiver();
             LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
@@ -75,7 +75,7 @@ namespace Bend
         }
 
         [Test]
-        public void TestResumeWithRecords() {
+        public void T00_ResumeWithRecords() {
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\2");
 
             byte cmd = 0x01;

@@ -12,10 +12,10 @@ namespace Bend
 {
 
     [TestFixture]
-    public class TestRecordClasses
+    public class A01_RecordTypesTest
     {
         [Test]
-        public void Test00RecordKeyEquality() {
+        public void T00_RecordKeyEquality() {
             RecordKey key1 = new RecordKey().appendParsedKey("test/1");
             RecordKey key2 = new RecordKey().appendParsedKey("test/1");
 
@@ -25,7 +25,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test01RecordKey() {
+        public void T01_RecordKey() {
             String[] parts1 = { "test", "test2", "blah" };
 
             RecordKey key = new RecordKey();
@@ -44,7 +44,7 @@ namespace Bend
             // verify individual parts            
         }
         [Test]
-        public void Test02RecordSort() {
+        public void T02_RecordSort() {
             String[] parts1 = { "test", "test2", "blah" };
             String[] parts2 = { "test", "test3", "blah" }; // > parts 1
             String[] parts3 = { "test", "test2a", "blah" }; // > parts 1 (testing per-segment sorting order!)
@@ -69,7 +69,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test03RecordDataAssembly() {
+        public void T03_RecordDataAssembly() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
             Assert.AreEqual("", data.ToString());
             RecordUpdateResult result;
@@ -99,7 +99,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test04RecordTombstones() {
+        public void T04_RecordTombstones() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
             Assert.AreEqual("", data.ToString());
 
@@ -119,7 +119,36 @@ namespace Bend
         }
 
         [Test]
-        public void Test05RecordPartialUpdate() {
+        public void T07_RecordKeyParsedEndInDelimiter() {
+            // ending a parsed key with the delimiter should be an error, it's just too 
+            // easily a source of bugs..
+
+            bool err = false;
+            try {
+                RecordKey key = new RecordKey().appendParsedKey("TEST/1" + new String(RecordKey.DELIMITER,1));
+            } catch {
+                err = true;
+            }
+            Assert.AreEqual(true, err, "ending a parsed key with the delimiter should throw an error");
+        }
+
+        [Test]
+        public void T08_TombstoneEncodeDecode() {
+            RecordUpdate update = RecordUpdate.DeletionTombstone();
+            RecordUpdate decoded_update = RecordUpdate.FromEncodedData(update.encode());
+
+            Assert.AreEqual(RecordUpdateTypes.DELETION_TOMBSTONE,decoded_update.type);
+        }
+
+    }
+
+
+    [TestFixture]
+    public class ZZ_Todo_RecordTypesTest
+    {
+
+        [Test]
+        public void T05_RecordPartialUpdate() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
             Assert.AreEqual("", data.ToString());
 
@@ -129,7 +158,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test06RecordKeyDelimiterEscape() {
+        public void T06_RecordKeyDelimiterEscape() {
             string DELIM = new String(RecordKey.DELIMITER, 1);
 
 
@@ -150,30 +179,10 @@ namespace Bend
             Assert.AreEqual(-1, key1.CompareTo(key2));
 
         }
-        [Test]
-        public void Test07RecordKeyParsedEndInDelimiter() {
-            // ending a parsed key with the delimiter should be an error, it's just too 
-            // easily a source of bugs..
 
-            bool err = false;
-            try {
-                RecordKey key = new RecordKey().appendParsedKey("TEST/1" + new String(RecordKey.DELIMITER,1));
-            } catch {
-                err = true;
-            }
-            Assert.AreEqual(true, err, "ending a parsed key with the delimiter should throw an error");
-        }
 
         [Test]
-        public void Test08TombstoneEncodeDecode() {
-            RecordUpdate update = RecordUpdate.DeletionTombstone();
-            RecordUpdate decoded_update = RecordUpdate.FromEncodedData(update.encode());
-
-            Assert.AreEqual(RecordUpdateTypes.DELETION_TOMBSTONE,decoded_update.type);
-        }
-
-        [Test]
-        public void Test09ImplementTombstonesWithAttributes() {
+        public void T09_ImplementTombstonesWithAttributes() {
             // TODO: we really need to move tombstones into the keyspace and implement them as
             //       key-transaction-attributes, so they properly participate in
             //       transaction-attribute merge.

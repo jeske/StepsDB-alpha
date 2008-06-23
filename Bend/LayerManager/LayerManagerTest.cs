@@ -10,7 +10,7 @@ namespace Bend
 {
 
     [TestFixture]
-    public class LayerManagerTests : LayerManager
+    public class A03_LayerManagerTests : LayerManager
     {
         [SetUp]
         public void TestSetup() {
@@ -18,7 +18,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test000EmptyLayerInitAndResume() {
+        public void T000_EmptyLayerInitAndResume() {
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\3");
 
             Assert.AreEqual(1, db.segmentlayers.Count);
@@ -30,19 +30,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test001FullScanWithOnlyWorkingSegment() {
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\31");
-            db.setValueParsed("test/1", "a");
-            Assert.Fail("test not implemented");
-        }
-        
-        [Test]
-        public void Test002PartialScanWithOnlyWorkingSegment() {
-            Assert.Fail("test not implemented");
-        }
-
-        [Test]
-        public void Test01LayerTxnLogResume() {
+        public void T01_LayerTxnLogResume() {
             String[] keys = { "test-1", "test-2", "test-3" };
             String[] values = {"a","b","c" };
 
@@ -105,7 +93,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test02LayerSegmentFlushAndFreespaceModification() {
+        public void T02_LayerSegmentFlushAndFreespaceModification() {
             String[] keys = { "test-1", "test-2", "test-3" };
             String[] values = { "a", "b", "c" };
 
@@ -169,7 +157,7 @@ namespace Bend
         }
 
         [Test]
-        public void Test03SegmentLayerGetRecordApplicationOrder() {
+        public void T03_SegmentLayerGetRecordApplicationOrder() {
             // Assure that when records are written more than once, the updates are applied in the correct
             // order so we see the proper current data value
 
@@ -275,11 +263,11 @@ namespace Bend
 
         
         [Test]
-        public void Test04SingleSegmentRootMetadataLogRecovery() {
+        public void T04_SingleSegmentRootMetadataLogRecovery() {
             // TEST: test multiple segments flushed, and "log resumed"  (walk .ROOT range map)
             
             // perform the previous test
-            Test03SegmentLayerGetRecordApplicationOrder();
+            T03_SegmentLayerGetRecordApplicationOrder();
 
             // ... and then perform a resume
             LayerManager db = new LayerManager(InitMode.RESUME, "c:\\test\\6");
@@ -384,39 +372,56 @@ namespace Bend
             }
         }
 
-
-       // TEST: Tombstones
-       
-       
-       // ----------------------------[ TEST MERGING ]-----------------------------
-
-       // TEST: double flush and merge 2 segments into 1
-       // TEST: random pattern test (long), lots of merging
-       // TEST: Tombstone cleanup
-       // TEST: RANGE walk during getRecord()
-       //        - assure the initial bootstrap does not reach all segments
-       //        - ask for a key in an indirect referenced segment (to assure it uses the metadata to find it)
-       // ----------------------------[  TEST ROW ATTRIBUTES ]---------------------
-
-       // TEST: row attributes
-       // TEST: segment merge row attribute collapse/cleanup for old TX (before it hits the bottom)
-
-       // ----------------------------[    TEST CONCURRENCY    ]------------------
-
-       // TEST: that our record-get will see data in ALL in-memory segments (currently broken)
-       // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
-
-       // TEST: assure the atomicity of a LogCommitGroup (Txn?)
-
-       // ----------------------------[   TEST MVCC    ]---------------------------
-       // TEST: MVCC Row Read Locking
-       // TEST: MVCC Row Write Locking
-       // TEST: MVCC Row-Range Read Locking
-       // TEST: MVCC pending TX past restart
-
-       // ----------------------------[  TWO PHASE COMMIT ]------------------------
-       // TEST: two-phase commit prepare past restart
- 
-
     }
+
+    [TestFixture]
+    public class ZZ_Todo_LayerManagerTests
+    {
+
+        [Test]
+        public void T001_FullScanWithOnlyWorkingSegment() {
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\31");
+            db.setValueParsed("test/1", "a");
+            Assert.Fail("test not implemented");
+        }
+
+        [Test]
+        public void T002_PartialScanWithOnlyWorkingSegment() {
+            Assert.Fail("test not implemented");
+        }
+    }
+
+
+    // TEST: Tombstones
+
+
+    // ----------------------------[ TEST MERGING ]-----------------------------
+
+    // TEST: double flush and merge 2 segments into 1
+    // TEST: random pattern test (long), lots of merging
+    // TEST: Tombstone cleanup
+    // TEST: RANGE walk during getRecord()
+    //        - assure the initial bootstrap does not reach all segments
+    //        - ask for a key in an indirect referenced segment (to assure it uses the metadata to find it)
+    // ----------------------------[  TEST ROW ATTRIBUTES ]---------------------
+
+    // TEST: row attributes
+    // TEST: segment merge row attribute collapse/cleanup for old TX (before it hits the bottom)
+
+    // ----------------------------[    TEST CONCURRENCY    ]------------------
+
+    // TEST: that our record-get will see data in ALL in-memory segments (currently broken)
+    // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
+
+    // TEST: assure the atomicity of a LogCommitGroup (Txn?)
+
+    // ----------------------------[   TEST MVCC    ]---------------------------
+    // TEST: MVCC Row Read Locking
+    // TEST: MVCC Row Write Locking
+    // TEST: MVCC Row-Range Read Locking
+    // TEST: MVCC pending TX past restart
+
+    // ----------------------------[  TWO PHASE COMMIT ]------------------------
+    // TEST: two-phase commit prepare past restart
+ 
 }

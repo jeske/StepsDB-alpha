@@ -65,10 +65,10 @@ namespace Bend
     }
 
     [TestFixture]
-    public class CrcTest
+    public class A00_ChecksumTest
     {
         [Test]
-        public void TestCrc16() {
+        public void T00_Crc16() {
             byte[] testdata1 = { 0x80, 0x12, 0x14, 0x18 };
             byte[] testdata2 = { 0x80, 0x12, 0x14, 0x18 , 0x11, 0x99 };
             byte[] testdata3 = { 0x80, 0x12, 0x14, 0x18 };

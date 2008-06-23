@@ -65,10 +65,10 @@ namespace Bend
 
 
     [TestFixture]
-    public class TestExtension
+    public class A00_SortedMergeExtensionTest
     {
         [Test]
-        public void TestSortedMerge() {
+        public void T00_SortedMerge() {
             // make two sorted lists
             SortedList<int, string> one = new SortedList<int, string>();
             SortedList<int, string> two = new SortedList<int, string>();

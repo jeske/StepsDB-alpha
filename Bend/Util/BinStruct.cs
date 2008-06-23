@@ -71,7 +71,7 @@ namespace Bend {
 
 
     [TestFixture]
-    public class BinStructTest
+    public class A00_BinStructTest
     {
         struct Test
         {
