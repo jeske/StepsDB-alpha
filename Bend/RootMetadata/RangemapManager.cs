@@ -41,6 +41,57 @@ namespace Bend
             store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 RecordUpdate.WithPayload(0.ToString())); // TODO: this should be a var-enc number
         }
+        public void mapGenerationToRegion(LayerManager.Txn tx, int gen_number, IRegion region) {
+            RecordKey key = new RecordKey();
+            key.appendParsedKey(".ROOT/GEN");
+            key.appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD));
+            key.appendParsedKey("</>");
+
+            // TODO: pack the metdata record <addr>:<size>
+            // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
+            String seg_metadata = "" + region.getStartAddress();
+            tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
+
+        }
+        private RecordKey makeGenerationKey(int gen_number) {
+            RecordKey genkey = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD))
+                .appendParsedKey("</>");
+
+            return genkey;
+
+        }
+
+
+        public void unmapGeneration(LayerManager.Txn tx, int gen_number) {
+            // TODO: somehow verify this is a valid thing to do!!
+            RecordKey key = new RecordKey();
+            key.appendParsedKey(".ROOT/GEN");
+            key.appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD));
+            key.appendParsedKey("</>");
+            tx.setValue(key, RecordUpdate.DeletionTombstone());
+        }
+
+        public void shrinkGenerationCount() {
+            // see if we can shrink the number of generations
+
+            int highest_valid_gen = num_generations-1;
+            RecordData record;
+
+            while (highest_valid_gen >= 0 &&
+                store.getRecord(makeGenerationKey(highest_valid_gen), out record) == GetStatus.MISSING) {
+                highest_valid_gen--;
+            }
+
+            if (highest_valid_gen + 1 < num_generations) {
+                num_generations = highest_valid_gen + 1;
+                store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
+                    RecordUpdate.WithPayload(num_generations.ToString()));
+            }
+            
+
+        }
         public void newGeneration(LayerManager.Txn tx, IRegion region) {
             // allocate a new generation number
             int newgen = num_generations;
@@ -51,15 +102,7 @@ namespace Bend
             tx.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 RecordUpdate.WithPayload(num_generations.ToString()));
 
-            RecordKey key = new RecordKey();
-            key.appendParsedKey(".ROOT/GEN");
-            key.appendKeyPart(Lsd.numberToLsd(newgen, GEN_LSD_PAD));
-            key.appendParsedKey("</>");
-            
-            // TODO: pack the metdata record <addr>:<size>
-            // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
-            String seg_metadata = "" + region.getStartAddress();
-            tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
+            mapGenerationToRegion(tx, newgen, region);
         }
 
         private ISortedSegment getSegmentFromMetadataBytes(byte[] data) {
@@ -96,8 +139,10 @@ namespace Bend
             ref RecordData record) {
 
             HashSet<int> handledGenerations = new HashSet<int>();
-            return this.segmentWalkForKey(
+            return this.INTERNAL_segmentWalkForKey(
                 key, curseg, handledGenerations, num_generations, ref record);
+
+
         }
 
         // ------------[ ** INTERNAL ** segmentWalkForKey ]-------
@@ -105,7 +150,7 @@ namespace Bend
         // This is the meaty internal function that does the "magic"
         // of the segment walk.
         
-        private RecordUpdateResult segmentWalkForKey(
+        private RecordUpdateResult INTERNAL_segmentWalkForKey(
             RecordKey key,
             ISortedSegment curseg,
             HashSet<int> handledGenerations,
@@ -153,7 +198,7 @@ namespace Bend
                         SegmentReader sr = new SegmentReader(region.getStream());
 
                         // RECURSE
-                        if (segmentWalkForKey(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {
+                        if (INTERNAL_segmentWalkForKey(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {
                             return RecordUpdateResult.FINAL;
                         }
                     } else if (update.type == RecordUpdateTypes.DELETION_TOMBSTONE) {

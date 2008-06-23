@@ -1,7 +1,6 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -257,6 +256,8 @@ namespace Bend
             IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> chain = null;
 
             for (int i = 0; i < gen_count; i++) {
+                // TODO: delegate to RangemapManager to give us the segments, but we 
+                //       need to figure out how to handle ranges when we do it!
                 sourcesegkeys[i] = new RecordKey()
                     .appendParsedKey(".ROOT/GEN")
                     .appendKeyPart(Lsd.numberToLsd(i, 3))
@@ -292,15 +293,18 @@ namespace Bend
                 //       'truncate' the segment, then pass that length to the reader instantiation
                 IRegion reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
 
-                rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
-                // TODO: delete the previous rangemap records!
                 foreach (RecordKey oldsegkey in sourcesegkeys) {
                     this.setValue(oldsegkey, RecordUpdate.DeletionTombstone());
                     // TODO regionmgr.disposeRegionAddr
                 }
+                for (int i = 0; i < gen_count; i++) {
+                    rangemapmgr.unmapGeneration(tx, i);
+                }
+                rangemapmgr.mapGenerationToRegion(tx, 0, reader);                 
                 tx.commit();                             // commit the freespace and rangemap transaction
                 
-                reader.getStream().Close();  // forceclose the reader
+                reader.getStream().Close();              // force close the reader
+                rangemapmgr.shrinkGenerationCount();     // check to see if we can shrink NUMGENERATIONS
             }
 
         }
@@ -313,7 +317,11 @@ namespace Bend
             //    period where we're writing out a new segment (and there are multiple workingsegments in segmentlayers)
 
             if (rangemapmgr.segmentWalkForKey(key, workingSegment, ref record) == RecordUpdateResult.FINAL) {
-                return GetStatus.PRESENT;
+                if (record.State == RecordDataState.FULL) {
+                    return GetStatus.PRESENT;
+                } else {
+                    return GetStatus.MISSING;
+                }
             } else {
                 return GetStatus.MISSING;
             }
@@ -328,7 +336,7 @@ namespace Bend
             }
         }
 
-
+        
         private void debugDump(ISortedSegment seg, String indent, HashSet<string> seenGenerations) {
             HashSet<string> nextSeenGenerations = new HashSet<string>(seenGenerations);
             RecordKey genkey = new RecordKey().appendParsedKey(".ROOT/GEN");

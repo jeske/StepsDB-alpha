@@ -15,13 +15,13 @@ namespace Bend
     {
         NOT_PROVIDED,
         FULL,
-        INCOMPLETE
+        INCOMPLETE,
+        DELETED
     }
     public enum RecordUpdateResult
     {
         SUCCESS,
         FINAL
-
     }
 
     //-----------------------------------[ RecordData ]------------------------------------
@@ -29,6 +29,10 @@ namespace Bend
     {
         RecordKey key;
         RecordDataState state;
+        public RecordDataState State {
+            get { return state; }
+        }
+    
         public byte[] data;
         public RecordData(RecordDataState initialState, RecordKey key)
         {
@@ -45,15 +49,20 @@ namespace Bend
             switch (update.type)
             {
                 case RecordUpdateTypes.DELETION_TOMBSTONE:
+                    this.state = RecordDataState.DELETED;
                     return RecordUpdateResult.FINAL;
+
                 case RecordUpdateTypes.FULL:
                     this.state = RecordDataState.FULL;
                     this.data = update.data;
                     return RecordUpdateResult.FINAL;
+
                 case RecordUpdateTypes.NONE:
                     return RecordUpdateResult.SUCCESS;
+
                 case RecordUpdateTypes.PARTIAL:
                     throw new Exception("partial update not implemented");
+
                 default:
                     throw new Exception("unknown update type");
 
