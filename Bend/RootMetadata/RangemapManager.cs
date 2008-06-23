@@ -89,8 +89,6 @@ namespace Bend
                 store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                     RecordUpdate.WithPayload(num_generations.ToString()));
             }
-            
-
         }
         public void newGeneration(LayerManager.Txn tx, IRegion region) {
             // allocate a new generation number

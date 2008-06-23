@@ -11,9 +11,15 @@ namespace Bend
 
     static class SortedMergeExtension
     {
+
         public static IEnumerable<KeyValuePair<K, V>> MergeSort<K, V>(
             this IEnumerable<KeyValuePair<K, V>> one,
             IEnumerable<KeyValuePair<K, V>> two) where K : IComparable<K> {
+            return MergeSort<K, V>(one, two, false);
+        }
+        public static IEnumerable<KeyValuePair<K, V>> MergeSort<K, V>(
+            this IEnumerable<KeyValuePair<K, V>> one,
+            IEnumerable<KeyValuePair<K, V>> two, bool dropRightDuplicates) where K : IComparable<K> {
 
             IEnumerator<KeyValuePair<K, V>> oneenum = one.GetEnumerator();
             IEnumerator<KeyValuePair<K, V>> twoenum = two.GetEnumerator();
@@ -39,6 +45,9 @@ namespace Bend
                     // output either!  one == two  (we pick one)
                     val = oneenum.Current;
                     one_hasmore = oneenum.MoveNext();
+                    if (dropRightDuplicates) {
+                        two_hasmore = twoenum.MoveNext(); // drop the duplicate on the right                        
+                    }
                     yield return val;
                 }
             }
@@ -61,12 +70,13 @@ namespace Bend
         [Test]
         public void TestSortedMerge() {
             // make two sorted lists
-            SortedList<int,string> one = new SortedList<int,string>();
-            SortedList<int,string> two = new SortedList<int,string>();
+            SortedList<int, string> one = new SortedList<int, string>();
+            SortedList<int, string> two = new SortedList<int, string>();
             int[] onedata = { 1, 3, 5, 7 };
             int[] twodata = { 2, 4, 7, 9, 10 };
 
             int[] verify_output = { 1, 2, 3, 4, 5, 7, 7, 9, 10 };
+            int[] verify_output_uniq = { 1, 2, 3, 4, 5, 7, 9, 10 };
 
             // fill the lists
 
@@ -77,12 +87,26 @@ namespace Bend
                 two.Add(num, "two value: " + num);
             }
 
-            int i = 0;
-            foreach (KeyValuePair<int, string> kvp in one.MergeSort(two)) {
-                Assert.AreEqual(verify_output[i], kvp.Key, "saw " + kvp.Value );
-                i++;
+            // test non-unique merge
+            {
+                int i = 0;
+                foreach (KeyValuePair<int, string> kvp in one.MergeSort(two)) {
+                    Assert.AreEqual(verify_output[i], kvp.Key, "non-uniq saw: " + kvp.Value);
+                    i++;
+                }
             }
-            
+
+            // test unique merge
+            {
+                int i = 0;
+                foreach (KeyValuePair<int, string> kvp in one.MergeSort(two, true)) {
+                    Assert.AreEqual(verify_output_uniq[i], kvp.Key, "uniq saw: " + kvp.Value);
+                    i++;
+                }
+            }
+
+
+
         }
     }
 

@@ -272,7 +272,7 @@ namespace Bend
                 if (chain == null) {
                     chain = nextchain;
                 } else {
-                    chain = SortedMergeExtension.MergeSort(chain, nextchain);
+                    chain = SortedMergeExtension.MergeSort(nextchain,chain,true);  // merge sort keeps keys on the left
                 }
             }
 
