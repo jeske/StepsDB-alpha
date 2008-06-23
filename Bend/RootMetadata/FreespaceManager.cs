@@ -52,7 +52,7 @@ namespace Bend
                 tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 10)));
             }
 
-            return store.regionmgr.writeRegionAddr((uint)new_addr);
+            return store.regionmgr.writeFreshRegionAddr((uint)new_addr);
         }
     }
 }

@@ -96,8 +96,8 @@ namespace Bend
             root.logsize = LogWriter.DEFAULT_LOG_SIZE;
             root.loghead = 0;
             root.root_checksum = 0;
-            Stream rootblockwritestream = regionmgr.writeRegionAddr(0).getStream();
-            Stream logwritestream = regionmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
+            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0).getStream();
+            Stream logwritestream = regionmgr.writeFreshRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
 
             this.logstream = logwritestream;
             this.rootblockstream = rootblockwritestream;

@@ -24,8 +24,8 @@ namespace Bend
                 lr.Dispose();
             }
 
-            Stream rootblockstream = rmgr.writeRegionAddr(0).getStream();
-            Stream logstream = rmgr.writeRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
+            Stream rootblockstream = rmgr.readRegionAddr(0).getStream();
+            Stream logstream = rmgr.readRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
 
             // check rootblock
             RootBlock root = new RootBlock();
