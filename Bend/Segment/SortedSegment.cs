@@ -183,6 +183,8 @@ namespace Bend
             fs = _fs;
             
             // read the footer index size
+            // FIXME: this is a huge BUG!!! we either need to instantiate the Stream to be bounded to the
+            //        valid regionmap metadata, or we need to change this!!
             fs.Seek(-4, SeekOrigin.End);  // last 4 bytes of file
             byte[] lenbytes = new byte[4];
             int err = fs.Read(lenbytes, 0, 4);

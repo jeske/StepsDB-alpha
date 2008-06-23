@@ -115,7 +115,11 @@ namespace Bend
             }
         }
         public IRegion writeRegionAddr(uint region_addr) {
-            FileStream writer = File.Open(makeFilepath(region_addr), FileMode.OpenOrCreate);
+            String filepath = makeFilepath(region_addr);
+            if (File.Exists(filepath)) {
+                this.disposeRegionAddr(region_addr);
+            }
+            FileStream writer = File.Open(filepath, FileMode.CreateNew);
             return new EFRegion(region_addr,-1,writer);
         }
         public void disposeRegionAddr(uint region_addr) {
