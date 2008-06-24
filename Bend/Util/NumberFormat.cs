@@ -62,7 +62,9 @@ namespace Bend
             return (uint)number;
         }
     }
-
+}
+namespace BendTests {
+    using Bend;
 
     [TestFixture]
     public class A00_LsdTest

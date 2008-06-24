@@ -5,8 +5,9 @@
 using System;
 
 using NUnit.Framework;
+using Bend;
 
-namespace Bend
+namespace BendTests
 {
     // TEST: basic block encoder/decoder
 

@@ -63,6 +63,10 @@ namespace Bend
         }
     }
 
+}
+
+namespace BendTests {
+    using Bend;
 
     [TestFixture]
     public class A00_SortedMergeExtensionTest

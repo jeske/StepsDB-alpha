@@ -7,7 +7,9 @@ using System.Collections.Generic;
 
 using NUnit.Framework;
 
-namespace Bend
+using Bend;
+
+namespace BendTests
 {
     // ---------------------------------[ LogTests ]-----------------------------------------------------------------
 
@@ -34,7 +36,7 @@ namespace Bend
             root.logsize = LogWriter.DEFAULT_LOG_SIZE;
             root.loghead = 0;
             rootblockstream.Seek(0, SeekOrigin.Begin);
-            RootBlock root2 = Util.readStruct<RootBlock>(rootblockstream);
+            RootBlock root2 = Bend.Util.readStruct<RootBlock>(rootblockstream);
             Assert.AreEqual(root, root2, "root block written correctly");
 
             // check that log contains magic and final log record

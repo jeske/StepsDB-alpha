@@ -6,7 +6,9 @@ using System;
 
 using NUnit.Framework;
 
-namespace Bend
+using Bend;
+
+namespace BendTests
 {
 
     [TestFixture]

@@ -8,7 +8,9 @@ using System.Text;
 
 using NUnit.Framework;
 
-namespace Bend
+using Bend;
+
+namespace BendTests
 {
 
     [TestFixture]
