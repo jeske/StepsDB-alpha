@@ -50,3 +50,37 @@ namespace Bend {
     }
 
 }
+
+namespace BendTests
+{
+    using Bend;
+    using NUnit.Framework;
+
+    [TestFixture]
+    public partial class T00_UtilTests
+    {
+        [Test]
+        public void T00_TestGenericWeakReference()
+        {
+            Object o = new Object();
+            Object o2 = new Object();
+            Bend.WeakReference<Object> wrs = new Bend.WeakReference<Object>(o);
+
+            System.GC.Collect();
+
+            Assert.AreEqual(true, wrs.IsAlive);
+            Assert.AreEqual(o, wrs.Target);
+            Assert.AreNotEqual(o2, wrs.Target);
+            wrs.Target = o2;
+            Assert.AreEqual(o2, wrs.Target);
+            Assert.AreNotEqual(o, wrs.Target);
+            o = null; o2 = null;
+            System.GC.Collect();
+            System.GC.Collect();
+            System.GC.Collect();
+            Assert.AreEqual(false, wrs.IsAlive);
+
+            // TODO: test target on dead weakref
+        }
+    }
+}

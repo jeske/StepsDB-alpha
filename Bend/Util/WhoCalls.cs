@@ -1,7 +1,4 @@
 ﻿
-// public code from:
-// http://www.codeproject.com/KB/dotnet/MethodName.aspx
-
 using System;
 using System.Diagnostics;
 using System.Reflection;
@@ -10,25 +7,45 @@ using System.Reflection;
 namespace Bend {
     public class WhoCalls
     {
-        private static void WhatsMyName()
-        {
-            StackFrame stackFrame = new StackFrame();
-            MethodBase methodBase = stackFrame.GetMethod();
-            Console.WriteLine(methodBase.Name); // Displays “WhatsmyName”
-
-            WhoCalledMe();
-        }
-        // Function to display parent function
-
-        private static void WhoCalledMe()
+        public static string WhatsMyName()
         {
             StackTrace stackTrace = new StackTrace();
             StackFrame stackFrame = stackTrace.GetFrame(1);
             MethodBase methodBase = stackFrame.GetMethod();
-            // Displays “WhatsmyName”
 
-            Console.WriteLine(" Parent Method Name {0} ", methodBase.Name);
+            return methodBase.Name;
+        }
+        public static string WhoCalledMe()
+        {
+            StackTrace stackTrace = new StackTrace();
+            StackFrame stackFrame = stackTrace.GetFrame(2);
+            MethodBase methodBase = stackFrame.GetMethod();
+            
+            return methodBase.Name;
         }
 
+
+    }
+}
+
+namespace BendTests
+{
+    using Bend;
+    using NUnit.Framework;
+
+    [TestFixture]
+    public class TestWhoCalls
+    {
+
+        public string TestWhoCalledMe()
+        {
+            return WhoCalls.WhoCalledMe();
+        }
+        [Test]
+        public void T00_WhoCalls()
+        {
+            Assert.AreEqual("T00_WhoCalls", WhoCalls.WhatsMyName());
+            Assert.AreEqual("T00_WhoCalls", TestWhoCalledMe());
+        }
     }
 }
