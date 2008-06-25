@@ -12,7 +12,7 @@ namespace Bend
     // ---------------[ Main ]---------------------------------------------------------
 
 
-    class Program
+    class MainBend
     {
         static void Main(string[] args)
         {
