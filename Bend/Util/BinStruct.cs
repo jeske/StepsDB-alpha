@@ -83,7 +83,7 @@ namespace BendTests {
         }
 
         [Test]
-        public void structWriteRead() {
+        public void T00_structWriteRead() {
             // test struct write/read
             Test st;
             st.a = 1;
