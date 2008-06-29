@@ -63,7 +63,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="RowPipe\Pipe.cs" />
     <Compile Include="RecordTypesTest.cs" />
+    <Compile Include="RowPipe\PipeTest.cs" />
     <Compile Include="Segment\SortedSegmentTest.cs" />
     <Compile Include="LogWriterTest.cs" />
     <Compile Include="LogWriter.cs" />
@@ -109,7 +111,7 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="NOTES.txt" />
+    <Content Include="_NOTES.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
