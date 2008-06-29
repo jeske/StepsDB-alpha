@@ -68,8 +68,7 @@ namespace Bend
 namespace BendTests {
     using Bend;
 
-    [TestFixture]
-    public class A00_ChecksumTest
+    public partial class A00_UtilTest
     {
         [Test]
         public void T00_Crc16() {

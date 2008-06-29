@@ -6,7 +6,6 @@ using System;
 using System.IO;
 using System.Reflection;
 
-using NUnit.Framework;
 
 namespace Bend {
 
@@ -72,9 +71,9 @@ namespace Bend {
 
 namespace BendTests {
     using Bend;
+    using NUnit.Framework;
 
-    [TestFixture]
-    public class A00_BinStructTest
+    public partial class A00_UtilTest
     {
         struct Test
         {

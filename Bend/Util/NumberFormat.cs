@@ -4,8 +4,6 @@
 using System;
 using System.Collections.Generic;
 
-using NUnit.Framework;
-
 namespace Bend
 {
 
@@ -65,9 +63,9 @@ namespace Bend
 }
 namespace BendTests {
     using Bend;
+    using NUnit.Framework;
 
-    [TestFixture]
-    public class A00_LsdTest
+    public partial class A00_UtilTest
     {
         public String ToHexString(byte[] bytes) {
             String str = "";

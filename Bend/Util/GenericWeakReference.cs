@@ -56,8 +56,7 @@ namespace BendTests
     using Bend;
     using NUnit.Framework;
 
-    [TestFixture]
-    public partial class T00_UtilTests
+    public partial class A00_UtilTest
     {
         [Test]
         public void T00_TestGenericWeakReference()

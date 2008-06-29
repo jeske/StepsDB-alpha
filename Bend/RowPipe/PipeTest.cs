@@ -10,7 +10,7 @@ namespace BendTests
     using NUnit.Framework;
 
     [TestFixture]
-    public class T01_PipeTests
+    public class A01_PipeTests
     {
 
         [Test]
@@ -30,11 +30,6 @@ namespace BendTests
             Assert.AreEqual("def not present", ctx.getValue("notpresent", "def not present"));
 
             Assert.AreEqual(ctx2, ctx.getSubtree("baz"));
-        }
-
-        [Test]
-        public void T01_PipeGenerate_DependencyInject() {
-            Assert.Fail("not implemented");
         }
 
         [Test]

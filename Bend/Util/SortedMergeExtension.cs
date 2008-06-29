@@ -4,8 +4,6 @@
 using System;
 using System.Collections.Generic;
 
-using NUnit.Framework;
-
 namespace Bend
 {
 
@@ -68,8 +66,9 @@ namespace Bend
 namespace BendTests {
     using Bend;
 
-    [TestFixture]
-    public class A00_SortedMergeExtensionTest
+    using NUnit.Framework;
+
+    public partial class A00_UtilTest
     {
         [Test]
         public void T00_SortedMerge() {
