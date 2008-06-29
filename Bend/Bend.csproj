@@ -87,6 +87,7 @@
     <Compile Include="LayerManager\LayerManagerTest.cs" />
     <Compile Include="Util\NumberFormat.cs" />
     <Compile Include="Util\SortedMergeExtension.cs" />
+    <Compile Include="Util\ThirdParty\SkipList.cs" />
     <Compile Include="Util\_UtilTest.cs" />
     <Compile Include="Util\WhoCalls.cs" />
     <Compile Include="_Main.cs" />
