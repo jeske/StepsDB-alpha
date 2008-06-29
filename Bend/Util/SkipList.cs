@@ -28,9 +28,22 @@ using System.Text;
 
 using System.Collections.Generic;
 
+public interface IScannableDictionary<K, V> : IDictionary<K, V>, IScannable<K, V>
+{
+}
+
+public interface IScannable<K,V>
+{
+    KeyValuePair<K, V> FindNext(IComparable<K> keytest);
+    KeyValuePair<K, V> FindPrev(IComparable<K> keytest);
+}
+
 namespace Bend
 {
-    public class SkipList<K,V> : IDictionary<K,V> where K: IComparable<K> where V: IEquatable<V>, new()
+    public class SkipList<K,V> : 
+        IScannableDictionary<K,V>
+        where K: IComparable<K> 
+        where V: IEquatable<V>
     {
         /* This "Node" class models a node in the Skip List structure. It holds a pair of (key, value)
          * and also three pointers towards Node situated to the right, upwards and downwards. */
@@ -501,7 +514,7 @@ namespace Bend
                 value = node.value;
                 return true;
             } else {
-                value = new V();
+                value = default(V);
                 return false;
             }
         }

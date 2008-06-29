@@ -11,8 +11,6 @@ using System.Diagnostics;
 
 namespace Bend
 {
-
-
     // ---------------[ SortedSegment interface]------------------------------------------------
 
     public enum GetStatus
@@ -44,19 +42,19 @@ namespace Bend
     // ---------------[ SegmentBuilder ]---------------------------------------------------------
 
 
-
     class SegmentMemoryBuilder : ISortedSegment
     {
         // sortedlist perf: http://www.codeproject.com/KB/recipes/SplitArrayDictionary.aspx
         // we should use a dictionary instead
 
-        SortedDictionary<RecordKey, RecordUpdate> items;
+        IScannableDictionary<RecordKey, RecordUpdate> items;
 
         // int approx_size = 0;
         // int num_deletions = 0;
 
         public SegmentMemoryBuilder() {
-            items = new SortedDictionary<RecordKey, RecordUpdate>();
+            // items = new SortedDictionary<RecordKey, RecordUpdate>();
+            items = new SkipList<RecordKey, RecordUpdate>();
         }
 
         public int RowCount {

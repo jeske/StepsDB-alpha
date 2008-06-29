@@ -15,20 +15,6 @@ namespace BendTests
     [TestFixture]
     public class A02_SortedSegmentTests
     {
-        // this array binary search stuff does something.
-        // http://en.csharp-online.net/Search_array_with_binary_search
-        [Test]
-        public void T00_SortedFindNext() {
-            SortedList<string, int> dict = new SortedList<string, int>();
-
-            dict["abc"] = 1;
-            dict["def"] = 2;
-            dict["ghi"] = 3;
-
-            
-
-            Assert.Fail("need to findnext");
-        }
 
         [Test]
         public void T02_BuilderReader() {
@@ -49,5 +35,19 @@ namespace BendTests
             Assert.AreEqual(GetStatus.PRESENT, status);
             Assert.AreEqual("3", update.ToString());
         }
+
+    }
+
+    [TestFixture]
+    public class ZZ_TODO_SortedSegment
+    {
+
+        [Test]
+        public void T00_SortedFindNext_TypeRegistry() {
+            // TODO: use a type registry to ask for the preferred implementation of 
+            //   IScannableDictionary
+            Assert.Fail("need to findnext");
+        }
+
     }
 }

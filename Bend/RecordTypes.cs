@@ -89,7 +89,7 @@ namespace Bend
     }
     //-----------------------------------[ RecordUpdate ]------------------------------------
 
-    public class RecordUpdate
+    public class RecordUpdate : IEquatable<RecordUpdate>
     {
         public RecordUpdateTypes type;
         public byte[] data;
@@ -106,6 +106,10 @@ namespace Bend
         }
 
         private RecordUpdate() {
+        }
+
+        public bool Equals(RecordUpdate target) {
+            return (data.Equals(target.data));
         }
         public static RecordUpdate WithPayload(byte[] payload) {
             return new RecordUpdate(RecordUpdateTypes.FULL, payload);
