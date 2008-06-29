@@ -48,13 +48,15 @@ namespace Bend
     class SegmentMemoryBuilder : ISortedSegment
     {
         // sortedlist perf: http://www.codeproject.com/KB/recipes/SplitArrayDictionary.aspx
-        SortedList<RecordKey, RecordUpdate> items;
+        // we should use a dictionary instead
+
+        SortedDictionary<RecordKey, RecordUpdate> items;
 
         // int approx_size = 0;
         // int num_deletions = 0;
 
         public SegmentMemoryBuilder() {
-            items = new SortedList<RecordKey, RecordUpdate>();
+            items = new SortedDictionary<RecordKey, RecordUpdate>();
         }
 
         public int RowCount {
@@ -63,11 +65,7 @@ namespace Bend
           
 
         public void setRecord(RecordKey key, RecordUpdate value) {
-            int index = items.IndexOfKey(key);
-            if (index != -1) {
-                items.RemoveAt(index);
-            }
-            items.Add(key, value);
+            items[key] = value; // replace the existing value if it is there
         }
 
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
