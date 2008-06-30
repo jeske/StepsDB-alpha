@@ -89,6 +89,7 @@
     <Compile Include="LayerManager\LayerManagerTest.cs" />
     <Compile Include="Util\IScanner.cs" />
     <Compile Include="Util\NumberFormat.cs" />
+    <Compile Include="Util\OffsetStream.cs" />
     <Compile Include="Util\SkipList.cs" />
     <Compile Include="Util\SortedMergeExtension.cs" />
     <Compile Include="Util\ThirdParty\CS-SkipList\SkipList.cs" />
