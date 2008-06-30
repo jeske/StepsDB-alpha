@@ -931,7 +931,7 @@ namespace BendTests
                     last_val = kvp.Key;
                 }
             }
-
+            
         }
 
 
@@ -939,7 +939,7 @@ namespace BendTests
     }
 
     [TestFixture]
-    class ZZ_Todo_Skiplist
+    public class ZZ_Todo_Skiplist
     {
 
         [Test]

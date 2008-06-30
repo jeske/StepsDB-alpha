@@ -21,6 +21,8 @@ namespace Bend
 
     public interface ISortedSegment : IDisposable
     {
+        // TODO: need IScannable<RecordKey, RecordUpdate>
+        //    .. but consider adding it as "getScanner()" instead of directly inheriting/implementing
         GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update);
         IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk();
     }
@@ -49,7 +51,7 @@ namespace Bend
     // Long term, we might want to have a prefix-compressed in-memory format. The current
     // format bloats when we have lots of very big keys.
 
-    class SegmentMemoryBuilder : ISortedSegment , IScannable<RecordKey, RecordUpdate>
+    class SegmentMemoryBuilder : ISortedSegment, IScannable<RecordKey, RecordUpdate>
     {
         IScannableDictionary<RecordKey, RecordUpdate> items;
 
@@ -117,37 +119,50 @@ namespace Bend
     }
 
     // ---------------[ SortedSegmentIndex ]---------------------------------------------------------
-
-    class SortedSegmentIndex
+    
+    class SortedSegmentIndex: IScannable<RecordKey, RecordUpdate>
     {
         class _SegBlock
         {
+            // TODO: how do ranges fit together? (how do we define inclusive/exclusive for the joint?)
+            RecordKey lowest_key;    
             public long datastart;
             public long dataend;
-            public short blocktype;
-            // TODO: define the keyrange that this block covers
 
-            public _SegBlock(short blocktype, long start, long end)
-            {
-                this.datastart = start;
-                this.dataend = end;
+            // TODO: should make a registry mapping shorts to GUIDs of block encoders
+            public short blocktype;    // 00 = special endblock lists the last key (inclusive)
+            
+            public _SegBlock( RecordKey start_key_inclusive, short blocktype, long datastartoffset, long dataendoffset) {
+                this.lowest_key = start_key_inclusive;
+                this.datastart = datastartoffset;
+                this.dataend = dataendoffset;
                 this.blocktype = blocktype;
             }
             public _SegBlock(BinaryReader rr) {
+                Int32 coded_key_length = rr.ReadInt32();
+                lowest_key = new RecordKey(rr.ReadBytes((int)coded_key_length));
+                
                 datastart = rr.ReadInt64();
                 dataend = rr.ReadInt64();
                 blocktype = rr.ReadInt16();
             }
+
             public void Write(BinaryWriter wr) {
+                byte[] lowest_key_encoded = lowest_key.encode();
+                wr.Write((Int32)lowest_key_encoded.Length);
+                wr.Write((byte[])lowest_key_encoded);
+
                 wr.Write((long)datastart);
                 wr.Write((long)dataend);
                 wr.Write((long)blocktype);
             }
             
             override public String ToString() {
-                return String.Format("({0}:{1},{2})",blocktype,datastart,dataend);
+                return String.Format("({0}:{1}:{2},{3})",blocktype,lowest_key.ToString(),datastart,dataend);
             }
-        }
+
+        } // end _SegBlock inner class 
+
         List<_SegBlock> blocks;
         Stream fs; // used when we're in read-mode
 
@@ -159,16 +174,20 @@ namespace Bend
             this.fs = _fs;
         }
 
-        public void addBlock(ISegmentBlockEncoder encoder, long startpos, long endpos) {
-            blocks.Add(new _SegBlock((short)0, startpos, endpos));
+        public void addBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
+            blocks.Add(new _SegBlock(start_key_inclusive,(short)0, startpos, endpos));
         }
 
         public void writeToStream(Stream writer) {
             BinaryWriter wr = new BinaryWriter(writer);
             
+            // TODO: prefix compress the list of index RecordKeys
+            //    .. NOTE that "prefix compress" for us does not mean eliminating the first n bytes of RecordKeys.encode() output,
+            //    .. it means eliminating the first n bytes of EACH part of the record key, since it's hierarchially sorted
+
             // write the number of segments in this block
-            int length = blocks.Count;
-            wr.Write((int)length); 
+            int numblocks = blocks.Count;
+            wr.Write((Int32)numblocks); 
             foreach (_SegBlock block in blocks) {
                 block.Write(wr);
             }
@@ -176,13 +195,12 @@ namespace Bend
         public void readFromStream(Stream reader) {
             BinaryReader rr = new BinaryReader(reader);
 
-            // read the number of segments in the block
-            int numsegments = rr.ReadInt32();
-            for (int i=0;i<numsegments;i++) {
+            // read the number of blocks in the Segment
+            int numblocks = rr.ReadInt32();
+            for (int i=0;i<numblocks;i++) {
                 _SegBlock block = new _SegBlock(rr);
                 blocks.Add(block);
                 Debug.WriteLine(block, "index reader");
-               
             }
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -195,12 +213,28 @@ namespace Bend
                 }
             }
         }
+        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
+            throw new Exception("not implemented");
+        }
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
+            throw new Exception("not implemented");
+        }
+
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {
+            throw new Exception("not implemented");
+               
+        }
+
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanBackward(IScanner<RecordKey> scanner) {
+            throw new Exception("not implemented");
+        }
+
 
     }
 
     // ---------------[ SegmentReader ]---------------------------------------------------------
 
-    class SegmentReader : ISortedSegment
+    class SegmentReader : ISortedSegment, IScannable<RecordKey, RecordUpdate>
     {
         Stream fs;
         SortedSegmentIndex index;
@@ -209,8 +243,10 @@ namespace Bend
             fs = _fs;
             
             // read the footer index size
-            // FIXME: this is a huge BUG!!! we either need to instantiate the Stream to be bounded to the
-            //        valid regionmap metadata, or we need to change this!!
+            // FIXME: BUG BUG BUG!! using SeekOrigin.End is only valid here because our current RegionManager
+            //        is handing us a file. We need to decide if future Regionmanagers are going to explicitly
+            //        make "subregion" Streams, or whether we need to handle this differently.
+
             fs.Seek(-4, SeekOrigin.End);  // last 4 bytes of file
             byte[] lenbytes = new byte[4];
             int err = fs.Read(lenbytes, 0, 4);
@@ -241,8 +277,59 @@ namespace Bend
             return index.sortedWalk();
         }
 
+        // TODO: consider if we should have a method "getScanner()" to vend out someone that can do this
+        // for us, (i.e. the index), so we don't have to proxy these calls.
+
+        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
+            return index.FindNext(keytest);
+        }
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
+            return index.FindPrev(keytest);
+        }
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {
+            return index.scanForward(scanner);
+        }
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanBackward(IScanner<RecordKey> scanner) {
+            return index.scanBackward(scanner);
+        }
+        
         public void Dispose() {
             if (fs != null) { fs.Close(); fs = null; }
+        }
+    }
+
+    // ---------------------------[  SegmentWriter  ]--------------------------------
+    
+    // tells the segmentwriter when to split, and what type of block to use
+    // TODO: figure out how we can get access to the source segment information about what is coming
+    //       for lookahead.... Maybe we should stage blocks before we decide which format to put them
+    //       in and add all the keys. (i.e. first find the end of the block, then go through again
+    //       and format the block) -- sounds like lots of copying though.
+    //
+    // right now this is ULTRA simple, we just make sure only so many keys go into a block. Eventually
+    // we should care more about bytes (keys or data), and eventually, we should start to care
+    // about prefix compression efficiency.
+    //
+    // TODO: this is another class that the user should be able to suppily a new implemtation of in the context.
+
+    class SegmentWriterAdvisor    
+    {
+        int keys_since_last_block = 0;
+        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 3; // we have this set really low for testing!!
+
+        public SegmentWriterAdvisor() { }
+        public void fyiAddedRecord(RecordKey key, RecordUpdate update) {
+            keys_since_last_block++;
+        }
+        public void fyiFinishedBlock() {
+            keys_since_last_block = 0;
+        }
+        public bool recommendsNewBlock() {
+            if (keys_since_last_block >= RECOMMEND_MAX_KEYS_PER_BLOCK) {
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 
@@ -254,24 +341,50 @@ namespace Bend
         
         public SegmentWriter(IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> enumeration) {
             this.enumeration = enumeration;
-            
         }
 
         public void writeToStream(Stream writer) {
             SortedSegmentIndex index = new SortedSegmentIndex();
+            SegmentWriterAdvisor advisor = new SegmentWriterAdvisor();
+
+            RecordKey block_start_key = null;
+            RecordKey last_seen_key = null;
+            ISegmentBlockEncoder encoder = null;
+            long startpos=0,endpos=0;        
 
             // start with the simple case of a "single basic datablock" for the whole segment
-            ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
-            encoder.setStream(writer);
-            long startpos = writer.Position;
-            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in enumeration) {
-                encoder.add(kvp.Key, kvp.Value);
-            }
-            encoder.flush();
-            long endpos = writer.Position;
+            IEnumerator<KeyValuePair<RecordKey, RecordUpdate>> cursor = enumeration.GetEnumerator();
 
-            // add the single index entry
-            index.addBlock(encoder, startpos, endpos);
+
+            bool hasmore = cursor.MoveNext();
+            KeyValuePair<RecordKey, RecordUpdate> kvp;
+
+            while (hasmore) {
+                kvp = cursor.Current;
+                if (encoder == null) {
+                    startpos = writer.Position;
+                    encoder = new SegmentBlockBasicEncoder();
+                    encoder.setStream(writer);
+                    block_start_key = kvp.Key;
+                    System.Console.WriteLine("new block starting at: " + kvp.Key.ToString());
+
+                }
+                // handle this row
+                {
+                    encoder.add(kvp.Key, kvp.Value);
+                    last_seen_key = kvp.Key;
+                    advisor.fyiAddedRecord(kvp.Key, kvp.Value);
+                }
+
+                // move to next row
+                hasmore = cursor.MoveNext();
+
+                if (!hasmore || advisor.recommendsNewBlock()) {
+                    encoder.flush();  encoder = null;
+                    endpos = writer.Position;
+                    index.addBlock(block_start_key, encoder, startpos, endpos);
+                }
+            }
 
             // write the index data
             long indexstartpos = writer.Position;
@@ -282,8 +395,22 @@ namespace Bend
             // write the fixed footer   
             byte[] indexlenbuf = BitConverter.GetBytes((int)indexlength);
             writer.Write(indexlenbuf, 0, indexlenbuf.Length);
+            
         }
     }
-    
+}
 
+namespace BendTests
+{
+    using Bend;
+    using NUnit.Framework;
+
+    [TestFixture]
+    public class ZZ_TODO_SortedSegment_Stuff
+    {
+        [Test]
+        public void T00_SegmentWriter() {
+            Assert.Fail("multiple keys with same value will have a problem");
+        }
+    }
 }

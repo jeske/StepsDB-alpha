@@ -7,6 +7,9 @@ using System;
 namespace Bend
 {
     // ----- aggregate interface for scannable dictionaries 
+    
+    // TODO: consider how this will need to be reworked to efficiently handle 
+    //   next/prev on prefix-compressed data
 
     public interface IScanner<K>
     {
@@ -14,7 +17,13 @@ namespace Bend
         IComparable<K> genLowestKeyTest();
         IComparable<K> genHighestKeyTest();
     }
-
+    public interface IScannable<K, V>
+    {
+        KeyValuePair<K, V> FindNext(IComparable<K> keytest);
+        KeyValuePair<K, V> FindPrev(IComparable<K> keytest);
+        IEnumerable<KeyValuePair<K, V>> scanForward(IScanner<K> scanner);
+        IEnumerable<KeyValuePair<K, V>> scanBackward(IScanner<K> scanner);
+    }
     public interface IScannableDictionary<K, V> : IDictionary<K, V>, IScannable<K, V> { }
 
     class ScanRange<K> : IScanner<K> where K : IComparable<K>
@@ -63,14 +72,7 @@ namespace Bend
             }
         }
     }
-    // TODO: consider how this will need to be reworked to efficiently handle 
-    //   next/prev on prefix-compressed data
-    public interface IScannable<K, V>
-    {
-        KeyValuePair<K, V> FindNext(IComparable<K> keytest);
-        KeyValuePair<K, V> FindPrev(IComparable<K> keytest);
-        IEnumerable<KeyValuePair<K, V>> scanForward(IScanner<K> scanner);
-        IEnumerable<KeyValuePair<K, V>> scanBackward(IScanner<K> scanner);
-    }
+
+    
 
 }

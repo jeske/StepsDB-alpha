@@ -166,6 +166,17 @@ namespace BendTests
     [TestFixture]
     public class ZZ_TODO_SortedSegment
     {
+
+        [Test]
+        public void T00_SortedSegment_MultipleIndexEntry_ReadWrite() {
+            Assert.Fail("not implemented");
+        }
+
+        [Test]
+        public void T00_SortedSegment_MultipleBlockTypes_ReadWrite() {
+            // probably should test the block GUID registry too
+            Assert.Fail("not implemented");
+        }
         [Test]
         public void T00_SortedFindNext_TypeRegistry() {
             // TODO: use a type registry to ask for the preferred implementation of 
