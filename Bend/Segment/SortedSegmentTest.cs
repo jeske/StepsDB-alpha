@@ -11,6 +11,7 @@ using Bend;
 
 namespace BendTests
 {
+    #region TestHelpers
     // this class adapts our pipe-qualifier to be able to test against record key
     public class QualAdaptor : IScanner<RecordKey>
     {
@@ -49,28 +50,89 @@ namespace BendTests
             return this.qual.genHighestKey();
         }
     }
+    #endregion
 
+    // ----------------------------------------- A02_SortedSegmentTests -----------------------------
     [TestFixture]
     public class A02_SortedSegmentTests
     {
+
+        [Test]
+
+        public void T00_SegmentIndex_EncodeDecode() {
+            string[] block_start_keys = { "test/1/2/3/4", "test/1/2/3/5" };
+            int[] block_start_pos = { 0, 51 };
+            int[] block_end_pos = { 50, 190 };
+
+            byte[] streamdata;
+
+            // write the index
+            {
+                MemoryStream st = new MemoryStream();
+
+                // make a new index, and add some entries.
+                SortedSegmentIndex index = new SortedSegmentIndex();
+                for (int i = 0; i < block_start_keys.Length; i++) {
+                    index.addBlock(new RecordKey().appendParsedKey(block_start_keys[i]),
+                        null, block_start_pos[i], block_end_pos[i]);
+                }
+                index.writeToStream(st);
+                streamdata = st.ToArray();
+            }
+
+            // read it back
+            {
+                MemoryStream read_stream = new MemoryStream(streamdata);
+                // reset the stream and read it back
+                read_stream.Seek(0, SeekOrigin.Begin);
+                SortedSegmentIndex index = new SortedSegmentIndex(streamdata, read_stream);
+                int pos = 0;
+                foreach (SortedSegmentIndex._SegBlock block in index.blocks) {
+                    Assert.AreEqual(new RecordKey().appendParsedKey(block_start_keys[pos]), block.lowest_key);
+                    Assert.AreEqual(block_start_pos[pos], block.datastart);
+                    Assert.AreEqual(block_end_pos[pos], block.dataend);
+                    pos++;
+                }
+                Assert.AreEqual(pos, block_start_keys.Length, "index didn't return the right number of entries");
+            }
+
+        }
         [Test]
         public void T02_BuilderReader() {
-            SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
-            builder.setRecord(new RecordKey().appendParsedKey("test/1"),
-                RecordUpdate.WithPayload("3"));
+            byte[] databuffer;
 
-            MemoryStream ms = new MemoryStream();
+            // write the segment
+            {
+                MemoryStream ms = new MemoryStream();
+                SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
+                builder.setRecord(new RecordKey().appendParsedKey("test/1"),
+                    RecordUpdate.WithPayload("3"));
 
-            SegmentWriter segmentWriter = new SegmentWriter(builder.sortedWalk());
-            segmentWriter.writeToStream(ms);
 
-            // rewind
-            ms.Seek(0, SeekOrigin.Begin);
-            SegmentReader reader = new SegmentReader(ms);
-            RecordUpdate update;
-            GetStatus status = reader.getRecordUpdate(new RecordKey().appendParsedKey("test/1"), out update);
-            Assert.AreEqual(GetStatus.PRESENT, status);
-            Assert.AreEqual("3", update.ToString());
+
+                SegmentWriter segmentWriter = new SegmentWriter(builder.sortedWalk());
+                segmentWriter.writeToStream(ms);
+
+                databuffer = ms.ToArray();
+            }
+
+
+            // segment readback
+            {
+                MemoryStream ms = new MemoryStream(databuffer);
+               
+                // rewind
+                ms.Seek(0, SeekOrigin.Begin);
+                SegmentReader reader = new SegmentReader(ms);
+
+                // test the length of the block 
+
+                // read back record
+                RecordUpdate update;
+                GetStatus status = reader.getRecordUpdate(new RecordKey().appendParsedKey("test/1"), out update);
+                Assert.AreEqual(GetStatus.PRESENT, status);
+                Assert.AreEqual("3", update.ToString());
+            }
         }
 
 

@@ -120,17 +120,17 @@ namespace Bend
 
     // ---------------[ SortedSegmentIndex ]---------------------------------------------------------
     
-    class SortedSegmentIndex: IScannable<RecordKey, RecordUpdate>
+    internal class SortedSegmentIndex: IScannable<RecordKey, RecordUpdate>
     {
-        class _SegBlock
+        internal class _SegBlock
         {
             // TODO: how do ranges fit together? (how do we define inclusive/exclusive for the joint?)
-            RecordKey lowest_key;    
-            public long datastart;
-            public long dataend;
+            internal RecordKey lowest_key;    
+            internal long datastart;
+            internal long dataend;
 
             // TODO: should make a registry mapping shorts to GUIDs of block encoders
-            public short blocktype;    // 00 = special endblock lists the last key (inclusive)
+            internal short blocktype;    // 00 = special endblock lists the last key (inclusive)
             
             public _SegBlock( RecordKey start_key_inclusive, short blocktype, long datastartoffset, long dataendoffset) {
                 this.lowest_key = start_key_inclusive;
@@ -142,6 +142,7 @@ namespace Bend
                 Int32 coded_key_length = rr.ReadInt32();
                 lowest_key = new RecordKey(rr.ReadBytes((int)coded_key_length));
                 
+                
                 datastart = rr.ReadInt64();
                 dataend = rr.ReadInt64();
                 blocktype = rr.ReadInt16();
@@ -152,9 +153,10 @@ namespace Bend
                 wr.Write((Int32)lowest_key_encoded.Length);
                 wr.Write((byte[])lowest_key_encoded);
 
-                wr.Write((long)datastart);
-                wr.Write((long)dataend);
-                wr.Write((long)blocktype);
+                // TODO: switch this reading and writing to binstruct so we don't make mistakes
+                wr.Write((Int64)datastart);
+                wr.Write((Int64)dataend);
+                wr.Write((Int16)blocktype);
             }
             
             override public String ToString() {
@@ -163,16 +165,18 @@ namespace Bend
 
         } // end _SegBlock inner class 
 
-        List<_SegBlock> blocks;
-        Stream fs; // used when we're in read-mode
+        internal List<_SegBlock> blocks;
+        Stream dataAccessStream; // used when we're in read-mode
 
         public SortedSegmentIndex() {
             blocks = new List<_SegBlock>();
         }
-        public SortedSegmentIndex(Stream rr,Stream _fs) : this() {
-            readFromStream(rr);
-            this.fs = _fs;
+        public SortedSegmentIndex(byte[] index_data,Stream _dataAccessStream) : this() {
+            readFromBytes(index_data);
+            this.dataAccessStream = _dataAccessStream;
         }
+
+
 
         public void addBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
             blocks.Add(new _SegBlock(start_key_inclusive,(short)0, startpos, endpos));
@@ -192,8 +196,8 @@ namespace Bend
                 block.Write(wr);
             }
         }
-        public void readFromStream(Stream reader) {
-            BinaryReader rr = new BinaryReader(reader);
+        public void readFromBytes(byte[] index_data) {
+            BinaryReader rr = new BinaryReader(new MemoryStream(index_data));
 
             // read the number of blocks in the Segment
             int numblocks = rr.ReadInt32();
@@ -202,12 +206,15 @@ namespace Bend
                 blocks.Add(block);
                 Debug.WriteLine(block, "index reader");
             }
+            
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
 
             foreach (_SegBlock block in blocks) {
                 // TODO: if the block is applicable to the scan
-                ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(fs,block.datastart,block.dataend);
+                ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
+                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+                    
                 foreach(KeyValuePair<RecordKey,RecordUpdate> kvp in decoder.sortedWalk()) {
                     yield return kvp;
                 }
@@ -252,12 +259,13 @@ namespace Bend
             int err = fs.Read(lenbytes, 0, 4);
             int indexlength = BitConverter.ToInt32(lenbytes, 0);
 
-            // read the index
+            // read the index bytes
             fs.Seek(-(4 + indexlength), SeekOrigin.End); 
             byte[] indexdata = new byte[indexlength];
             fs.Read(indexdata, 0, indexlength);
-
-            index = new SortedSegmentIndex(new MemoryStream(indexdata),_fs);
+            
+            // and push those butes through the segmentindexread
+            index = new SortedSegmentIndex(indexdata,_fs);
 
         }
 
@@ -315,7 +323,7 @@ namespace Bend
     class SegmentWriterAdvisor    
     {
         int keys_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 3; // we have this set really low for testing!!
+        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 1; // we have this set really low for testing!!
 
         public SegmentWriterAdvisor() { }
         public void fyiAddedRecord(RecordKey key, RecordUpdate update) {

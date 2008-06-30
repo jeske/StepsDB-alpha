@@ -87,7 +87,7 @@ namespace Bend
                 if (cmd == (byte)LogCommands.UPDATE) {
                     // decode basic block key/value writes
                     MemoryStream ms = new MemoryStream(cmddata);
-                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ms, 0, cmddata.Length);
+                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(new OffsetStream(ms, 0, cmddata.Length));
                     foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in decoder.sortedWalk()) {
                         // populate our working segment
                         mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);

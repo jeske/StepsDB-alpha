@@ -94,32 +94,25 @@ namespace Bend {
     class SegmentBlockBasicDecoder : ISegmentBlockDecoder
     {
         Stream input; // keep in mind, we don't want to share this, since it has only one seek pointer
-        long startoffset;
-        long length;
-        long endoffset;
-
-
+       
         // prepare to read from a stream
-        public SegmentBlockBasicDecoder(Stream datastream, long startoffset, long length) {
+        public SegmentBlockBasicDecoder(Stream datastream) {
             input = datastream;
-            this.startoffset = startoffset;
-            this.length = length;
-            this.endoffset = startoffset + length;
         }
 
-        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
-            BufferedStream bs = new BufferedStream(input);
-            bs.Seek(startoffset, SeekOrigin.Begin);
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {            
+            Stream rs = input; // our read stream
+            rs.Seek(0, SeekOrigin.Begin);
             bool at_endmarker = false;
 
-            while (bs.Position < endoffset) {
+            while (rs.Position < rs.Length) {
 
                 // accumulate the key
                 List<byte> keystr = new List<byte>();
                 // StringBuilder keystr = new StringBuilder();
                 bool keydone = false;
-                while (bs.Position < endoffset && !keydone) {
-                    byte c = (byte)bs.ReadByte();
+                while (rs.Position < rs.Length && !keydone) {
+                    byte c = (byte)rs.ReadByte();
                     switch (c) {
                         case 0x80:   // end of line 
                             throw new Exception("reached end of line before keyvalue delimiter");
@@ -127,7 +120,7 @@ namespace Bend {
                             keydone = true;
                             break;
                         case 0x81:
-                            byte nc = (byte)bs.ReadByte();
+                            byte nc = (byte)rs.ReadByte();
                             byte unescaped = (byte)(nc + 0x7F);
                             if (unescaped < 0x80 || unescaped > 0x82) {
                                 // throw new Exception("unhandled escape sequence");
@@ -141,13 +134,13 @@ namespace Bend {
                             break;
                     }
                 }
-
+                if (!keydone) { throw new Exception("reached end of buffer before keydone!"); }
                 // accumulate the value
                 StringBuilder valuestr = new StringBuilder();
                 bool valuedone = false;
-                while (bs.Position < endoffset && !valuedone) {
+                while (rs.Position < rs.Length && !valuedone) {
                     at_endmarker = false;
-                    byte c = (byte)bs.ReadByte();
+                    byte c = (byte)rs.ReadByte();
                     switch (c) {
                         case 0x80:   // end of line 
                             valuedone = true;
@@ -170,7 +163,7 @@ namespace Bend {
             }
 
 
-            if (bs.Position != endoffset || !at_endmarker) {
+            if (rs.Position != rs.Length || !at_endmarker) {
                 Debug.WriteLine("sortedWalk() did not finish at end marker");
             }
         }

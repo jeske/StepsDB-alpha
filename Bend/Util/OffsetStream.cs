@@ -37,7 +37,8 @@ namespace Bend
 
         public override long Position {
             get {
-                return ostream.Position - os_offset;
+                long newpos = ostream.Position - os_offset;
+                return newpos;
             }
             set {
                 ostream.Position = os_offset + value;
@@ -48,7 +49,7 @@ namespace Bend
             throw new Exception("setlength not allowed on read-only OffsetStream");
         }
         public override long Seek(long offset, SeekOrigin origin) {
-            long new_offset = ostream.Position + offset;
+            long new_offset = ostream.Position + offset; // SeekOrigin.Current
 
             switch (origin) {
                 case SeekOrigin.Begin:
@@ -58,8 +59,11 @@ namespace Bend
                     new_offset = os_offset + os_length + offset;
                     goto case SeekOrigin.Current;
                 case SeekOrigin.Current:
-                    if ((new_offset < os_offset) || (new_offset > (os_offset + os_length))) {
-                        throw new Exception("OffsetStream.Seek() outside offset stream limits" + new_offset);
+                    if ((new_offset < os_offset) || (new_offset >= (os_offset + os_length))) {
+                        throw new Exception(
+                            "OffsetStream.Seek() outside offset stream limits" +
+                            String.Format(", parms({0},{1})",offset,origin.ToString()) +
+                            String.Format(", new_offset({0}) os_offset({1}) os_length({2})", new_offset, os_offset,os_length));
                     }
                     return ostream.Seek(new_offset, SeekOrigin.Begin) - os_offset;
                     break;
@@ -71,7 +75,8 @@ namespace Bend
 
         public override int Read(byte[] buffer, int offset, int count) {
             // TODO: we should rangecheck our current seekpointer against our offsets and count
-            return ostream.Read(buffer, offset, count);
+            int num_read = ostream.Read(buffer, offset, count);
+            return num_read;
         }
         public override void Write(byte[] buffer, int offset, int count) {
             ostream.Write(buffer, offset,count);
@@ -97,17 +102,65 @@ namespace BendTests
             ms.Write(testdata, 0, testdata.Length);
 
             // read it back through my offset stream
-            long O_LENGTH = 2;;
-            long O_OFFSET = 2;
-            OffsetStream os = new OffsetStream(ms, O_OFFSET, O_LENGTH);
-            Assert.AreEqual(O_LENGTH, os.Length, "test .Length");
+            {
+                long O_LENGTH = 2;;
+                long O_OFFSET = 2;
+                OffsetStream os = new OffsetStream(ms, O_OFFSET, O_LENGTH);
+                Assert.AreEqual(O_LENGTH, os.Length, "test .Length");
 
-            Assert.AreEqual(0,os.Seek(0, SeekOrigin.Begin), "seek to beginning of my offset range");
-            Assert.AreEqual(0, os.Position, "test .Position");
+                Assert.AreEqual(0, os.Seek(0, SeekOrigin.Begin), "seek to beginning of my offset range");
+                Assert.AreEqual(0, os.Position, "test .Position");
 
-            Assert.AreEqual(2, os.ReadByte(), "read byte pos 2");
-            Assert.AreEqual(3, os.ReadByte(), "read byte pos 3");
+                Assert.AreEqual(2, os.ReadByte(), "read byte pos 2");
+                Assert.AreEqual(1, os.Position, "test .Position == 1");
+                Assert.AreEqual(3, os.ReadByte(), "read byte pos 3");
+                Assert.AreEqual(2, os.Position, "test .Position == 2");
+
+                Assert.AreEqual(1, os.Seek(-1, SeekOrigin.Current), "seek to beginning of my offset range AGAIN");
+                Assert.AreEqual(1, os.Position, "test .Position AGAIN");
+
+                Assert.AreEqual(3, os.ReadByte(), "read byte pos 3 AGAIN");
+            }
+        }
+
+    }
+
+    [TestFixture]
+    public class ZZ_TODO_OffsetStream_BufferedStream_Bug
+    {
+
+        [Test]
+        public void T00_TestOffsetStreamWrappedInBufferedStream() {
+            MemoryStream ms = new MemoryStream();
+            byte[] testdata = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+            // write the testdata
+            ms.Write(testdata, 0, testdata.Length);
+
+            // wrap it in a buffered stream and do the same things
+            {
+                long O_LENGTH = 2;
+                long O_OFFSET = 4;
+                BufferedStream bs = new BufferedStream(new OffsetStream(ms, O_OFFSET, O_LENGTH));
+
+                Assert.AreEqual(O_LENGTH, bs.Length, "test Buffered .Length");
+
+                Assert.AreEqual(0, bs.Seek(0, SeekOrigin.Begin), "seek to beginning of my offset range");
+                Assert.AreEqual(0, bs.Position, "test .Position");
+
+                Assert.AreEqual(4, bs.ReadByte(), "read byte pos 4");
+                Assert.AreEqual(1, bs.Position, "test .Position == 1");
+                Assert.AreEqual(5, bs.ReadByte(), "read byte pos 5");
+                Assert.AreEqual(2, bs.Position, "test .Position == 2");
+
+                Assert.AreEqual(1, bs.Seek(-1, SeekOrigin.Current), "seek to beginning of my offset range AGAIN");
+                Assert.AreEqual(1, bs.Position, "test .Position == 1");
+
+                Assert.AreEqual(5, bs.ReadByte(), "read byte pos 3 AGAIN");
+
+            }
 
         }
     }
+
 }
