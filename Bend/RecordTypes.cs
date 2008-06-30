@@ -299,6 +299,10 @@ namespace Bend
             return String.Join(new String(DELIMITER, 1), key_parts.ToArray());
         }
 
+        // TODO: this is hacky, we should find a better abstraction to let people see our keyparts
+        public IEnumerator<string> GetEnumeratorForKeyparts() {
+            return this.key_parts.GetEnumerator();
+        }
 
         // -----------------------------------------------------------
         // encoding/decoding of keyparts

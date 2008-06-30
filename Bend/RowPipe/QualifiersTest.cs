@@ -21,53 +21,19 @@ namespace BendTests
         public void T00_QualifierExact() {
             QualifierExact qe = new QualifierExact("M");
 
+            // test range start/end/key generation
+
+            Assert.AreEqual("=M", qe.genLowestKeyTest());
+            Assert.AreEqual("=M", qe.genHighestKeyTest());
+            Assert.AreEqual("=M", qe.ToString());
+
             // test basic key match
-            Assert.AreEqual(QualifierResult.DESIRE_GT, qe.KeyCompare(""));
-            Assert.AreEqual(QualifierResult.DESIRE_LT, qe.KeyCompare("Z"));
-            Assert.AreEqual(QualifierResult.DESIRE_GT, qe.KeyCompare("A"));
-            Assert.AreEqual(QualifierResult.MATCH, qe.KeyCompare("M"));
-
-            // test range scan
-            Assert.AreEqual(QualifierSetupResult.SETUP_OK, qe.setupForNext("M"));
-            Assert.AreEqual(QualifierSetupResult.SETUP_OK, qe.setupForPrev("M"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForNext("ZZ"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForPrev("ZZ"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForNext("AA"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForPrev("AA"));
-
-
-            // test null value throws QualifierException
-            {
-                bool err = false;
-                try {
-                    qe.KeyCompare(null);
-                }
-                catch (QualifierException) {
-                    err = true;
-                }
-                Assert.AreEqual(true, err, "QualiferExact.KeyCompare(null) should throw QualifierException");
-
-                err = false;
-                try {
-                    qe.setupForNext(null);
-                }
-                catch (QualifierException) {
-                    err = true;
-                }
-                Assert.AreEqual(true, err, "QualifierExact.setupForNext(null) should throw QualifierException");
-
-
-                err = false;
-                try {
-                    qe.setupForPrev(null);
-                }
-                catch (QualifierException) {
-                    err = true;
-                }
-                Assert.AreEqual(true, err, "QualifierExact.setupForPrev(null) should throw QualifierException");
-            }
-
-
+            Assert.AreEqual(false, qe.MatchTo(new QualifierExact("A").ToString()));
+            Assert.AreEqual(false, qe.MatchTo(new QualifierExact("ZZ").ToString()));
+            Assert.AreEqual(true, qe.MatchTo(new QualifierExact("M").ToString()));
+            
+            // test exceptions
+            // Assert.Fail("need to test exceptions");
         }
 
         [Test]

@@ -41,18 +41,29 @@ namespace Bend
 
     // ---------------[ SegmentBuilder ]---------------------------------------------------------
 
+    // TODO: consider what this class is for long term. Right now it's just a needless wrapper
+    //  around IScannableDictionary. However, we intend at some point for it to collect
+    //  statistics which can help us predict which segment/block choices to make when we
+    //  write out the segment.    
+    //
+    // Long term, we might want to have a prefix-compressed in-memory format. The current
+    // format bloats when we have lots of very big keys.
 
-    class SegmentMemoryBuilder : ISortedSegment
+    class SegmentMemoryBuilder : ISortedSegment , IScannable<RecordKey, RecordUpdate>
     {
-        // sortedlist perf: http://www.codeproject.com/KB/recipes/SplitArrayDictionary.aspx
-        // we should use a dictionary instead
-
         IScannableDictionary<RecordKey, RecordUpdate> items;
 
+        // TODO: collect some statistics that help us inform the segment/block writing process
         // int approx_size = 0;
         // int num_deletions = 0;
 
         public SegmentMemoryBuilder() {
+            // TODO: implement a type-instantiation registry, so clients can ask for us to
+            //   instantiate a different implementation. 
+            // ..sortedlist perf: http://www.codeproject.com/KB/recipes/SplitArrayDictionary.aspx
+            // ..Our skiplist takes more space, but probably shreds those performance numbers,
+            //   and it allows next/prev, which none of them offer.
+
             // items = new SortedDictionary<RecordKey, RecordUpdate>();
             items = new SkipList<RecordKey, RecordUpdate>();
         }
@@ -76,6 +87,25 @@ namespace Bend
                 return GetStatus.MISSING;
             }
         }
+
+        #region IScannableDictionary_mapping
+
+        public KeyValuePair<RecordKey,RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
+            return this.items.FindNext(keytest);
+        }
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
+            return this.items.FindPrev(keytest);
+        }
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {            
+            return this.items.scanForward(scanner);
+        }
+
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanBackward(IScanner<RecordKey> scanner) {
+            return this.items.scanBackward(scanner);
+        }
+
+
+        #endregion
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
             return items;
