@@ -57,6 +57,9 @@ namespace Bend
                 return -1;
             }
         }
+        public static ScanRange<K> All() {
+            return new ScanRange<K>(null);
+        }
         public IComparable<K> genLowestKeyTest() {
             if (scan_all) {
                 return new minKey();

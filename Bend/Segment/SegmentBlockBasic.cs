@@ -28,6 +28,8 @@ namespace Bend {
     //    .. record size is large. (b) keep skiplist style fastscan-back pointers
     //    .. to jump back far and still find a record boundary
 
+    // TODO: add a record checksum, even a weak one... to prevent stupid mistakes!
+
     class SegmentBlockBasicEncoder : ISegmentBlockEncoder
     {
         Stream output;
@@ -165,73 +167,8 @@ namespace Bend {
             return new KeyValuePair<RecordKey, RecordUpdate>(key, value);
         }
 
-        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {            
-            Stream rs = datastream; // our read stream
-            rs.Seek(0, SeekOrigin.Begin);
-            bool at_endmarker = false;
-
-            while (rs.Position < rs.Length) {
-
-                // accumulate the key
-                List<byte> keystr = new List<byte>();
-                // StringBuilder keystr = new StringBuilder();
-                bool keydone = false;
-                while (rs.Position < rs.Length && !keydone) {
-                    byte c = (byte)rs.ReadByte();
-                    switch (c) {
-                        case 0x80:   // end of line 
-                            throw new Exception("reached end of line before keyvalue delimiter");
-                        case 0x82:   // key value delimiter
-                            keydone = true;
-                            break;
-                        case 0x81:
-                            byte nc = (byte)rs.ReadByte();
-                            byte unescaped = (byte)(nc + 0x7F);
-                            if (unescaped < 0x80 || unescaped > 0x82) {
-                                // throw new Exception("unhandled escape sequence");
-                            }
-                            keystr.Add(unescaped);
-                            // keystr.Append((char)unescaped);
-                            break;
-                        default:
-                            keystr.Add(c);
-                            // keystr.Append((char)c);
-                            break;
-                    }
-                }
-                if (!keydone) { throw new Exception("reached end of buffer before keydone!"); }
-                // accumulate the value
-                // TODO: switch this to use List<byte> instead of string builder!!!
-                StringBuilder valuestr = new StringBuilder();
-                bool valuedone = false;
-                while (rs.Position < rs.Length && !valuedone) {
-                    at_endmarker = false;
-                    byte c = (byte)rs.ReadByte();
-                    switch (c) {
-                        case 0x80:   // end of line 
-                            valuedone = true;
-                            at_endmarker = true;
-                            break;
-                        case 0x82:   // key value delimiter
-                            throw new Exception("found keyvalue delimiter in value");
-                        case 0x81:
-                            throw new Exception("unhandled escape sequence");
-                        default:
-                            valuestr.Append((char)c);
-                            break;
-                    }
-                }
-
-                RecordKey key = new RecordKey(keystr.ToArray());
-                RecordUpdate value = RecordUpdate.FromEncodedData(valuestr.ToString());
-                Debug.WriteLine("scanning " + key.ToString() + " : " + value.ToString());
-                yield return new KeyValuePair<RecordKey, RecordUpdate>(key, value);
-            }
-
-
-            if (rs.Position != rs.Length || !at_endmarker) {
-                Debug.WriteLine("sortedWalk() did not finish at end marker");
-            }
+        public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
+            return this.scanForward(ScanRange<RecordKey>.All());
         }
 
 
@@ -248,7 +185,7 @@ namespace Bend {
         {
             internal KeyValuePair<RecordKey, RecordUpdate> record;
             internal int start_pos;
-            internal int end_pos;
+            internal int after_end_pos;
             internal bool have_record;
 
         }
@@ -256,12 +193,118 @@ namespace Bend {
             internal RecordLocator before_keytest;
             internal RecordLocator after_keytest;            
         }
+        private static int FIND_RECORD_BUFSIZE = 500;  // TODO: load this from configuration state
+        private static int PREV_RECORD_SCANSIZE = 500; // TODO: load from config, or use avg record size
 
-        private static int FIND_RECORD_BUFSIZE = 500;
+
+
+
+        // _nextRecord() - grab the next record
+        // easy, since the last record end point stops right where we need to decode
+        private void _nextRecord(ref RecordLocator rloc) {
+            int new_start = rloc.after_end_pos;
+            int datastream_length = (int)this.datastream.Length;
+
+            if (!rloc.have_record) { 
+                throw new Exception("_nextRecord() called with rloc.have_record==false");
+            }
+
+            if (new_start < datastream_length) {
+                this.datastream.Seek(new_start, SeekOrigin.Begin);
+                rloc.start_pos = new_start;
+                rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);                
+                rloc.after_end_pos = (int)this.datastream.Position;
+                rloc.have_record = true;
+                return;
+            } else if (new_start == datastream_length) {
+                // reached end
+                rloc.have_record = false;
+                rloc.record = default(KeyValuePair<RecordKey, RecordUpdate>);
+                rloc.start_pos = 0;
+                rloc.after_end_pos = 0;
+                return;
+            } else { 
+                // if (new_start > datsstream_length)
+                throw new Exception("error: _nextRecord called with rloc past end");
+            }
+        }
+
+        // _prevRecord - scan back to the previous record
+        // harder, since we have to scan backwards to find the start of the previous record
+        // TODO: write a reverse fast strchr() clone
+        private void _prevRecord(ref RecordLocator rloc) {
+            byte[] search_buffer = new byte[PREV_RECORD_SCANSIZE];
+            int read_result_size, read_size;
+
+            if (!rloc.have_record) {
+                throw new Exception("_prevRecord() called with rloc.have_record==false");
+            }
+            if (rloc.start_pos == 0) {
+                // we can't go back before the beginning of our block, so if we reach it, we are done
+                rloc.have_record = false;
+                rloc.start_pos = 0;
+                rloc.after_end_pos = 0;
+                rloc.record = default(KeyValuePair<RecordKey,RecordUpdate>);
+                return;
+            }
+
+            int check_up_to = rloc.start_pos - 1;  // stop short, or we'll try to redecode the same record we were handed
+            int cur_stream_pos = Math.Max(0, rloc.start_pos - search_buffer.Length);
+            while (cur_stream_pos >= 0) {            
+                this.datastream.Seek(cur_stream_pos, SeekOrigin.Begin);
+                read_size = (int)Math.Min(search_buffer.Length,check_up_to-cur_stream_pos);
+                read_result_size = this.datastream.Read(search_buffer,0,read_size);
+
+                int bufpos = read_result_size - 1;
+                while (bufpos >= 0) {
+                    
+                    if (search_buffer[bufpos] == SegmentBlockBasicEncoder.END_OF_LINE) {
+                        // decode record
+                        int new_record_start = cur_stream_pos + bufpos + 1;
+                       
+                        this.datastream.Seek(new_record_start, SeekOrigin.Begin);
+                        rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);
+                        rloc.after_end_pos = (int) this.datastream.Position;
+                        if (rloc.after_end_pos != rloc.start_pos) {
+                            // if this decode didn't bring us to the start of the record we were
+                            // ..handed, then something is WRONG!
+                            throw new Exception("_prevRecord() INTERNAL scan error");
+                        }
+                        rloc.have_record = true;
+                        rloc.start_pos = new_record_start;
+                        return;                        
+                    }
+                    bufpos--;
+                }
+                // IF we got this far with cur_stream_pos == 0, we're at the start of the block!
+                if (cur_stream_pos == 0) {
+                    // TODO: use a crafty state switch to avoid the block duplicated here from above
+
+                    // if we landed on the beginnng of the block, then decode the first record in the block
+                    int new_record_start = 0;
+                    this.datastream.Seek(new_record_start, SeekOrigin.Begin);
+                    rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);
+                    rloc.after_end_pos = (int)this.datastream.Position;
+                    if (rloc.after_end_pos != rloc.start_pos) {
+                        // if this decode didn't bring us to the start of the record we were
+                        // ..handed, then something is WRONG!
+                        throw new Exception("_prevRecord() INTERNAL scan error");
+                    }
+                    rloc.have_record = true;
+                    rloc.start_pos = new_record_start;
+                    return;
+                }
+
+                // backup to the next range                
+                cur_stream_pos = Math.Max(0, cur_stream_pos - search_buffer.Length);
+            };
+            throw new Exception("_prevRecord() INTERNAL scan error, dropout");
+        }
+
         // do a binary search, knowing we need to re-align to the record boundaries
         // everytime we pick a new cut point... this is efficient as long as our
         // records are reasonably small. For records that are large, we should
-        // pick a different format to avoid all this scanning.
+        // pick a different format to avoid all this scanning for startpoints. 
 
         private FindRecordResult _findRecord(IComparable<RecordKey> keytest) {
             // read state
@@ -282,9 +325,17 @@ namespace Bend {
             switch (state) {
                 case mpss.BISECT:
                     if (endpos == startpos) {
-                        return result;                        
+                        return result;
                     }
-                    midpoint_pos = (endpos - startpos) / 2;
+                    {   // find out if we need to account for an odd-size split
+                        int midpoint_pos_delta = endpos - startpos;
+                        if ((midpoint_pos_delta & 1) == 1) {
+                            midpoint_pos = (midpoint_pos_delta + 1) / 2;
+                        } else {
+                            midpoint_pos = midpoint_pos_delta / 2;
+                        }
+                    }
+
                     if (midpoint_pos > endpos) {
                         midpoint_pos = startpos;
                     }
@@ -297,7 +348,7 @@ namespace Bend {
                             int bufpos = 0;
                             this.datastream.Seek(cur_stream_pos, SeekOrigin.Begin);
                             read_size = (int)Math.Min(search_buffer.Length,endpos-cur_stream_pos);
-                            read_result_size = this.datastream.Read(search_buffer,0,search_buffer.Length);
+                            read_result_size = this.datastream.Read(search_buffer,0,read_size);
                             
                             while (bufpos < read_result_size) {
                                 if (search_buffer[bufpos] == SegmentBlockBasicEncoder.END_OF_LINE) {
@@ -309,10 +360,11 @@ namespace Bend {
                             cur_stream_pos += read_result_size;
                         } while (cur_stream_pos < endpos);
                     }
-                    // ran out of datastream and didn't find END_OF_LINE! (yuck, we just scanned the whole tophalf)                        
-                    // move to the beginning of the buffer and restart
-                    endpos = midpoint_pos;
+                    // ran out of datastream and didn't find END_OF_LINE!                         
+                    // move to the beginning of the buffer and restart, 
                     midpoint_pos = startpos;
+                    // but don't rescan that stuff we just saw between midpoint_pos and endpos
+                    endpos = midpoint_pos+1;
                     goto case mpss.FIND_REC_FORWARD;
                     // fyi - we considered bisecting the first half, but if the records are so big relative
                     //  to our midpoint that there were none in the second half, it's because our records
@@ -333,7 +385,7 @@ namespace Bend {
                         this.datastream.Seek(record_start_pos, SeekOrigin.Begin);
                         rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);
                         rloc.start_pos = record_start_pos;
-                        rloc.end_pos = (int)this.datastream.Position;
+                        rloc.after_end_pos = (int)this.datastream.Position;
                         rloc.have_record = true;                        
                         
                         int compare_result = keytest.CompareTo(rloc.record.Key);
@@ -344,7 +396,7 @@ namespace Bend {
                         } else if (compare_result > 0) { // record is BEFORE keytest
                             result.before_keytest = rloc;
                             // we know this record is before us, so scan only after it
-                            startpos = rloc.end_pos;
+                            startpos = rloc.after_end_pos;
                         } 
                     }
                     goto case mpss.BISECT;
@@ -363,16 +415,44 @@ namespace Bend {
             }            
         }
         public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
-            throw new Exception("not implemented");
+            FindRecordResult result = _findRecord(keytest);
+            if (result.before_keytest.have_record) {
+                return result.before_keytest.record;
+            } else {
+                throw new KeyNotFoundException("SegmentBlockBasic: failed to find match : " + keytest.ToString());
+            }            
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {
-            throw new Exception("not implemented");
+            IComparable<RecordKey> lowkeytest = scanner.genLowestKeyTest();
+            IComparable<RecordKey> highkeytest = scanner.genHighestKeyTest();
 
+            RecordLocator rloc = _findRecord(lowkeytest).after_keytest;
+            
+            while (rloc.have_record &&   // while we have a new record to test
+                (highkeytest.CompareTo(rloc.record.Key) > 0) )  // and it's below the high key
+            {
+                if (scanner.MatchTo(rloc.record.Key)) {
+                    yield return rloc.record;
+                }
+                _nextRecord(ref rloc);                  
+            }
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanBackward(IScanner<RecordKey> scanner) {
-            throw new Exception("not implemented");
+            IComparable<RecordKey> lowkeytest = scanner.genLowestKeyTest();
+            IComparable<RecordKey> highkeytest = scanner.genHighestKeyTest();
+
+            RecordLocator rloc = _findRecord(highkeytest).before_keytest;
+
+            while (rloc.have_record &&   // while we have a new record to test
+                (lowkeytest.CompareTo(rloc.record.Key) < 0))  // and it's above the lowkey
+            {
+                if (scanner.MatchTo(rloc.record.Key)) {
+                    yield return rloc.record;
+                }
+                _prevRecord(ref rloc);
+            }
         }
 
 
