@@ -69,6 +69,8 @@
     <Compile Include="RowPipe\Pipe.cs" />
     <Compile Include="RecordTypesTest.cs" />
     <Compile Include="RowPipe\PipeTest.cs" />
+    <Compile Include="RowPipe\Qualifiers.cs" />
+    <Compile Include="RowPipe\QualifiersTest.cs" />
     <Compile Include="Segment\SortedSegmentTest.cs" />
     <Compile Include="LogWriterTest.cs" />
     <Compile Include="LogWriter.cs" />

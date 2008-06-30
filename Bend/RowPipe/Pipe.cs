@@ -21,93 +21,8 @@ namespace Bend
             return "" + this.stage.ToString() + " : " + this.msg;
         }
     }
-    // ----------------------------------[   qualifiers ]-------------------------------
 
-    public enum QualifierResult
-    {
-        DESIRE_LT,    // we desire a key less than the current key
-        DESIRE_GT,    // we desire a key greater than the current key
-        MATCH,        // the current key matches
-        NOMATCH       // the current key does not match, and this operator is nor orderable
-    }
 
-    public enum QualifierSetupResult
-    {
-        SETUP_OK,           // we are setup to watch for the next key in a scan
-        NO_MORE_MATCHES     // there are no more matching keys in this direction
-    }
-
-    public abstract class QualifierBase 
-    {
-        public abstract QualifierResult KeyCompare(string key);
-        public abstract QualifierSetupResult setupForNext(string key); // return false if the next key is invalid
-        public abstract QualifierSetupResult setupForPrev(string key); // return false if the next key is 
-    }
-
-    public class QualifierException : Exception
-    {
-        public QualifierException(string msg) : base(msg) { }
-    }
-
-    public sealed class QualifierExact : QualifierBase
-    {
-        string value;
-        int exact_hash_delta;
-        public QualifierExact(string value) { 
-            this.value = value;
-            if (value == null) { 
-                throw new QualifierException("QualifierExact may not be null"); 
-            }
-            exact_hash_delta = "EXACT".GetHashCode();
-        }
-        public override string ToString() {
-            return "=" + value;
-        }
-        public override QualifierResult KeyCompare(string keydata) {
-            if (keydata == null) {
-                throw new QualifierException("QualifierExact.KeyCompare(null) is invalid");
-            }
-            int compare_result = value.CompareTo(keydata);
-            if (compare_result == 0) {  // equals
-                return QualifierResult.MATCH;
-            } else if (compare_result < 0) { //  QUAL_TARGET < keydata
-                return QualifierResult.DESIRE_LT;
-            } else {  // QUAL_TARGET > keydata
-                return QualifierResult.DESIRE_GT;
-            }
-        }
-        public override QualifierSetupResult setupForNext(string keydata) {
-            if (keydata == null) {
-                throw new QualifierException("QualifierExact.setupForNext(null) is invalid");
-            }
-            if (this.value == keydata) {
-                return QualifierSetupResult.SETUP_OK;
-            } else {
-                return QualifierSetupResult.NO_MORE_MATCHES;
-            }
-        }
-        public override QualifierSetupResult setupForPrev(string keydata) {
-            if (keydata == null) { 
-                throw new QualifierException("QualifierExact.setupForPrev(null) is invalid"); 
-            }
-            if (this.value == keydata) {
-                return QualifierSetupResult.SETUP_OK;
-            } else {
-                return QualifierSetupResult.NO_MORE_MATCHES;
-            }
-        }
-        public override bool Equals(object obj) {
-            if (obj.GetType() != typeof(QualifierExact)) {
-                return false;
-            } else {
-                QualifierExact obj_exact = (QualifierExact)obj;
-                return this.value.Equals(obj_exact.value);
-            }
-        }
-        public override int GetHashCode() {
-            return this.exact_hash_delta + value.GetHashCode();
-        }
-    }
 
     // ----------------------------------[    PipeHdfContext   ]-------------------------
 
@@ -153,16 +68,16 @@ namespace Bend
         }
     }
 
-    //  -----------------[ PipeRowBuilder / PipeRow ]--------------------------------
+    //  -----------------[ PipeRowQualifier / PipeRow ]--------------------------------
 
-    public class PipeRowBuilder {
+    public class PipeRowQualifier {
         List<QualifierBase> key_part_qualifiers;
         List<string> data_parts;
-        public PipeRowBuilder() {
+        public PipeRowQualifier() {
             key_part_qualifiers = new List<QualifierBase>();
             data_parts = new List<string>();
         }
-        public PipeRowBuilder appendKeyPart(QualifierBase qualifier) {
+        public PipeRowQualifier appendKeyPart(QualifierBase qualifier) {
             key_part_qualifiers.Add(qualifier);
             return this;
         }
@@ -182,6 +97,10 @@ namespace Bend
         // the table-materialization metadata, which we would read directly, instead of
         // relying on the table manager to remain "correct". 
 
+        public IEnumerator<QualifierBase> GetEnumerator() {
+            return key_part_qualifiers.GetEnumerator();
+        }
+
         public string ToString() {
             string output = "";
             foreach (QualifierBase part in key_part_qualifiers) {
@@ -197,11 +116,11 @@ namespace Bend
     // ---------------------------------[ PipeStage ]-----------------------------------------
 
     public abstract class PipeStage {
-        internal abstract void _generateRowFromContext(PipeHdfContext ctx, PipeRowBuilder rowb);
-        public PipeRowBuilder generateRowFromContext(PipeHdfContext ctx) {
+        internal abstract void _generateRowQualifierFromContext(PipeHdfContext ctx, PipeRowQualifier rowb);
+        public PipeRowQualifier generateRowFromContext(PipeHdfContext ctx) {
             // generate our own rowparts
-            PipeRowBuilder builder = new PipeRowBuilder();
-            this._generateRowFromContext(ctx, builder);
+            PipeRowQualifier builder = new PipeRowQualifier();
+            this._generateRowQualifierFromContext(ctx, builder);
             return builder;
         }
         //------
@@ -217,7 +136,7 @@ namespace Bend
     public class PipeStageEnd : PipeStage
     {
         public PipeStageEnd() { }
-        internal override void _generateRowFromContext(PipeHdfContext ctx, PipeRowBuilder rob) { }
+        internal override void _generateRowQualifierFromContext(PipeHdfContext ctx, PipeRowQualifier rob) { }
         internal override void _generateContextFromRow(PipeRow row, PipeHdfContext ctr) {  }
     }
 
@@ -229,14 +148,14 @@ namespace Bend
             this.context_key = context_key;
             this.next_stage = next_stage;
         }
-        internal override void _generateRowFromContext(PipeHdfContext ctx, PipeRowBuilder rob) {
+        internal override void _generateRowQualifierFromContext(PipeHdfContext ctx, PipeRowQualifier rob) {
             QualifierBase qual = ctx.getQualifier(this.context_key);
             if (qual != null) {
                 rob.appendKeyPart(qual);
             } else {
                 throw new PipeGenerateException(this, "missing context: " + this.context_key);
             }
-            this.next_stage._generateRowFromContext(ctx, rob);
+            this.next_stage._generateRowQualifierFromContext(ctx, rob);
         }
         internal override void _generateContextFromRow(PipeRow row, PipeHdfContext ctr) {
             // TODO
@@ -267,7 +186,7 @@ namespace Bend
         public PipeStageMux(string context_key, Dictionary<QualifierExact, PipeStage> mux_map) 
             : this(context_key, mux_map, null) { }
 
-        internal override void _generateRowFromContext(PipeHdfContext ctx, PipeRowBuilder rob) {
+        internal override void _generateRowQualifierFromContext(PipeHdfContext ctx, PipeRowQualifier rob) {
             // TODO typecheck this cast and throw a useful execption
             QualifierExact mux_key = (QualifierExact) ctx.getQualifier(this.context_key, this.default_muxvalue);
 
@@ -282,7 +201,7 @@ namespace Bend
                         throw new PipeGenerateException(this, "missing mux_map entry for: " +
                             this.context_key + " : " + mux_key);
                     }
-                    next_stage._generateRowFromContext(ctx, rob);
+                    next_stage._generateRowQualifierFromContext(ctx, rob);
                 }
             } else {
                 throw new PipeGenerateException(this, "missing mux context: " + this.context_key);

@@ -14,7 +14,7 @@ namespace BendTests
     {
 
         [Test]
-        public void T00_PipeHdfContext() {
+        public void T01_PipeHdfContext() {
             PipeHdfContext ctx2 = new PipeHdfContext();
             ctx2.setQualifier("blah", "1");
 
@@ -33,75 +33,11 @@ namespace BendTests
         }
 
         [Test]
-        public void T01_QualifierExact() {
-            QualifierExact qe = new QualifierExact("M");
-
-
-
-            // test basic key match
-            Assert.AreEqual(QualifierResult.DESIRE_GT, qe.KeyCompare(""));
-            Assert.AreEqual(QualifierResult.DESIRE_LT, qe.KeyCompare("Z"));
-            Assert.AreEqual(QualifierResult.DESIRE_GT, qe.KeyCompare("A"));
-            Assert.AreEqual(QualifierResult.MATCH, qe.KeyCompare("M"));
-            
-            // test range scan
-            Assert.AreEqual(QualifierSetupResult.SETUP_OK, qe.setupForNext("M"));
-            Assert.AreEqual(QualifierSetupResult.SETUP_OK, qe.setupForPrev("M"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForNext("ZZ"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForPrev("ZZ"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForNext("AA"));
-            Assert.AreEqual(QualifierSetupResult.NO_MORE_MATCHES, qe.setupForPrev("AA"));
-
-
-            // test null value throws QualifierException
-            {
-                bool err = false;
-                try {
-                    qe.KeyCompare(null);
-                } catch (QualifierException) {
-                    err = true;
-                }
-                Assert.AreEqual(true, err, "QualiferExact.KeyCompare(null) should throw QualifierException");
-
-                err = false;
-                try {
-                    qe.setupForNext(null);
-                }
-                catch (QualifierException) {
-                    err = true;
-                }
-                Assert.AreEqual(true, err, "QualifierExact.setupForNext(null) should throw QualifierException");
-
-
-                err = false;
-                try {
-                    qe.setupForPrev(null);
-                }
-                catch (QualifierException) {
-                    err = true;
-                }
-                Assert.AreEqual(true, err, "QualifierExact.setupForPrev(null) should throw QualifierException");
-            }
-
-
-        }
-
-        [Test]
-        public void T02_PipeBuilder() {
-            PipeRowBuilder builder = new PipeRowBuilder();
-            builder.appendKeyPart(new QualifierExact("test"));
-            builder.appendKeyPart(new QualifierExact("blah"));
-
-            Assert.AreEqual("/=test/=blah", builder.ToString());
-
-        }
-
-        [Test]
-        public void T03_PipePartition() {
+        public void T03_PipeStages() {
             // setup the pipe...
             PipeStagePartition p =
                 new PipeStagePartition("username",
-                    new PipeStagePartition("table",
+                    new PipeStagePartition("tablename",
                         new PipeStageEnd()
                     )
                 );
@@ -122,11 +58,11 @@ namespace BendTests
                 Assert.AreEqual(true, err, "error on pipe element not in context");
             }
 
-            // add the "table" key
-            ctx.setQualifier("table", "foo");
+            // add the "tablename" key
+            ctx.setQualifier("tablename", "foo");
 
             // process the HDF context, should be an error because "table" doesn't exist..
-            PipeRowBuilder newrow = p.generateRowFromContext(ctx);
+            PipeRowQualifier newrow = p.generateRowFromContext(ctx);
 
             // test the key produced
             Assert.AreEqual("/=jeske/=foo", newrow.ToString());
@@ -158,7 +94,7 @@ namespace BendTests
             {
                 bool err = false;
                 try {
-                    PipeRowBuilder builder = mux.generateRowFromContext(ctx);
+                    PipeRowQualifier builder = mux.generateRowFromContext(ctx);
                 }
                 catch (PipeGenerateException) {
                     err = true;
@@ -169,7 +105,7 @@ namespace BendTests
             // test mux defaults
             {
                 PipeStageMux defmux = new PipeStageMux("select_sub", mux_map, new QualifierExact("path_a"));
-                PipeRowBuilder builder = defmux.generateRowFromContext(ctx);
+                PipeRowQualifier builder = defmux.generateRowFromContext(ctx);
                 Assert.AreEqual("/=path_a/=suba-keypart", builder.ToString());
             }
 
@@ -177,14 +113,14 @@ namespace BendTests
             // test suba
             {
                 ctx.setQualifier("select_sub", "path_a");
-                PipeRowBuilder builder = mux.generateRowFromContext(ctx);
+                PipeRowQualifier builder = mux.generateRowFromContext(ctx);
                 Assert.AreEqual("/=path_a/=suba-keypart", builder.ToString());
             }
 
             // test subb
             {
                 ctx.setQualifier("select_sub", "path_b");
-                PipeRowBuilder builder = mux.generateRowFromContext(ctx);
+                PipeRowQualifier builder = mux.generateRowFromContext(ctx);
                 Assert.AreEqual("/=path_b/=subb-keypart", builder.ToString());
             }
 
