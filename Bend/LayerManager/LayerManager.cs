@@ -22,7 +22,7 @@ namespace Bend
 
     // ---------------[ LayerManager ]---------------------------------------------------------
 
-    public class LayerManager : IDisposable
+    public class LayerManager : IDisposable 
     {
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;

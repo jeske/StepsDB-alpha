@@ -1,10 +1,12 @@
 ﻿
-// originally taken from the public source code:
+// Copyright (C) 2008, by David W. Jeske
+// All Rights Reserved.
+//
+// originally inspired by the public source code:
 // http://www.codersource.net/csharp_skip_list.aspx
-
+//
 // wikipedia explanation
 // http://en.wikipedia.org/wiki/Skip_list
-//
 //
 // A skip list is built in layers. The bottom layer is an ordinary ordered linked list. 
 // Each higher layer acts as an "express lane" for the lists below, where an element in 
@@ -23,8 +25,7 @@
 // FURTHERMORE, this skiplist is extended to a doubly-linked skiplist, so we can traverse
 // efficiently in either direction.
 
-// all improvements Copyright (C) 2008, by David W. Jeske
-// All Rights Reserved.
+
 
 using System;
 using System.Text;
@@ -38,7 +39,52 @@ namespace Bend
 
     public interface IScannableDictionary<K, V> : IDictionary<K, V>, IScannable<K, V> { }
 
+    class ScanRange<K> : IScanner<K> where K : IComparable<K>
+    {
+        K lowkey, highkey;
+        IComparable<K> matchtest;
+        bool scan_all = false;
+        public ScanRange(K lowkey, K highkey, IComparable<K> matchtest) { // scan between low and high key
+            this.lowkey = lowkey;
+            this.highkey = highkey;
+            this.matchtest = matchtest;
+        }
 
+        public ScanRange(IComparable<K> matchtest) { // scan all
+            this.lowkey = default(K);
+            this.highkey = default(K);
+            scan_all = true;
+        }
+        public bool MatchTo(K value) {
+            return true;
+        }
+        public class maxKey : IComparable<K>
+        {
+            public int CompareTo(K val) {
+                return 1;
+            }
+        }
+        public class minKey : IComparable<K>
+        {
+            public int CompareTo(K val) {
+                return -1;
+            }
+        }
+        public IComparable<K> genLowestKeyTest() {
+            if (scan_all) {
+                return new minKey();
+            } else {
+                return lowkey;
+            }
+        }
+        public IComparable<K> genHighestKeyTest() {
+            if (scan_all) {
+                return new maxKey();
+            } else {
+                return highkey;
+            }
+        }
+    }
     // TODO: consider how this will need to be reworked to efficiently handle 
     //   next/prev on prefix-compressed data
     public interface IScannable<K, V>
@@ -886,51 +932,7 @@ namespace BendTests
             }
         }
 
-        class DummyScanner<K> : IScanner<K> where K : IComparable<K>
-        {
-            K lowkey, highkey;
-            IComparable<K> matchtest;
-            bool scan_all = false;
-            public DummyScanner(K lowkey, K highkey, IComparable<K> matchtest) { // scan between low and high key
-                this.lowkey = lowkey;
-                this.highkey = highkey;
-                this.matchtest = matchtest;
-            }
-
-            public DummyScanner(IComparable<K> matchtest) { // scan all
-                this.lowkey = default(K);
-                this.highkey = default(K);
-                scan_all = true;
-            }
-            public bool MatchTo(K value) {
-                return true;
-            }
-            public class maxKey : IComparable<K> {
-                public int CompareTo(K val) {
-                    return 1;
-                }
-            }
-            public class minKey : IComparable<K>
-            {
-                public int CompareTo(K val) {
-                    return -1;
-                }
-            }
-            public IComparable<K> genLowestKeyTest() {
-                if (scan_all) {
-                    return new minKey();
-                } else {
-                    return lowkey;
-                }
-            }
-            public IComparable<K> genHighestKeyTest() {
-                if (scan_all) {
-                    return new maxKey();
-                } else {
-                    return highkey;
-                }
-            }
-        }
+   
         [Test]
         public void T01_SkipList_Scanning() {
             SkipList<string, int> l = new SkipList<string, int>();
@@ -947,7 +949,7 @@ namespace BendTests
             // use the scan iterator
             {
                 int pos = 1;  // start at 1 because of our "b" search key
-                foreach (KeyValuePair<string, int> kvp in l.scanForward(new DummyScanner<string>("b","z",null))) {
+                foreach (KeyValuePair<string, int> kvp in l.scanForward(new ScanRange<string>("b","z",null))) {
                     // System.Console.WriteLine("skip[{0}] = {1}", kvp.Key, kvp.Value);
                     Assert.AreEqual(true, pos < keylist.Length, "iterator returned too many elements");
                     Assert.AreEqual(keylist[pos], kvp.Key);
@@ -960,7 +962,7 @@ namespace BendTests
             // use the scan iterator
             {
                 int pos = 1;  // start at 1 because of our "e" search key
-                foreach (KeyValuePair<string, int> kvp in l.scanBackward(new DummyScanner<string>("","e",null))) {
+                foreach (KeyValuePair<string, int> kvp in l.scanBackward(new ScanRange<string>("","e",null))) {
                     // System.Console.WriteLine("skip[{0}] = {1}", kvp.Key, kvp.Value);
                     Assert.AreEqual(true, pos >= 0, "iterator returned too many elements");
                     Assert.AreEqual(keylist[pos], kvp.Key);
@@ -982,7 +984,7 @@ namespace BendTests
             // use PREVIOUS scan iterator
             {
                 int last_val = 0xFFFFFFF;
-                foreach (KeyValuePair<int, int> kvp in l.scanBackward(new DummyScanner<int>(null))) {
+                foreach (KeyValuePair<int, int> kvp in l.scanBackward(new ScanRange<int>(null))) {
                     Assert.AreEqual(true, last_val > kvp.Key, "keys should decrease");
                     last_val = kvp.Key;
                 }
