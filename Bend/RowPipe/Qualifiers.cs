@@ -8,13 +8,7 @@ using System.Collections.Generic;
 namespace Bend
 {
     // ----------------------------------[   qualifiers ]-------------------------------
-    public interface IScanner<K>
-    {
-        bool MatchTo(K candidate);
-        IComparable<K> genLowestKeyTest();
-        IComparable<K> genHighestKeyTest();
-    }
-
+   
     public abstract class QualifierBase : IScanner<string>
     {
         public abstract bool MatchTo(string candidate);
