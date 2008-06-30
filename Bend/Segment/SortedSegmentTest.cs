@@ -41,20 +41,12 @@ namespace BendTests
 
             return last_result;
         }
+
         public IComparable<RecordKey> genLowestKeyTest() {
-            RecordKey key = new RecordKey();
-            foreach (QualifierBase part in this.qual) {
-                key.appendKeyPart(part.genLowestKeyTest().ToString());
-            }
-            return key;
+            return this.qual.genLowestKey();
         }
         public IComparable<RecordKey> genHighestKeyTest() {
-            RecordKey key = new RecordKey();
-            foreach (QualifierBase part in this.qual) {
-                key.appendKeyPart(part.genHighestKeyTest().ToString());
-            }
-            return key;
-
+            return this.qual.genHighestKey();
         }
     }
 

@@ -108,6 +108,24 @@ namespace Bend
             }
             return output;
         }
+
+        public RecordKey genLowestKey() {
+            RecordKey key = new RecordKey();
+            foreach (QualifierBase part in key_part_qualifiers) {
+                key.appendKeyPart(part.genLowestKeyTest().ToString());
+            }
+            return key;
+        }
+        public RecordKey genHighestKey() {
+            RecordKey key = new RecordKey();
+            foreach (QualifierBase part in key_part_qualifiers) {
+                key.appendKeyPart(part.genHighestKeyTest().ToString());
+            }
+            return key;
+
+
+        }
+
     }
 
     public class PipeRow {
