@@ -36,6 +36,62 @@ namespace BendTests
             Assert.AreEqual("3", update.ToString());
         }
 
+
+        // -------------------------------- RangeScan -----------------------------------
+        // TODO: change this to happen without PipeQualifier, and pull those tests up to
+        //   a LayerManager Integration level
+        [Test]
+        public void T03_RangeScan() {
+            SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
+
+            // generate a Pipe
+            PipeStagePartition p =
+                new PipeStagePartition("tablename",
+                    new PipeStagePartition("id",
+                        new PipeStageEnd()
+                    )
+                );
+
+            // generate a set of data into a segment
+            {
+                // setup the HDF context
+                PipeHdfContext ctx = new PipeHdfContext();
+                ctx.setQualifier("tablename", "datatable");
+
+
+                for (int i = 0; i < 1000; i += 30) {
+                    ctx.setQualifier("id", i.ToString());
+                    // generate a PipeRowQualifier
+                    PipeRowQualifier row = p.generateRowFromContext(ctx);
+
+                    // produce a RecordKey
+                    RecordKey key = new RecordKey();
+                    foreach (QualifierBase qualpart in row) {
+                        if (qualpart.GetType() == typeof(QualifierExact)) {
+                            key.appendKeyPart(qualpart.ToString());
+                        } else {
+                            throw new Exception("only exactly qualifiers are allowed in row updates");
+                        }
+                    }
+                    // put it in the memory segment
+                    builder.setRecord(key, RecordUpdate.WithPayload(i.ToString()));
+                }
+            }
+
+            // scan for a set of matching records (a subset of all records)
+            {
+                // .. build a context qualifier for the pipe
+                PipeHdfContext ctx = new PipeHdfContext();
+                ctx.setQualifier("tablename", "datatable");
+                ctx.setQualifier("id", new QualifierAny());
+
+                // foreach(KeyValuePair<RecordKey,RecordUpdate> row in builder.walkQualifier(ctx,
+                
+            }
+
+
+            Assert.Fail("not implemented");
+        }
     }
 
     [TestFixture]

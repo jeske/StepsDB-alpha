@@ -233,6 +233,7 @@ namespace Bend
                  * When we get above the bottom list, we start updating the "up" and "down" pointer of the 
                  * nodes. */
 
+                // handle both the "next" and prev case at the same time
                 // First for the "forward" case
                 {
                     Node<K, V> prevNode = null;
@@ -241,25 +242,12 @@ namespace Bend
                         prevNode = n;
                         n = new Node<K, V>(key, value);
                         n.right = next[i].right;
+                        n.left = prev[i].left;      
                         next[i].right = n;
+                        prev[i].left = n;
                         if (i > 0) {
                             n.down = prevNode;
                             prevNode.up = n;
-                        }
-                    }
-                }
-                // Second for the "backward" case
-                {
-                    Node<K, V> nextNode = null;
-                    Node<K, V> n = null;
-                    for (int i = 0; i <= newLevel; i++) {
-                        nextNode = n;
-                        n = new Node<K, V>(key, value);
-                        n.left = prev[i].left;
-                        prev[i].left = n;
-                        if (i > 0) {
-                            n.down = nextNode;
-                            nextNode.up = n;
                         }
                     }
                 }
@@ -900,9 +888,9 @@ namespace BendTests
                     Assert.AreEqual(true, pos >= 0, "iterator returned too many elements");
                     Assert.AreEqual(keylist[pos], kvp.Key);
                     Assert.AreEqual(valuelist[pos], kvp.Value);
-                    pos++;
+                    pos--;
                 }
-                Assert.AreEqual(0, pos, "scanBackward() did not return all elements it should have");
+                Assert.AreEqual(-1, pos, "scanBackward() did not return all elements it should have");
             }
 
             
