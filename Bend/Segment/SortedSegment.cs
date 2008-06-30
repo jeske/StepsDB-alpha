@@ -34,7 +34,7 @@ namespace Bend
         void flush();
     }
 
-    public interface ISegmentBlockDecoder
+    public interface ISegmentBlockDecoder : IScannable<RecordKey, RecordUpdate>
     {
         IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk();
     }
@@ -122,7 +122,7 @@ namespace Bend
     
     internal class SortedSegmentIndex: IScannable<RecordKey, RecordUpdate>
     {
-        internal class _SegBlock
+        internal class _SegBlock : IEquatable<_SegBlock>
         {
             // TODO: how do ranges fit together? (how do we define inclusive/exclusive for the joint?)
             internal RecordKey lowest_key;    
@@ -163,23 +163,28 @@ namespace Bend
                 return String.Format("({0}:{1}:{2},{3})",blocktype,lowest_key.ToString(),datastart,dataend);
             }
 
-        } // end _SegBlock inner class 
+            public bool Equals(_SegBlock target) {
+                return false;
+            }
 
-        internal List<_SegBlock> blocks;
-        Stream dataAccessStream; // used when we're in read-mode
+        } // end _SegBlock inner class 
+                
+        internal IScannableDictionary<RecordKey, _SegBlock> blocks;
+
+        Stream dataAccessStream; // used only when we are in read-mode
 
         public SortedSegmentIndex() {
-            blocks = new List<_SegBlock>();
+            // TODO: switch this to use a scannable array when we read back
+            //  so we can avoid wasting the space and insertion time of a skiplist...
+            blocks = new SkipList<RecordKey,_SegBlock>();
         }
         public SortedSegmentIndex(byte[] index_data,Stream _dataAccessStream) : this() {
             readFromBytes(index_data);
             this.dataAccessStream = _dataAccessStream;
         }
 
-
-
         public void addBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
-            blocks.Add(new _SegBlock(start_key_inclusive,(short)0, startpos, endpos));
+            blocks.Add(start_key_inclusive,new _SegBlock(start_key_inclusive,(short)0, startpos, endpos));
         }
 
         public void writeToStream(Stream writer) {
@@ -192,7 +197,8 @@ namespace Bend
             // write the number of segments in this block
             int numblocks = blocks.Count;
             wr.Write((Int32)numblocks); 
-            foreach (_SegBlock block in blocks) {
+            foreach (KeyValuePair<RecordKey,_SegBlock> kvp in blocks) {
+                _SegBlock block = kvp.Value;
                 block.Write(wr);
             }
         }
@@ -203,25 +209,36 @@ namespace Bend
             int numblocks = rr.ReadInt32();
             for (int i=0;i<numblocks;i++) {
                 _SegBlock block = new _SegBlock(rr);
-                blocks.Add(block);
+                blocks.Add(block.lowest_key,block);
                 Debug.WriteLine(block, "index reader");
-            }
-            
+            }            
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
 
-            foreach (_SegBlock block in blocks) {
+            foreach (KeyValuePair<RecordKey,_SegBlock> block_kvp in blocks) {
+                _SegBlock block = block_kvp.Value;
                 // TODO: if the block is applicable to the scan
                 ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
                     new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
                     
-                foreach(KeyValuePair<RecordKey,RecordUpdate> kvp in decoder.sortedWalk()) {
-                    yield return kvp;
+                foreach(KeyValuePair<RecordKey,RecordUpdate> decode_kvp in decoder.sortedWalk()) {
+                    yield return decode_kvp;
                 }
             }
         }
         public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
-            throw new Exception("not implemented");
+            KeyValuePair<RecordKey, _SegBlock> kvp;
+            try {
+                kvp = blocks.FindNext(keytest);
+            } catch (KeyNotFoundException ex) {
+                throw new KeyNotFoundException("SortedSegmentIndex:", ex);
+            }
+            _SegBlock block = kvp.Value;
+            // instantiate the block
+            ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
+                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+
+            return decoder.FindNext(keytest);
         }
         public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
             throw new Exception("not implemented");

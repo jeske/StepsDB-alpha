@@ -87,7 +87,8 @@ namespace BendTests
                 read_stream.Seek(0, SeekOrigin.Begin);
                 SortedSegmentIndex index = new SortedSegmentIndex(streamdata, read_stream);
                 int pos = 0;
-                foreach (SortedSegmentIndex._SegBlock block in index.blocks) {
+                foreach (KeyValuePair<RecordKey,SortedSegmentIndex._SegBlock> kvp in index.blocks) {
+                    SortedSegmentIndex._SegBlock block = kvp.Value;
                     Assert.AreEqual(new RecordKey().appendParsedKey(block_start_keys[pos]), block.lowest_key);
                     Assert.AreEqual(block_start_pos[pos], block.datastart);
                     Assert.AreEqual(block_end_pos[pos], block.dataend);

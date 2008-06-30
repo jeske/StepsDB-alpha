@@ -27,6 +27,14 @@ namespace BendTests
         }
 
         [Test]
+        public void T00_RecordUpdateEquality() {
+            RecordUpdate upd1 = RecordUpdate.WithPayload("test/1");
+            RecordUpdate upd2 = RecordUpdate.WithPayload("test/1");
+            Assert.AreEqual(upd1, upd2, "object.Equal(object)");
+            Assert.AreEqual(true, upd1.Equals(upd2), "upd1.Equals(key2)");
+        }
+
+        [Test]
         public void T01_RecordKey() {
             String[] parts1 = { "test", "test2", "blah" };
 

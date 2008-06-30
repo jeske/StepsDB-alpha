@@ -100,7 +100,7 @@ namespace Bend
             this.data = enc.GetBytes(sdata);
            
         }
-        private  RecordUpdate(RecordUpdateTypes type, byte[] data) {
+        private RecordUpdate(RecordUpdateTypes type, byte[] data) {
             this.type = type;
             this.data = data;
         }
@@ -109,8 +109,28 @@ namespace Bend
         }
 
         public bool Equals(RecordUpdate target) {
-            return (data.Equals(target.data));
+            // we need to scan the bytestream ourselves, but keep in mind this could be expensive...
+            if (this.data.Length != target.data.Length) {
+                return false;
+            }
+            for (int i = 0; i < this.data.Length; i++) {
+                if (this.data[i] != target.data[i]) {
+                    return false;
+                }
+            }
+
+            return true;
         }
+        public override bool Equals(object target) {
+            if (target.GetType() != this.GetType()) {
+                return false;
+            }
+            return this.Equals((RecordUpdate)target);
+        }
+        public override int GetHashCode() {
+            return data.GetHashCode();
+        }
+
         public static RecordUpdate WithPayload(byte[] payload) {
             return new RecordUpdate(RecordUpdateTypes.FULL, payload);
         }
@@ -165,7 +185,6 @@ namespace Bend
             byte[] typeprefix = { (byte)this.type };
             return typeprefix.Concat(this.data).ToArray();
         }
-
     }
 
     //-----------------------------------[ RecordKey ]------------------------------------
