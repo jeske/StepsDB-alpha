@@ -26,20 +26,20 @@ namespace Bend
     }
     public interface IScannableDictionary<K, V> : IDictionary<K, V>, IScannable<K, V> { }
 
-    class ScanRange<K> : IScanner<K> where K : IComparable<K>
+    class ScanRange<K> : IScanner<K> 
     {
-        K lowkey, highkey;
+        IComparable<K> lowkey, highkey;
         IComparable<K> matchtest;
         bool scan_all = false;
-        public ScanRange(K lowkey, K highkey, IComparable<K> matchtest) { // scan between low and high key
+        public ScanRange(IComparable<K> lowkey, IComparable<K> highkey, IComparable<K> matchtest) { // scan between low and high key
             this.lowkey = lowkey;
             this.highkey = highkey;
             this.matchtest = matchtest;
         }
 
         public ScanRange(IComparable<K> matchtest) { // scan all
-            this.lowkey = default(K);
-            this.highkey = default(K);
+            this.lowkey = new minKey();
+            this.highkey = new maxKey();
             scan_all = true;
         }
         public bool MatchTo(K value) {
