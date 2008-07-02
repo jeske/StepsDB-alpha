@@ -94,6 +94,7 @@ namespace BendTests
             Assert.AreEqual(result, RecordUpdateResult.FINAL);
 
             // if we already have a full update, it should be an error
+            /* NOT ANYMORE
             {
                 bool err = false;
                 try { data.applyUpdate(RecordUpdate.WithPayload("2")); } catch { err = true; }
@@ -105,6 +106,16 @@ namespace BendTests
                 Assert.AreEqual(true, err);
             }
             Assert.AreEqual("1", data.ToString());
+            */
+            // if we already have a full update, our update should not change it
+            {
+                data.applyUpdate(RecordUpdate.WithPayload("2"));
+                Assert.AreEqual("1", data.ToString());
+
+                data.applyUpdate(RecordUpdate.DeletionTombstone());
+                Assert.AreEqual("1", data.ToString());
+            }
+            
 
         }
 
@@ -114,9 +125,11 @@ namespace BendTests
             Assert.AreEqual("", data.ToString());
 
             RecordUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());
-            Assert.AreEqual("", data.ToString());
-            Assert.AreEqual(result, RecordUpdateResult.FINAL);
+            Assert.AreEqual("", data.ToString()); // empty.. (TODO: consider making tombstones ToString to '-|')
+            Assert.AreEqual(RecordUpdateResult.FINAL,result);
+            Assert.AreEqual(RecordDataState.DELETED, data.State);
 
+            /* NOT ANYMORE
             bool err = false;
             try {
                 data.applyUpdate(RecordUpdate.WithPayload("2"));
@@ -124,7 +137,12 @@ namespace BendTests
             } catch {
                 err = true;
             }
-            Assert.AreEqual(err, true);
+             * Assert.AreEqual(err, true);
+             */
+            // data after a tombstone should be ignored
+            Assert.AreEqual(RecordUpdateResult.FINAL, data.applyUpdate(RecordUpdate.WithPayload("1"))); 
+            Assert.AreEqual("", data.ToString()); // still empty...
+            Assert.AreEqual(RecordDataState.DELETED, data.State);
 
         }
 

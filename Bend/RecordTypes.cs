@@ -43,8 +43,10 @@ namespace Bend
 
         public RecordUpdateResult applyUpdate(RecordUpdate update)
         {
-            if (state == RecordDataState.FULL) {
-                throw new Exception("applyUpdate() called on fully populated record!");
+            if ((state == RecordDataState.FULL) || (state == RecordDataState.DELETED)) {
+                // throw new Exception("applyUpdate() called on fully populated record!");
+                System.Console.WriteLine("warn: applyUpdate() called on fully populated record. ignoring.");
+                return RecordUpdateResult.FINAL;
             }
             switch (update.type)
             {
@@ -191,7 +193,8 @@ namespace Bend
 
     public class RecordKey : IComparable<RecordKey>
     {
-        List<String> key_parts;
+        // key_parts really shouldn't be public, people should be using pipes to read keys
+        public List<String> key_parts;  
         public static char DELIMITER = '/';
         
         public RecordKey()
@@ -254,8 +257,8 @@ namespace Bend
             int pos = 0;
             int cur_result = 0;
 
-            int thislen = key_parts.Count;
-            int objlen = key_parts.Count;
+            int thislen = this.key_parts.Count;
+            int objlen = obj.key_parts.Count;
 
             while (cur_result == 0)  // while equal
             {
