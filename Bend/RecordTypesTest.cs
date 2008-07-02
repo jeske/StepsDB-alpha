@@ -24,6 +24,12 @@ namespace BendTests
             
             Assert.AreEqual(key1, key2, "object equal");
             Assert.AreEqual(true, key1.Equals(key2), "key1.Equals(key2)");
+
+            RecordKey key3 = new RecordKey().appendParsedKey("");
+            RecordKey key4 = new RecordKey().appendKeyPart(new byte[0]);
+            Assert.AreEqual(true, key3.Equals(key4), "null keys should match");
+
+
         }
 
         [Test]
@@ -38,20 +44,44 @@ namespace BendTests
         public void T01_RecordKey() {
             String[] parts1 = { "test", "test2", "blah" };
 
-            RecordKey key = new RecordKey();
-            key.appendKeyParts(parts1);
-            byte[] data = key.encode();
+            {
+                RecordKey key = new RecordKey();
+                key.appendKeyParts(parts1);
+                byte[] data = key.encode();
 
-            // decode
-            RecordKey key2 = new RecordKey(data);
+                // decode
+                RecordKey key2 = new RecordKey(data);
 
-            // verify tostring matches
-            Assert.AreEqual(key.ToString(), key2.ToString());
+                // verify tostring matches
+                Assert.AreEqual(key.ToString(), key2.ToString());
 
-            // verify comparison
-            Assert.AreEqual(0, key.CompareTo(key2));
+                // verify comparison
+                Assert.AreEqual(0, key.CompareTo(key2));
 
-            // verify individual parts            
+                // verify individual parts   
+            }
+
+            // verify hierarchial sorting
+            {
+                RecordKey key1 = new RecordKey().appendParsedKey(".ROOT/GEN/000");
+                RecordKey key2 = new RecordKey().appendParsedKey(".ROOT/GEN/000/</aaaa");   // ord('<') -> 60
+                RecordKey key3 = new RecordKey().appendParsedKey(".ROOT/GEN/000/>");     // ord('>') -> 62
+                RecordKey key4 = new RecordKey().appendParsedKey(".ROOT/GEN");
+
+                Assert.AreEqual(true, ">".CompareTo("<") > 0, "expect '>' > '<'");                
+
+                Assert.AreEqual(true, key1.CompareTo(key2) < 0, "prefix key should be considered earlier");
+                Assert.AreEqual(true, key3.CompareTo(key2) > 0, "but parts are considered individually before using length ord('_') > ord('<')");
+
+                IComparable<RecordKey> prefixend = RecordKey.AfterPrefix(key1);
+                Assert.AreEqual(true, prefixend.CompareTo(key1) > 0, "prefix1");
+                Assert.AreEqual(true, prefixend.CompareTo(key2) > 0, "prefix2");
+                Assert.AreEqual(true, prefixend.CompareTo(key3) > 0, "prefix3");
+                Assert.AreEqual(true, prefixend.CompareTo(key4) > 0, "prefix4"); 
+
+            }
+
+
         }
         [Test]
         public void T02_RecordSort() {
@@ -88,10 +118,12 @@ namespace BendTests
             result = data.applyUpdate(RecordUpdate.NoUpdate());
             Assert.AreEqual("", data.ToString());
             Assert.AreEqual(result, RecordUpdateResult.SUCCESS);
+            Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State);
 
             result = data.applyUpdate(RecordUpdate.WithPayload("1"));
             Assert.AreEqual("1", data.ToString());
             Assert.AreEqual(result, RecordUpdateResult.FINAL);
+            Assert.AreEqual(RecordDataState.FULL, data.State);
 
             // if we already have a full update, it should be an error
             /* NOT ANYMORE

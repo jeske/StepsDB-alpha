@@ -209,10 +209,12 @@ namespace Bend
         public RecordKey appendParsedKey(String keyToParse) {
             char[] delimiters = { DELIMITER };
 
-            if (keyToParse[keyToParse.Length - 1] == DELIMITER) {
-                throw new Exception(
-                    String.Format("appendParsedKey({0}) may not end in DELIMTER({1})",
-                    keyToParse, DELIMITER));
+            if (keyToParse.Length > 0) {
+                if (keyToParse[keyToParse.Length - 1] == DELIMITER) {
+                    throw new Exception(
+                        String.Format("appendParsedKey({0}) may not end in DELIMTER({1})",
+                        keyToParse, DELIMITER));
+                }
             }
 
             String[] keystring_parts = keyToParse.Split(delimiters);
@@ -251,41 +253,126 @@ namespace Bend
             return key_parts.Count;
         }
 
-        // TODO: deal with field types (i.e. number sorting)
-        public int CompareTo(RecordKey obj)
+        // ---------------------------------------------
+        // RecordKey.CompareTo()
+        //
+        // It is important that this does HIERARCHIAL sorting, not typical byte[] sorting.
+        // The delimiter is currently "/", but it plays NO part in the sorting calculation. 
+        // For example, (/) == ascii(47), wheras (!) == ascii(33), but because the
+        // delimiters are not involved in the calculation. For example:
+        //
+        //           .ROOT/GEN/1/a    is less than
+        //           .ROOT/GEN/1!/a         
+        // 
+        // Which is evaluated as:
+        //   .ROOT == .ROOT
+        //     GEN == GEN
+        //       1  < 1!
+        // 
+        // This is different than a bytewise comparison of the encoded form:
+        //
+        //  .ROOT/GEN/1/
+        //  ===========>     <- because '/' > '!'
+        //  .ROOT/GEN/1!/
+        //        
+        // As a result, our entire database is dependent on the packing and unpacking 
+        // into RecordKeys in order for the data to be properly sorted and re-sorted!
+        // This is worth it, because hierarchial sorting allows us to do much more
+        // predictable things for the higher layers.
+        //
+        // TODO: deal with field types within a part (i.e. numbers, dates, etc)
+        
+        public int CompareTo(RecordKey target)
         {
             int pos = 0;
             int cur_result = 0;
 
             int thislen = this.key_parts.Count;
-            int objlen = obj.key_parts.Count;
+            int objlen = target.key_parts.Count;
 
             while (cur_result == 0)  // while equal
             {
-                if (((thislen - pos) == 0) &&
-                     ((objlen - pos) == 0))
-                {
+
+                // if the objects were equal, and have no more parts
+                if ((pos == thislen) &&
+                     (pos == objlen)) {
                     // equal and at the end
                     return 0; // equal
+                } 
+                // if the objects are equal so far, but one is done
+                else {
+                    if ((pos == thislen) &&
+                        (pos < objlen)) {
+                        // equal and 'target' longer
+                        return -1; // target longer, so we're less than target
+                    }
+                    if ((pos == objlen) &&
+                        (pos < thislen)) {
+                        // equal and 'this' longer
+                        return 1; // this longer, we're greater than target
+                    }
                 }
-                if (((thislen - pos) == 0) &&
-                     ((objlen - pos) > 0))
-                {
-                    // equal and obj longer
-                    return -1; // obj longer, so obj is greater
-                }
-                if (((thislen - pos) > 0) &&
-                     ((objlen - pos) == 0))
-                {
-                    // equal and this longer
-                    return 1; // this longer, so this greater
-                }
-                cur_result = this.key_parts[pos].CompareTo(obj.key_parts[pos]);
-                pos++; // consider the next keypart
+
+                // consider this keypart
+                cur_result = this.key_parts[pos].CompareTo(target.key_parts[pos]);
+                pos++; // move pointer to next
             }
 
 
             return cur_result;
+        }
+
+        private class RecordKeyAfterPrefixComparable : IComparable<RecordKey>
+        {
+            RecordKey prefixkey;
+            internal RecordKeyAfterPrefixComparable(RecordKey prefixkey) {
+                this.prefixkey = prefixkey;
+            }
+
+            public int CompareTo(RecordKey target) {
+                int pos = 0;
+                int cur_result = 0;
+
+                int thislen = prefixkey.key_parts.Count;
+                int objlen = target.key_parts.Count;
+
+                while (cur_result == 0)  // while equal
+                {
+
+                    // if the objects were equal, and have no more parts
+                    if ((pos == thislen) &&
+                         (pos == objlen)) {
+                        // equal and at the end, WE ARE GREATER
+                        return 1; // equal
+                    }
+                    // if the objects are equal so far, but one is done
+                    else {
+                        if ((pos == thislen) &&
+                            (pos < objlen)) {
+                            // equal and 'target' longer
+                            return 1; // target longer, WE ARE GREATER
+                        }
+                        if ((pos == objlen) &&
+                            (pos < thislen)) {
+                            // equal and 'this' longer
+                            return 1; // this longer, WE ARE LESS
+                        }
+                    }
+
+                    // consider this keypart
+                    cur_result = prefixkey.key_parts[pos].CompareTo(target.key_parts[pos]);
+                    pos++; // move pointer to next
+                }
+
+
+                return cur_result;
+            }
+        }
+
+        // AfterPrefix() -> make a comparable that appears after all keys with
+        //  matching prefixkey in the sort order
+        public static IComparable<RecordKey> AfterPrefix(RecordKey prefixkey) {
+            return new RecordKeyAfterPrefixComparable(prefixkey);
         }
 
         public bool isSubkeyOf(RecordKey potential_parent_key) {
