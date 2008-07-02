@@ -177,6 +177,7 @@ namespace Bend {
         private enum mpss {  // MidpointSearchState
             BISECT,
             FIND_REC_FORWARD,
+            FIND_REC_FORWARD_RESTART,
             HAVE_START
             
         }
@@ -310,6 +311,7 @@ namespace Bend {
             // read state
             byte[] search_buffer = new byte[FIND_RECORD_BUFSIZE];
             int read_result_size, read_size;
+            int restart_count = 0;
 
             FindRecordResult result = default(FindRecordResult);
              
@@ -329,11 +331,13 @@ namespace Bend {
                     }
                     {   // find out if we need to account for an odd-size split
                         int midpoint_pos_delta = endpos - startpos;
+                        int midpoint_offset = 0xbeefed;
                         if ((midpoint_pos_delta & 1) == 1) {
-                            midpoint_pos = (midpoint_pos_delta + 1) / 2;
+                            midpoint_offset = (midpoint_pos_delta - 1) / 2;
                         } else {
-                            midpoint_pos = midpoint_pos_delta / 2;
+                            midpoint_offset = midpoint_pos_delta / 2;
                         }
+                        midpoint_pos = startpos + midpoint_offset;
                     }
 
                     if (midpoint_pos > endpos) {
@@ -341,6 +345,10 @@ namespace Bend {
                     }
                     goto case mpss.FIND_REC_FORWARD;
                 case mpss.FIND_REC_FORWARD:
+                    restart_count = 0;
+                    goto case mpss.FIND_REC_FORWARD_RESTART; // fall through
+                case mpss.FIND_REC_FORWARD_RESTART:
+                    restart_count++;
                     // scan forward until we find an END_OF_LINE record boundary
                     {                         
                         int cur_stream_pos = midpoint_pos;
@@ -360,12 +368,16 @@ namespace Bend {
                             cur_stream_pos += read_result_size;
                         } while (cur_stream_pos < endpos);
                     }
+
+                    if (restart_count > 1) {
+                        throw new Exception("INTERNAL ERROR : SegmentBlockBasic._findRecord, restarted more than once!");
+                    }
                     // ran out of datastream and didn't find END_OF_LINE!                         
                     // move to the beginning of the buffer and restart, 
                     midpoint_pos = startpos;
                     // but don't rescan that stuff we just saw between midpoint_pos and endpos
                     endpos = midpoint_pos+1;
-                    goto case mpss.FIND_REC_FORWARD;
+                    goto case mpss.FIND_REC_FORWARD_RESTART;
                     // fyi - we considered bisecting the first half, but if the records are so big relative
                     //  to our midpoint that there were none in the second half, it's because our records
                     //  are really large relative to the range we are scanning, so it's safer just to
@@ -375,10 +387,11 @@ namespace Bend {
                     {
                         RecordLocator rloc;
                         int record_start_pos = eol_marker_pos + 1;
-                        if (record_start_pos >= endpos) {
-                            // we found the end of the last record in the midpoint-region, but we don't
-                            // know where the beginning is yet.                            
-                            endpos = midpoint_pos;
+                        if (record_start_pos == endpos) {
+                            // we found the end of the last record in the midpoint-region, 
+                            // however, we're not sure where it starts, let's
+                            // decode the record at the start of the region instead.
+                            record_start_pos = startpos;
                         }
                         
                         // decode the record
