@@ -361,7 +361,7 @@ namespace Bend
 
     // ---------------[ SegmentReader ]---------------------------------------------------------
 
-    class SegmentReader : ISortedSegment, IScannable<RecordKey, RecordUpdate>
+    internal class SegmentReader : ISortedSegment, IScannable<RecordKey, RecordUpdate>
     {
         Stream fs;
         SortedSegmentIndex index;

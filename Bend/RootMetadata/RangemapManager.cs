@@ -27,10 +27,17 @@ namespace Bend
         int num_generations;
         private static int GEN_LSD_PAD = 3;
 
+        // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
+        //   use a single FileStream. If you have multiple threads calling them, 
+        //   chaos will ensue because of the shared seek pointer. 
+        Dictionary<RecordKey, SegmentReader> disk_segment_cache; 
+
         public RangemapManager(LayerManager store) {
             this.store = store;
             // get the current number of generations
-            
+
+            disk_segment_cache = new Dictionary<RecordKey, SegmentReader>();
+
             RecordUpdate update;
             if (store.workingSegment.getRecordUpdate(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 out update) == GetStatus.MISSING) {
@@ -43,6 +50,29 @@ namespace Bend
             store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 RecordUpdate.WithPayload(0.ToString())); // TODO: this should be a var-enc number
         }
+
+        internal SegmentReader segmentReaderForAddr(KeyValuePair<RecordKey, RecordUpdate> segmentrow) {
+
+            if (disk_segment_cache.ContainsKey(segmentrow.Key)) {
+                return disk_segment_cache[segmentrow.Key];
+            } else {
+                RecordUpdate update = segmentrow.Value;
+                // TODO:unpack the update data when we change it to "<addr>:<length>"
+                byte[] segmetadata_addr = update.data;
+
+                // we now have a pointer to a segment address for the gen pointer
+                uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
+
+                IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
+                SegmentReader next_seg = new SegmentReader(region.getStream());
+
+                disk_segment_cache[segmentrow.Key] = next_seg;
+                return next_seg;
+            }
+
+        }
+
+
         public void mapGenerationToRegion(LayerManager.Txn tx, int gen_number, IRegion region) {
             RecordKey key = new RecordKey();
             key.appendParsedKey(".ROOT/GEN");
@@ -340,15 +370,8 @@ namespace Bend
 
             // now repeat the walk through our todo list:
             foreach (KeyValuePair<RecordKey,RecordUpdate> rangepointer in todo_list) {
-                RecordUpdate update = rangepointer.Value;
-                // TODO:unpack the update data when we change it to "<addr>:<length>"
-                byte[] segmetadata_addr = update.data;
 
-                // we now have a pointer to a segment address for the gen pointer
-                uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
-
-                IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-                SegmentReader next_seg = new SegmentReader(region.getStream());
+                SegmentReader next_seg = segmentReaderForAddr(rangepointer);
 
                 RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
                 Debug.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
