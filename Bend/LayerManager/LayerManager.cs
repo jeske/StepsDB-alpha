@@ -327,6 +327,10 @@ namespace Bend
             }
         }
 
+        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey found_key, ref RecordData found_record) {
+            return (rangemapmgr.getNextRecord(lowkey, ref found_key, ref found_record));
+        }
+
         public void debugDump()
         {
                 

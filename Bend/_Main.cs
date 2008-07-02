@@ -14,9 +14,21 @@ namespace Bend
 
     class MainBend
     {
-        static void Main(string[] args)
-        {
 
+        static void Main(string[] args) {
+            try {
+                do_bringup_test();
+            }
+            catch (Exception exc) {
+                System.Console.WriteLine("died to exception: " + exc.ToString());
+                Console.WriteLine("press any key...");
+                Console.ReadKey();
+            }
+        }
+        
+
+        static void do_bringup_test() {
+        
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\test\\main");
          
             db.setValueParsed("test/3","a");
@@ -48,9 +60,26 @@ namespace Bend
             db = new LayerManager(InitMode.RESUME, "c:\\test\\main");
             db.debugDump();
 
+
+            System.Console.WriteLine("-------- NOW FINDNEXT ---------------------------------");
+            {
+                RecordKey next_key = new RecordKey();
+                RecordKey fkey = null;
+                RecordData fdata = null;
+                while (db.getNextRecord(next_key, ref fkey, ref fdata) == GetStatus.PRESENT) {
+                    next_key = fkey;
+
+                    System.Console.WriteLine("  found: {0} -> {1}", fkey.ToString(), fdata.ToString());
+
+                }
+            }
+
+
             System.Console.WriteLine("-------- NOW MERGE ---------------------------------");
             db.mergeAllSegments();
             db.debugDump();
+
+
 
             Console.WriteLine("press any key...");
             Console.ReadKey();
