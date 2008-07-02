@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using System.Diagnostics;
+
 namespace Bend
 {
 
@@ -45,7 +47,7 @@ namespace Bend
         {
             if ((state == RecordDataState.FULL) || (state == RecordDataState.DELETED)) {
                 // throw new Exception("applyUpdate() called on fully populated record!");
-                System.Console.WriteLine("warn: applyUpdate() called on fully populated record. ignoring.");
+                Debug.WriteLine("warn: applyUpdate() called on fully populated record. ignoring.");
                 return RecordUpdateResult.FINAL;
             }
             switch (update.type)

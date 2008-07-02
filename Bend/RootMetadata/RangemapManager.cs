@@ -5,6 +5,8 @@
 using System;
 using System.Collections.Generic;
 
+using System.Diagnostics;
+
 
 namespace Bend
 {
@@ -349,7 +351,7 @@ namespace Bend
                 SegmentReader next_seg = new SegmentReader(region.getStream());
 
                 RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
-                System.Console.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
+                Debug.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
                 // RECURSE
                 INTERNAL_segmentWalkForNextKey(
                     startkeytest,

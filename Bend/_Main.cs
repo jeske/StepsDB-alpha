@@ -6,10 +6,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using NUnit.Framework;
 
 namespace Bend
 {
     // ---------------[ Main ]---------------------------------------------------------
+
+
+    [TestFixture]
+    public class MainTest
+    {
+        // [Test]
+        public void T00_MainTest() {
+            MainBend.do_bringup_test();
+        }
+
+    }
 
 
     class MainBend
@@ -22,12 +34,13 @@ namespace Bend
             catch (Exception exc) {
                 System.Console.WriteLine("died to exception: " + exc.ToString());
                 Console.WriteLine("press any key...");
-                Console.ReadKey();
+
             }
+            Console.ReadKey();
         }
         
 
-        static void do_bringup_test() {
+        public static void do_bringup_test() {
         
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\test\\main");
          
@@ -81,8 +94,8 @@ namespace Bend
 
 
 
-            Console.WriteLine("press any key...");
-            Console.ReadKey();
+            Console.WriteLine("press any key...");            
+            // Console.ReadKey();
         }
     }
 }
