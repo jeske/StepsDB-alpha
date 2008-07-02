@@ -306,7 +306,7 @@ namespace Bend {
         // records are reasonably small. For records that are large, we should
         // pick a different format to avoid all this scanning for startpoints. 
 
-        private FindRecordResult _findRecord(IComparable<RecordKey> keytest) {
+        private FindRecordResult _findRecord(IComparable<RecordKey> keytest, bool equal_is_after) {
             // read state
             byte[] search_buffer = new byte[FIND_RECORD_BUFSIZE];
             int read_result_size, read_size;
@@ -389,7 +389,15 @@ namespace Bend {
                         rloc.have_record = true;                        
                         
                         int compare_result = keytest.CompareTo(rloc.record.Key);
-                        if (compare_result <= 0) {  // record is AFTER or EQUAL to keytest
+                        if (compare_result == 0) {
+                            if (equal_is_after) {
+                                compare_result = -1; // rec==keytest should be after
+                            } else {
+                                compare_result = 1;  // rec==keytest should be before
+                            }
+
+                        }
+                        if (compare_result < 0) {  // record is AFTER keytest
                             result.after_keytest = rloc;
                             // we know this record is after us, so scan only before it
                             endpos = rloc.start_pos;
@@ -406,16 +414,16 @@ namespace Bend {
 
         }
 
-        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest) { 
-            FindRecordResult result = _findRecord(keytest);
+        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest, bool equal_ok) { 
+            FindRecordResult result = _findRecord(keytest, equal_ok);
             if (result.after_keytest.have_record) {
                 return result.after_keytest.record;
             } else {
                 throw new KeyNotFoundException("SegmentBlockBasic: failed to find match : " + keytest.ToString());
             }            
         }
-        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
-            FindRecordResult result = _findRecord(keytest);
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
+            FindRecordResult result = _findRecord(keytest, !equal_ok);
             if (result.before_keytest.have_record) {
                 return result.before_keytest.record;
             } else {
@@ -427,7 +435,7 @@ namespace Bend {
             IComparable<RecordKey> lowkeytest = scanner.genLowestKeyTest();
             IComparable<RecordKey> highkeytest = scanner.genHighestKeyTest();
 
-            RecordLocator rloc = _findRecord(lowkeytest).after_keytest;
+            RecordLocator rloc = _findRecord(lowkeytest, true).after_keytest;
             
             while (rloc.have_record &&   // while we have a new record to test
                 (highkeytest.CompareTo(rloc.record.Key) > 0) )  // and it's below the high key
@@ -443,7 +451,7 @@ namespace Bend {
             IComparable<RecordKey> lowkeytest = scanner.genLowestKeyTest();
             IComparable<RecordKey> highkeytest = scanner.genHighestKeyTest();
 
-            RecordLocator rloc = _findRecord(highkeytest).before_keytest;
+            RecordLocator rloc = _findRecord(highkeytest, true).before_keytest;
 
             while (rloc.have_record &&   // while we have a new record to test
                 (lowkeytest.CompareTo(rloc.record.Key) < 0))  // and it's above the lowkey

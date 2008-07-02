@@ -40,7 +40,7 @@ namespace BendTests
                 databuffer = ms.ToArray();
             }
 
-            // decode and test the buffer, testing edgecases
+            // test FindNext(key,equal_ok=true)
             {
                 MemoryStream rs = new MemoryStream(databuffer);
                 SegmentBlockBasicDecoder decoder = new SegmentBlockBasicDecoder(rs);
@@ -48,14 +48,35 @@ namespace BendTests
                     RecordKey tkey = new RecordKey().appendParsedKey(testvalues[i]); 
                     RecordUpdate tupdate = RecordUpdate.WithPayload("data: " + testvalues[i]);
 
-                    KeyValuePair<RecordKey,RecordUpdate> row = decoder.FindNext(tkey);
+                    KeyValuePair<RecordKey,RecordUpdate> row = decoder.FindNext(tkey, true);
                     Assert.AreEqual(tkey, row.Key,  "record keys should match");
                     Assert.AreEqual(tupdate, row.Value, "record values should match:");
                 }
+            }
+
+            // test FindNext(key,equal_ok=false)
+            {
+                MemoryStream rs = new MemoryStream(databuffer);
+                SegmentBlockBasicDecoder decoder = new SegmentBlockBasicDecoder(rs);
+                for (int i = testvalues.Length - 2; i >= 0; i--) {
+                    RecordKey tkey = new RecordKey().appendParsedKey(testvalues[i]);
+                    RecordUpdate tupdate = RecordUpdate.WithPayload("data: " + testvalues[i]);
+
+                    RecordKey fkey = new RecordKey().appendParsedKey(testvalues[i + 1]);
+                    RecordUpdate fupdate = RecordUpdate.WithPayload("data: " + testvalues[i+1]);
+
+                    KeyValuePair<RecordKey, RecordUpdate> row = decoder.FindNext(tkey, false);
+                    Assert.AreEqual(fkey, row.Key, "findnext(,false) should find next key");
+                    Assert.AreEqual(fupdate, row.Value, "findnext(,false) should finx next key (value was botched)");
+                }
+
 
                 // test for "next" after end of buffer, and we should get an exception
                 // test for "next" at beginning and we should get first
                 // test some random values in the middle
+
+
+
             }
                        
         } // testend
@@ -125,6 +146,7 @@ namespace BendTests
     [TestFixture]
     public class ZZ_TODO_SegmentBlockBasic
     {
+ 
         [Test]
         public void T01_TestRecordDecodeChecksum() {
             // add a checksum to the record so we can catch decode offset mistakes.

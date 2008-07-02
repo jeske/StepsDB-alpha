@@ -92,11 +92,11 @@ namespace Bend
 
         #region IScannableDictionary_mapping
 
-        public KeyValuePair<RecordKey,RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
-            return this.items.FindNext(keytest);
+        public KeyValuePair<RecordKey,RecordUpdate> FindNext(IComparable<RecordKey> keytest,bool equal_ok) {
+            return this.items.FindNext(keytest,equal_ok);
         }
-        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
-            return this.items.FindPrev(keytest);
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest,bool equal_ok) {
+            return this.items.FindPrev(keytest,equal_ok);
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {            
             return this.items.scanForward(scanner);
@@ -195,7 +195,8 @@ namespace Bend
             //    .. it means eliminating the first n bytes of EACH part of the record key, since it's hierarchially sorted
 
             // write the number of segments in this block
-            int numblocks = blocks.Count;
+            int numblocks = blocks.Count;            
+
             wr.Write((Int32)numblocks); 
             foreach (KeyValuePair<RecordKey,_SegBlock> kvp in blocks) {
                 _SegBlock block = kvp.Value;
@@ -226,31 +227,133 @@ namespace Bend
                 }
             }
         }
-        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
+        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
+            if (blocks.Count == 0) {
+                System.Console.WriteLine("index has no blocks!");
+                throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindNext");
+            }
+
+            KeyValuePair<RecordKey, _SegBlock> blockkvp;
+            try {
+                blockkvp = blocks.FindPrev(keytest,false);
+            } catch (KeyNotFoundException ex1) {
+                // keytest is before any blocks, check the first block
+                try {
+                    blockkvp = blocks.FindNext(new ScanRange<RecordKey>.minKey(), true); // get the first block
+                } catch (KeyNotFoundException ex2) {                   
+                    throw new KeyNotFoundException("SortedSegmentIndex: INTERNAL ERROR in FindNext", ex2);
+                }
+            }
+            _SegBlock block = blockkvp.Value;
+            // instantiate the block
+            ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
+                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+            
+            KeyValuePair<RecordKey, RecordUpdate> datakvp;
+            try {
+                datakvp = decoder.FindNext(keytest, equal_ok);
+                return datakvp;
+            }
+            catch (KeyNotFoundException) {
+                while (true) {
+                    // the block above might not have had any records after keytest in it
+                    // so give the next block(s) a shot if we have more
+                    blockkvp = blocks.FindNext(blockkvp.Key, false);
+                    block = blockkvp.Value;
+                    decoder = new SegmentBlockBasicDecoder(
+                            new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+                    try {
+                        return decoder.FindNext(keytest, equal_ok);
+                    }
+                    catch (KeyNotFoundException) { }
+                }
+
+            }
+        }
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
+            if (blocks.Count == 0) {
+                System.Console.WriteLine("index has no blocks!");
+                throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindPrev");
+            }
             KeyValuePair<RecordKey, _SegBlock> kvp;
             try {
-                kvp = blocks.FindNext(keytest);
-            } catch (KeyNotFoundException ex) {
-                throw new KeyNotFoundException("SortedSegmentIndex:", ex);
+                kvp = blocks.FindPrev(keytest, equal_ok);
+            } catch (KeyNotFoundException ex1) {
+                // if we don't have a block that starts before (or equal) to this key,
+                // then we don't have a block that can have the key!
+                throw new KeyNotFoundException("SegmentIndex.FindPrev (no block contains key " + keytest + ")", ex1);
             }
+
             _SegBlock block = kvp.Value;
             // instantiate the block
             ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
                     new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
 
-            return decoder.FindNext(keytest);
-        }
-        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
-            throw new Exception("not implemented");
+            return decoder.FindPrev(keytest, equal_ok);
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {
-            throw new Exception("not implemented");
+            IComparable<RecordKey> lowestKeyTest = null;
+            IComparable<RecordKey> highestKeyTest = null;
+            if (scanner != null) {
+                lowestKeyTest = scanner.genLowestKeyTest();
+                highestKeyTest = scanner.genHighestKeyTest();
+            }
+            
+            KeyValuePair<RecordKey, RecordUpdate> cursor;
+            try {
+                cursor = FindNext(lowestKeyTest, true);
+            } catch (KeyNotFoundException) {
+                yield break;
+            }
+
+            while (true) {
+                if (highestKeyTest.CompareTo(cursor.Key) >= 0) {
+                    yield return cursor;
+                } else {
+                    yield break;
+                }
+
+                try {
+                    cursor = FindNext(cursor.Key, false);
+                } catch (KeyNotFoundException) {
+                    yield break;
+                }
+            }
                
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanBackward(IScanner<RecordKey> scanner) {
-            throw new Exception("not implemented");
+            IComparable<RecordKey> lowestKeyTest = null;
+            IComparable<RecordKey> highestKeyTest = null;
+            if (scanner != null) {
+                lowestKeyTest = scanner.genLowestKeyTest();
+                highestKeyTest = scanner.genHighestKeyTest();
+            }
+
+            KeyValuePair<RecordKey, RecordUpdate> cursor;
+            try {
+                cursor = FindPrev(highestKeyTest, true);
+            }
+            catch (KeyNotFoundException) {
+                yield break;
+            }
+
+            while (true) {
+                if (lowestKeyTest.CompareTo(cursor.Key) <= 0) {
+                    yield return cursor;
+                } else {
+                    yield break;
+                }
+
+                try {
+                    cursor = FindPrev(cursor.Key, false);
+                }
+                catch (KeyNotFoundException) {
+                    yield break;
+                }
+
+            }
         }
 
 
@@ -287,6 +390,7 @@ namespace Bend
         }
 
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
+
             // TODO: need to BINARY SEARCH!!!! for the key
             foreach (KeyValuePair<RecordKey,RecordUpdate> kvp in this.sortedWalk()) {
                 if (kvp.Key.Equals(key)) {
@@ -305,11 +409,11 @@ namespace Bend
         // TODO: consider if we should have a method "getScanner()" to vend out someone that can do this
         // for us, (i.e. the index), so we don't have to proxy these calls.
 
-        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest) {
-            return index.FindNext(keytest);
+        public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
+            return index.FindNext(keytest, equal_ok);
         }
-        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest) {
-            return index.FindPrev(keytest);
+        public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
+            return index.FindPrev(keytest, equal_ok);
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {
             return index.scanForward(scanner);

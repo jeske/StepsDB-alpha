@@ -143,6 +143,228 @@ namespace Bend
 
         }
 
+        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record) {
+
+            SkipList<RecordKey, RecordData> handledIndexRecords = new SkipList<RecordKey,RecordData>();
+            SkipList<RecordKey, RecordData> recordsBeingAssembled = new SkipList<RecordKey, RecordData>();
+
+            INTERNAL_segmentWalkForNextKey(
+                lowkey,
+                this.store.workingSegment,
+                RangeKey.newSegmentRangeKey(
+                   new RecordKey().appendKeyPart("<"),
+                   new RecordKey().appendKeyPart(">"),
+                   num_generations),
+                handledIndexRecords,
+                num_generations,
+                recordsBeingAssembled);
+
+            // now check the assembled records list
+            try {
+                KeyValuePair<RecordKey,RecordData> kvp = recordsBeingAssembled.FindNext(lowkey, true);
+                key = kvp.Key;
+                record = kvp.Value;
+                return GetStatus.PRESENT;
+            }
+            catch (KeyNotFoundException) {
+                return GetStatus.MISSING;
+            }
+
+        }
+
+
+        class RangeKey 
+        {
+            RecordKey lowkey = null;
+            RecordKey highkey = null;
+            int generation;
+
+            private RangeKey() {
+            }
+
+            public static RangeKey newSegmentRangeKey(RecordKey lowkey,RecordKey highkey, int generation) {
+                RangeKey rk = new RangeKey();
+                rk.lowkey = lowkey;
+                rk.highkey = highkey;
+                rk.generation = generation;
+                return rk;
+
+            }
+            private static void verifyPart(string expected,string value) {
+                if (!expected.Equals(value)) {
+                    throw new Exception(String.Format("verify failed on RangeKey decode ({0} != {1})", expected, value));
+                }
+            }
+            public static RangeKey decodeFromRecordKey(RecordKey existingkey) {
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+                RangeKey rangekey = new RangeKey();
+                // TODO, switch this to use a key PIPE!!
+                verifyPart(".ROOT", existingkey.key_parts[0]);
+                verifyPart("GEN", existingkey.key_parts[1]);
+                
+                rangekey.generation = (int)Lsd.lsdToNumber(enc.GetBytes(existingkey.key_parts[2]));
+                rangekey.lowkey = new RecordKey(enc.GetBytes(existingkey.key_parts[3]));
+                rangekey.highkey = new RecordKey(enc.GetBytes(existingkey.key_parts[4]));
+                return rangekey;
+            }
+            public RecordKey toRecordKey() {
+                if (lowkey == null || highkey == null) {
+                    throw new Exception("no low/high keys for RangeKey.toRecordKey()");
+                }
+                RecordKey key = new RecordKey();
+                key.appendParsedKey(".ROOT/GEN");
+                key.appendKeyPart(Lsd.numberToLsd(generation, GEN_LSD_PAD));
+                key.appendKeyPart(lowkey.encode());
+                key.appendKeyPart(highkey.encode());
+                return key;
+            }
+
+            public static bool isRangeKey(RecordKey key) {
+                // .ROOT/GEN/X/lk/hk  == 5 parts
+                if (key == null) {
+                    throw new Exception("isRangeKey() handed a null key");
+                }
+                if (key.key_parts == null) {
+                    throw new Exception("isRangeKey() handed a key with null key_parts");
+                }
+                if ( (key.key_parts.Count == 5)  &&
+                     (key.key_parts[0].Equals(".ROOT")) &&
+                     (key.key_parts[1].Equals("GEN"))) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+            public bool directlyContainsKey(RecordKey testkey) {
+                return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
+                if ((this.lowkey.CompareTo(testkey) <= 0) &&
+                    (this.highkey.CompareTo(testkey) >= 0)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            public bool eventuallyContainsKey(RecordKey testkey) {
+                return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
+                // todo, recursively unpack the low-key/high-key until we no longer have a .ROOT/GEN formatted key
+                // then find out if the supplied testkey is present in the final range
+                if ((this.lowkey.CompareTo(testkey) <= 0) &&
+                    (this.highkey.CompareTo(testkey) >= 0)) {
+                    return true;
+                } else {
+                    return false;
+                }
+
+            }
+            
+            public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllElibibleRangeRows(
+                IScannable<RecordKey, RecordUpdate> in_segment,
+                RecordKey for_key,
+                int for_generation) {
+                // TODO: fix this prefix hack
+                RecordKey startrk = new RecordKey()
+                    .appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(Lsd.numberToLsd(for_generation,GEN_LSD_PAD));
+                IComparable<RecordKey> endrk = RecordKey.AfterPrefix(startrk);
+
+                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp 
+                    in in_segment.scanForward(new ScanRange<RecordKey>(startrk, endrk, null))) {
+                    if (!RangeKey.isRangeKey(kvp.Key)) {
+                        System.Console.WriteLine("INTERNAL error, RangeKey scan found non-range key: " 
+                            + kvp.Key.ToString() + " claimed to be before " + endrk.ToString() );
+                        break;
+                    }
+                    yield return kvp;
+                }
+                
+            }
+
+            
+        }
+        
+        private void INTERNAL_segmentWalkForNextKey(
+            RecordKey startkeytest,
+            ISortedSegment curseg_raw,
+            RangeKey curseg_rangekey,
+            IScannableDictionary<RecordKey, RecordData> handledIndexRecords,
+            int maxgen,
+            IScannableDictionary<RecordKey, RecordData> recordsBeingAssembled) {
+
+            // TODO: convert all ISortedSegments to be IScannable
+            IScannable<RecordKey, RecordUpdate> curseg = (IScannable<RecordKey, RecordUpdate>)curseg_raw;
+
+            // first look in this segment for a next-key **IF** it may contain one
+            if (curseg_rangekey.directlyContainsKey(startkeytest)) {
+                KeyValuePair<RecordKey,RecordUpdate> nextrow;
+                try {
+                    nextrow = curseg.FindNext(startkeytest, false);
+                    // we have a next record
+                    RecordData partial_record;
+                    if (!recordsBeingAssembled.TryGetValue(nextrow.Key, out partial_record)) {
+                        partial_record = new RecordData(RecordDataState.NOT_PROVIDED, nextrow.Key);
+                        recordsBeingAssembled[nextrow.Key] = partial_record;
+                    }
+                    partial_record.applyUpdate(nextrow.Value);
+                } catch (KeyNotFoundException) {
+                }
+            }
+
+            // find all generation range references that are relevant for this key
+            // .. make a note of which ones are "current" 
+            List<KeyValuePair<RecordKey,RecordUpdate>> todo_list= new List<KeyValuePair<RecordKey,RecordUpdate>>();
+            for (int i = maxgen - 1; i >= 0; i--) {
+                foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllElibibleRangeRows(curseg, startkeytest, i)) {
+                    // see if it is new for our handledIndexRecords dataset
+                    RecordData partial_rangedata;
+                    if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
+                        partial_rangedata = new RecordData(RecordDataState.NOT_PROVIDED, rangerow.Key);
+                        handledIndexRecords[rangerow.Key] = partial_rangedata;
+                    }
+                    if ((partial_rangedata.State == RecordDataState.INCOMPLETE) ||
+                        (partial_rangedata.State == RecordDataState.NOT_PROVIDED)) {
+                        // we're suppilying new data for this index record
+                        partial_rangedata.applyUpdate(rangerow.Value);
+                        // because we're suppilying new data, we should add this to our
+                        // private TODO list if it is a FULL update, NOT a tombstone
+                        if (rangerow.Value.type == RecordUpdateTypes.FULL) {
+                            todo_list.Add(rangerow);
+                        }
+                    }
+                }                    
+            }
+
+
+            // now repeat the walk through our todo list:
+            foreach (KeyValuePair<RecordKey,RecordUpdate> rangepointer in todo_list) {
+                RecordUpdate update = rangepointer.Value;
+                // TODO:unpack the update data when we change it to "<addr>:<length>"
+                byte[] segmetadata_addr = update.data;
+
+                // we now have a pointer to a segment address for the gen pointer
+                uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
+
+                IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
+                SegmentReader next_seg = new SegmentReader(region.getStream());
+
+                RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
+                System.Console.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
+                // RECURSE
+                INTERNAL_segmentWalkForNextKey(
+                    startkeytest,
+                    next_seg,
+                    next_seg_rangekey,
+                    handledIndexRecords,
+                    maxgen - 1,
+                    recordsBeingAssembled);
+                    
+            }
+            // now repeat the walk of range references in this segment, this time actually descending
+        }
+        
+
+
         // ------------[ ** INTERNAL ** segmentWalkForKey ]-------
         //
         // This is the meaty internal function that does the "magic"
@@ -170,7 +392,15 @@ namespace Bend
             for (int i = maxgen; i >= 0; i--) {
                 RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
                     .appendKeyPart(Lsd.numberToLsd(i,GEN_LSD_PAD)).appendParsedKey("</>");
-                RecordUpdate update;  
+                RecordUpdate update;
+
+                RangeKey trangekey = RangeKey.newSegmentRangeKey(
+                   new RecordKey().appendParsedKey("<"),
+                   new RecordKey().appendParsedKey(">"), i);
+                if ((!trangekey.toRecordKey().Equals(rangekey))) {
+                    throw new Exception(String.Format("RangeKey({0}) differs from RecordKey({1})", trangekey.toRecordKey(), rangekey));
+                }
+
                 // TODO: make a "getRecordExists()" call in ISortedSegment to make this more efficient
                 //  .. then make sure we use that optimization to avoid calling getRecordUpdate on those
                 //  .. entries in the next loop below.
@@ -181,8 +411,12 @@ namespace Bend
 
             // now repeat the walk of range references in this segment, this time actually descending
             for (int i = maxgen; i >= 0; i--) {
+                
                 RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
                     .appendKeyPart(Lsd.numberToLsd(i,3)).appendParsedKey("</>");
+
+               
+
                 RecordUpdate update;  
                 if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
                     if (update.type == RecordUpdateTypes.FULL) {

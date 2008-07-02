@@ -40,7 +40,7 @@ namespace Bend
     public class SkipList<K,V> : 
         IScannableDictionary<K,V>
         where K: IComparable<K> 
-        where V: IEquatable<V>
+        // where V: IEquatable<V>
     {
         /* This "Node" class models a node in the Skip List structure. It holds a pair of (key, value)
          * and also three pointers towards Node situated to the right, upwards and downwards. */
@@ -85,10 +85,11 @@ namespace Bend
                 highestKeyTest = scanner.genHighestKeyTest();
             }
 
-            Node<K, V> node = (lowestKeyTest != null) ? _findNextNode(lowestKeyTest) : this.head[0].right;
-
+            Node<K, V> node = (lowestKeyTest != null) ? _findNextNode(lowestKeyTest,true) : this.head[0].right;
+            
             while ((node != null) && (!node.is_sentinel) && 
-                ((highestKeyTest == null) || (lowestKeyTest.CompareTo(node.key) < 0)) ) {
+                    ((highestKeyTest == null) || (highestKeyTest.CompareTo(node.key) >= 0)) ) 
+            {
                 if (scanner == null || scanner.MatchTo(node.key)) {
                     yield return new KeyValuePair<K, V>(node.key, node.value);
                 }
@@ -105,11 +106,11 @@ namespace Bend
                 highestKeyTest = scanner.genHighestKeyTest();
             }
 
-            Node<K, V> node = (highestKeyTest != null) ? _findPrevNode(highestKeyTest) : this.tail[0].left;
-
+            Node<K, V> node = (highestKeyTest != null) ? _findPrevNode(highestKeyTest,true) : this.tail[0].left;
             
             while ((node != null) && (!node.is_sentinel) && 
-                ((lowestKeyTest == null) || (lowestKeyTest.CompareTo(node.key) < 0))) {
+                    ((lowestKeyTest == null) || (lowestKeyTest.CompareTo(node.key) <= 0))) 
+            {
                 if (scanner==null || scanner.MatchTo(node.key)) {
                     yield return new KeyValuePair<K, V>(node.key, node.value);
                 }
@@ -425,7 +426,7 @@ namespace Bend
         // -----------------------[ internal find/walk implementations ] -------------------------
 
 
-        Node<K, V> _findNextNode(IComparable<K> keytest) {
+        Node<K, V> _findNextNode(IComparable<K> keytest, bool equal_ok) {
             /* We parse the skip list structure starting from the topmost list, from the head sentinel
              * node. As long as we have keys smaller than the key we search for, we keep moving right.
              * When we find a key that is greater or equal that the key we search, then we go down one
@@ -435,9 +436,14 @@ namespace Bend
                 if (i < currentListsCount) {
                     cursor = cursor.down;
                 }
-
-                while ((!cursor.right.is_sentinel) && (keytest!=null) && (keytest.CompareTo(cursor.right.key) > 0)) {
-                    cursor = cursor.right;
+                if (equal_ok) {
+                    while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) > 0)) {
+                        cursor = cursor.right;
+                    }
+                } else {
+                    while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) >= 0)) {
+                        cursor = cursor.right;
+                    }
                 }
             }
 
@@ -450,7 +456,7 @@ namespace Bend
                 return null;
             }
         }
-        Node<K, V> _findPrevNode(IComparable<K> keytest) {
+        Node<K, V> _findPrevNode(IComparable<K> keytest, bool equal_ok) {
             /* We parse the skip list structure starting from the topmost list, from the tail sentinel
              * node. As long as we have keys bigger than the key we search for, we keep moving left.
              * When we find a key that is less or equal to the key we're searching for, then we go down one
@@ -460,9 +466,14 @@ namespace Bend
                 if (i < currentListsCount) {
                     pcursor = pcursor.down;
                 }
-
-                while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) < 0)) {
-                    pcursor = pcursor.left;
+                if (equal_ok) {
+                    while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) < 0)) {
+                        pcursor = pcursor.left;
+                    }
+                } else {
+                    while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) <= 0)) {
+                        pcursor = pcursor.left;
+                    }
                 }
             }
 
@@ -477,7 +488,7 @@ namespace Bend
         }
 
         Node<K, V> _findNode(IComparable<K> keytest) {
-            Node<K,V> next_node = _findNextNode(keytest);
+            Node<K,V> next_node = _findNextNode(keytest,true);
             if (next_node != null) {
                 if (keytest.CompareTo(next_node.key) == 0) {
                     return next_node;  // node match
@@ -616,13 +627,13 @@ namespace Bend
         #region SkipList_FindNextFindPrev
         // ------------------------[ FindNext / FindPrev ]---------------------------
 
-        public KeyValuePair<K, V> FindNext(IComparable<K> keytest) {
-            Node<K, V> node = _findNextNode(keytest);
+        public KeyValuePair<K, V> FindNext(IComparable<K> keytest, bool equal_ok) {
+            Node<K, V> node = _findNextNode(keytest,equal_ok);
             if (node != null) {
                 return new KeyValuePair<K, V>(node.key, node.value);
             } else {
                 throw new KeyNotFoundException(
-                  String.Format("FindNext(IComparable<{1}>({2})",
+                  String.Format("FindNext(IComparable<{0}>({1})",
                     typeof(K).ToString(),
                     keytest.ToString()));
 
@@ -630,13 +641,13 @@ namespace Bend
 
         }
 
-        public KeyValuePair<K, V> FindPrev(IComparable<K> keytest) {
-            Node<K, V> node = _findPrevNode(keytest);
+        public KeyValuePair<K, V> FindPrev(IComparable<K> keytest, bool equal_ok) {
+            Node<K, V> node = _findPrevNode(keytest,false);
             if (node != null) {
                 return new KeyValuePair<K, V>(node.key, node.value);
             } else {
                 throw new KeyNotFoundException(
-                  String.Format("FindNext(IComparable<{1}>({2})",
+                  String.Format("FindNext(IComparable<{0}>({1})",
                     typeof(K).ToString(),
                     keytest.ToString()));
 
@@ -770,8 +781,8 @@ namespace Bend
             }
         }
         public bool Remove(KeyValuePair<K, V> matchingItem) {
-            // make sure we have a fully matching record
-            return Remove(matchingItem.Key, matchingItem.Value);
+            // TODO is it valid that we are only removing by key
+            return Remove(matchingItem.Key);
         }
         public bool IsReadOnly { get { return false; } }
 
@@ -813,15 +824,14 @@ namespace BendTests
             for (int i = 0; i < keylist.Length; i++) {
                 // check list size
                 Assert.AreEqual(i, l.Count);
-                l.Add(keylist[i], valuelist[i]);     
+                l.Add(keylist[i], valuelist[i]);
             }
-
 
             // test basic access
             for (int i = 0; i < keylist.Length; i++) {
                 Assert.AreEqual(valuelist[i], l[keylist[i]]);
             }
-            
+
             // assure a missing key throws key exception
             {
                 bool err = false;
@@ -835,30 +845,61 @@ namespace BendTests
             }
 
             {
+                KeyValuePair<string, int> rec;
+                // FindNext("" || null) should return the first element
+                rec = l.FindNext("", true);
+                Assert.AreEqual("abc", rec.Key);
+                rec = l.FindNext("", false);
+                Assert.AreEqual("abc", rec.Key);
+                
+                // FindPrev(null) should return the last element
+                rec = l.FindPrev(null, true);
+                Assert.AreEqual("ghi", rec.Key);
+                rec = l.FindPrev(null, false);
+                Assert.AreEqual("ghi", rec.Key);
+
+                // FindPrev("") should return nothing
+                bool err = false;
+                try { rec = l.FindPrev("", true); } catch { err = true; }
+                Assert.AreEqual(true, err);
+                
+
+            }
+            {
                 // FindNext(K)
-                KeyValuePair<string, int> next = l.FindNext("b");
+                KeyValuePair<string, int> next = l.FindNext("b", false);
                 Assert.AreEqual("def", next.Key);
                 Assert.AreEqual(2, next.Value);
 
                 // FindPrev(K)
-                KeyValuePair<string, int> prev = l.FindPrev("g");
+                KeyValuePair<string, int> prev = l.FindPrev("g", false);
                 Assert.AreEqual("def", prev.Key);
                 Assert.AreEqual(2, prev.Value);
+            }
+            {
+                // FindNext(K) better be >, not >=
+                KeyValuePair<string, int> next = l.FindNext("def", false);
+                Assert.AreEqual("ghi", next.Key, "findnext should be >, not >=");
+                Assert.AreEqual(3, next.Value);
+                // FindPrev(K) better be <, not <=
+                KeyValuePair<string, int> prev = l.FindPrev("def", false);
+                Assert.AreEqual("abc", prev.Key, "findprev should be <, not <=");
+                Assert.AreEqual(1, prev.Value);
+
             }
 
             {
                 // FindNext(IComparable<K>)\
-                KeyValuePair<string, int> next = l.FindNext(new CustomComparableToString("b"));
+                KeyValuePair<string, int> next = l.FindNext(new CustomComparableToString("b"), false);
                 Assert.AreEqual("def", next.Key, "FindNext(IComparable<K>) incorrect key");
                 Assert.AreEqual(2, next.Value);
 
 
                 // FindPrev(IComparable<K>)
-                KeyValuePair<string, int> prev = l.FindPrev(new CustomComparableToString("g"));
+                KeyValuePair<string, int> prev = l.FindPrev(new CustomComparableToString("g"), false);
                 Assert.AreEqual("def", prev.Key, "FindPrev(IComparable<K>) incorrect key");
                 Assert.AreEqual(2, prev.Value);
             }
-
 
             // use the iterator
             {
@@ -874,7 +915,42 @@ namespace BendTests
             }
         }
 
-   
+
+        [Test]
+        public void T00_Skiplist_Remove() {
+            SkipList<string, int> l = new SkipList<string, int>();
+            string[] keylist = { "abc", "def", "ghi" };
+            int[] valuelist = { 1, 2, 3 };
+
+            // put some data in 
+            for (int i = 0; i < keylist.Length; i++) {
+                Assert.AreEqual(i, l.Count, "list size mismatch during add");
+                l.Add(keylist[i], valuelist[i]);
+            }
+
+            for (int i = 0; i < keylist.Length; i++) {
+                Assert.AreEqual(keylist.Length - i, l.Count, "list size mismatch during remove");
+                l.Remove(keylist[i]);
+            }
+
+        }
+
+        [Test]
+        public void T01_Skiplist_ScannableDictionaryInterface() {
+            SkipList<string, int> l = new SkipList<string, int>();
+            string[] keylist = { "abc", "def", "ghi" };
+            int[] valuelist = { 1, 2, 3 };
+            IScannableDictionary<string, int> ld = l;
+
+            // put some data in 
+            for (int i = 0; i < keylist.Length; i++) {
+                Assert.AreEqual(i, l.Count, "list size mismatch during add");
+                Assert.AreEqual(i, ld.Count, "IScannableDictionary.Count size mismatch during add");
+                l.Add(keylist[i], valuelist[i]);
+            }
+
+        }
+
         [Test]
         public void T01_SkipList_Scanning() {
             SkipList<string, int> l = new SkipList<string, int>();
@@ -888,10 +964,10 @@ namespace BendTests
                 l.Add(keylist[i], valuelist[i]);
             }
 
-            // use the scan iterator
+            // use the scan iterator, forward
             {
                 int pos = 1;  // start at 1 because of our "b" search key
-                foreach (KeyValuePair<string, int> kvp in l.scanForward(new ScanRange<string>("b","z",null))) {
+                foreach (KeyValuePair<string, int> kvp in l.scanForward(new ScanRange<string>("b", "z", null))) {
                     // System.Console.WriteLine("skip[{0}] = {1}", kvp.Key, kvp.Value);
                     Assert.AreEqual(true, pos < keylist.Length, "iterator returned too many elements");
                     Assert.AreEqual(keylist[pos], kvp.Key);
@@ -901,10 +977,10 @@ namespace BendTests
                 Assert.AreEqual(keylist.Length, pos, "scanForward() did not return all elements it should have");
             }
 
-            // use the scan iterator
+            // use the scan iterator, backward
             {
                 int pos = 1;  // start at 1 because of our "e" search key
-                foreach (KeyValuePair<string, int> kvp in l.scanBackward(new ScanRange<string>("","e",null))) {
+                foreach (KeyValuePair<string, int> kvp in l.scanBackward(new ScanRange<string>("", "e", null))) {
                     // System.Console.WriteLine("skip[{0}] = {1}", kvp.Key, kvp.Value);
                     Assert.AreEqual(true, pos >= 0, "iterator returned too many elements");
                     Assert.AreEqual(keylist[pos], kvp.Key);
@@ -912,6 +988,33 @@ namespace BendTests
                     pos--;
                 }
                 Assert.AreEqual(-1, pos, "scanBackward() did not return all elements it should have");
+            }
+
+            // check scanForward endpoint
+            {
+                int pos = 1;
+                foreach (KeyValuePair<string, int> kvp in l.scanForward(new ScanRange<string>("b", "e", null))) {
+                    // System.Console.WriteLine("skip[{0}] = {1}", kvp.Key, kvp.Value);
+                    Assert.AreEqual(true, pos < keylist.Length, "iterator returned too many elements");
+                    Assert.AreEqual(keylist[pos], kvp.Key);
+                    Assert.AreEqual(valuelist[pos], kvp.Value);
+                    pos++;
+                }
+                Assert.AreEqual(2, pos, "scanForward() did not return the correct set of elements");
+
+            }
+
+            // check scanBackward endpoint
+            {
+                int pos = 1;  // start at 1 because of our before "e" search key
+                foreach (KeyValuePair<string, int> kvp in l.scanBackward(new ScanRange<string>("b", "e", null))) {
+                    // System.Console.WriteLine("skip[{0}] = {1}", kvp.Key, kvp.Value);
+                    Assert.AreEqual(true, pos >= 0, "iterator returned too many elements");
+                    Assert.AreEqual(keylist[pos], kvp.Key);
+                    Assert.AreEqual(valuelist[pos], kvp.Value);
+                    pos--;
+                }
+                Assert.AreEqual(0, pos, "scanBackward() did not return all elements it should have");
             }
 
         }

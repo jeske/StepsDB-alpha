@@ -143,7 +143,7 @@ namespace BendTests
         [Test]
         public void T03_RangeScan() {
             // TODO: remove this hacky converting from byte[] to string
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();            
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
             SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
             int records_written = 0;
@@ -155,6 +155,7 @@ namespace BendTests
                     )
                 );
 
+
             // generate a set of data into a segment
             {
                 // setup the HDF context
@@ -163,7 +164,7 @@ namespace BendTests
 
 
                 for (int i = 0; i < 1000; i += 30) {
-                    ctx.setQualifier("id", enc.GetString(Lsd.numberToLsd(i,10)));
+                    ctx.setQualifier("id", enc.GetString(Lsd.numberToLsd(i, 10)));
                     // generate a PipeRowQualifier
                     PipeRowQualifier row = p.generateRowFromContext(ctx);
 
@@ -177,10 +178,43 @@ namespace BendTests
                         }
                     }
                     // put it in the memory segment
-                    builder.setRecord(key, RecordUpdate.WithPayload(Lsd.numberToLsd(i,10)));
+                    builder.setRecord(key, RecordUpdate.WithPayload(Lsd.numberToLsd(i, 10)));
                     records_written++;
                 }
             }
+
+
+            // VERIFY the buidler
+            T03_RangeScan_Helper(builder, p, records_written, "SegmentMemoryBuilder");
+
+            // write out a basic block segment and verify
+            {
+                // TODO: test with multiple advisors (lots of block boundaries, only one block, 
+                //    .. one blocktype, multiple blocktypes...etc)
+                
+                MemoryStream ms = new MemoryStream();
+                SegmentWriter writer = new SegmentWriter(builder.sortedWalk());
+                writer.writeToStream(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+
+                SegmentReader reader = new SegmentReader(ms);
+                
+                // VERIFY the reader
+                T03_RangeScan_Helper(reader, p, records_written, "SegmentReader");
+            }
+
+        }
+
+        public void T03_RangeScan_Helper(ISortedSegment segbase,PipeStagePartition p, int records_written, string title) {
+            IScannable<RecordKey, RecordUpdate> segment = (IScannable<RecordKey, RecordUpdate>)segbase;
+            // TODO: remove this hacky converting from byte[] to string
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+
+            // TODO: test FindNext, FindPrev (false,true) cases...
+
+
+
 
             int max_i = 0;
             // scan FORWARD for a set of matching records (a subset of all records)
@@ -193,14 +227,14 @@ namespace BendTests
 
                 PipeRowQualifier qualifier = p.generateRowFromContext(ctx);
                 int i = 0;
-                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in builder.scanForward(new QualAdaptor(qualifier))) {
+                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in segment.scanForward(new QualAdaptor(qualifier))) {
                     // check that the recordupdate equals our iterator
-                    Assert.AreEqual(enc.GetString(Lsd.numberToLsd(i,10)), enc.GetString(kvp.Value.data), "check recordupdate payload");
+                    Assert.AreEqual(enc.GetString(Lsd.numberToLsd(i,10)), enc.GetString(kvp.Value.data), "scanForward, check recordupdate payload " + title);
                     max_i = Math.Max(i, max_i);
                     i = i + 30;
                     records_scanned++;
                 }
-                Assert.AreEqual(records_written, records_scanned, "scanForward: expect to read back the same number of records we wrote");
+                Assert.AreEqual(records_written, records_scanned, "scanForward: expect to read back the same number of records we wrote " + title);
                 
             }
 
@@ -214,13 +248,13 @@ namespace BendTests
 
                 PipeRowQualifier qualifier = p.generateRowFromContext(ctx);
                 int i = max_i;                
-                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in builder.scanBackward(new QualAdaptor(qualifier))) {
+                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in segment.scanBackward(new QualAdaptor(qualifier))) {
                     // check that the recordupdate equals our iterator
-                    Assert.AreEqual(enc.GetString(Lsd.numberToLsd(i, 10)), enc.GetString(kvp.Value.data), "check recordupdate payload");
+                    Assert.AreEqual(enc.GetString(Lsd.numberToLsd(i, 10)), enc.GetString(kvp.Value.data), "scanBackward, check recordupdate payload " + title );
                     i = i - 30;
                     records_scanned++;
                 }
-                Assert.AreEqual(records_written, records_scanned, "scanBackward: expect to read back the same number of records we wrote");
+                Assert.AreEqual(records_written, records_scanned, "scanBackward: expect to read back the same number of records we wrote " + title);
 
             }
         }
@@ -229,7 +263,20 @@ namespace BendTests
     [TestFixture]
     public class ZZ_TODO_SortedSegment
     {
+        [Test]
+        public void T01_SortedSegment_TestDuplicateBlockStartKeys() {
 
+            // do we allow equal startkeys in blocks? If so, our logic returns the last one, not the first
+            //   FindNext("FOO",true)
+            //      block 0:  "FOO" -> 1 record "FOO=1"
+            //      block 1:  "FOO" -> 1 record "FOO=2"
+
+            // do we handle a FindNext trying one block, and then having to try the next?
+            //   FindNext("FOO",false)
+            //      block 0:  "FOO" -> 1 record "FOO"
+            //      block 1:  "FOO2" -> 1 record "FOO2"
+            Assert.Fail("not implemented");
+        }
         [Test]
         public void T00_SortedSegment_MultipleIndexEntry_ReadWrite() {
             Assert.Fail("not implemented");

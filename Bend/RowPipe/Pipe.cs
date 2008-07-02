@@ -159,7 +159,7 @@ namespace Bend
     }
 
     // -----[ PipeStagePartition  ]-----
-    class PipeStagePartition : PipeStage {
+    public class PipeStagePartition : PipeStage {
         PipeStage next_stage;
         internal string context_key;  // we should really make this strong-named, not just a string
         public PipeStagePartition(string context_key, PipeStage next_stage) {

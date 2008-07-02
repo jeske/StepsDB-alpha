@@ -66,6 +66,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="RootMetadata\RangemapManager2.cs" />
     <Compile Include="RowPipe\Pipe.cs" />
     <Compile Include="RecordTypesTest.cs" />
     <Compile Include="RowPipe\PipeTest.cs" />
