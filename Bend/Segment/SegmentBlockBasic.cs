@@ -12,9 +12,9 @@ using System.Diagnostics;
 namespace Bend {  
 
 
-// ---------------[ SegmentBlockEncoderBasic ]------------------------------
+    // ---------------[ SegmentBlockEncoderBasic ]------------------------------
     //
-    // 0x80 = End of Line Marker
+    // 0x80 = End of Record Marker
     // 0x81 = Escape Character     (two byte sequence 0x81 <char> indicates a literal char)
     // 0x82 = Key/Value Separator
     //
@@ -23,13 +23,17 @@ namespace Bend {
     //   0x81 0x02 -> 0x81
     //   0x81 0x03 -> 0x82
     // 
+    // Example record:
+    //
+    //  username 0x82 jeske 0x80
+
+    // * TODO * : add a record checksum, even a weak one... to prevent stupid mistakes!
 
     // TODO: figure out how we can (a) advise that our scans will be slow when
     //    .. record size is large. (b) keep skiplist style fastscan-back pointers
     //    .. to jump back far and still find a record boundary
 
-    // TODO: add a record checksum, even a weak one... to prevent stupid mistakes!
-
+    
     class SegmentBlockBasicEncoder : ISegmentBlockEncoder
     {
         Stream output;
