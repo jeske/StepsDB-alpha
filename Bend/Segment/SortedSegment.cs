@@ -171,16 +171,18 @@ namespace Bend
                 
         internal IScannableDictionary<RecordKey, _SegBlock> blocks;
 
-        Stream dataAccessStream; // used only when we are in read-mode
+        IRegion segmentRegion;
+        Stream dataAccessStream;
 
         public SortedSegmentIndex() {
             // TODO: switch this to use a scannable array when we read back
             //  so we can avoid wasting the space and insertion time of a skiplist...
             blocks = new SkipList<RecordKey,_SegBlock>();
         }
-        public SortedSegmentIndex(byte[] index_data,Stream _dataAccessStream) : this() {
+        public SortedSegmentIndex(byte[] index_data,IRegion segmentRegion) : this() {
+            this.segmentRegion = segmentRegion;
             readFromBytes(index_data);
-            this.dataAccessStream = _dataAccessStream;
+            dataAccessStream = segmentRegion.getStream();
         }
 
         public void addBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
@@ -363,11 +365,13 @@ namespace Bend
 
     internal class SegmentReader : ISortedSegment, IScannable<RecordKey, RecordUpdate>
     {
-        Stream fs;
+        //         Stream fs;
+        IRegion segmentRegion;
         SortedSegmentIndex index;
 
-        public SegmentReader(Stream _fs) {
-            fs = _fs;
+        public SegmentReader(IRegion segmentRegion) {
+            this.segmentRegion = segmentRegion;
+            Stream fs = segmentRegion.getStream();
             
             // read the footer index size
             // FIXME: BUG BUG BUG!! using SeekOrigin.End is only valid here because our current RegionManager
@@ -384,8 +388,8 @@ namespace Bend
             byte[] indexdata = new byte[indexlength];
             fs.Read(indexdata, 0, indexlength);
             
-            // and push those butes through the segmentindexread
-            index = new SortedSegmentIndex(indexdata,_fs);
+            // and push those bytes through the segmentindexread
+            index = new SortedSegmentIndex(indexdata,segmentRegion);
 
         }
 
@@ -423,7 +427,7 @@ namespace Bend
         }
         
         public void Dispose() {
-            if (fs != null) { fs.Close(); fs = null; }
+            if (segmentRegion != null) { segmentRegion.Dispose(); segmentRegion = null; }
         }
     }
 

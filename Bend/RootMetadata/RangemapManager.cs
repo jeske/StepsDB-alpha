@@ -51,6 +51,7 @@ namespace Bend
                 RecordUpdate.WithPayload(0.ToString())); // TODO: this should be a var-enc number
         }
 
+
         internal SegmentReader segmentReaderForAddr(KeyValuePair<RecordKey, RecordUpdate> segmentrow) {
 
             if (disk_segment_cache.ContainsKey(segmentrow.Key)) {
@@ -64,7 +65,7 @@ namespace Bend
                 uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
 
                 IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-                SegmentReader next_seg = new SegmentReader(region.getStream());
+                SegmentReader next_seg = new SegmentReader(region);
 
                 disk_segment_cache[segmentrow.Key] = next_seg;
                 return next_seg;
@@ -144,7 +145,7 @@ namespace Bend
 
 
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-            SegmentReader sr = new SegmentReader(region.getStream());
+            SegmentReader sr = new SegmentReader(region);
             return sr;
 
         }
@@ -452,7 +453,7 @@ namespace Bend
                         uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
 
                         IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-                        SegmentReader sr = new SegmentReader(region.getStream());
+                        SegmentReader sr = new SegmentReader(region);
 
                         // RECURSE
                         if (INTERNAL_segmentWalkForKey(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {

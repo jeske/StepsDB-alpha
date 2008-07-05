@@ -57,6 +57,31 @@ namespace BendTests
     public class A02_SortedSegmentTests
     {
 
+        class TestRegion : IRegion
+        {
+            Stream read_stream;
+            internal TestRegion(MemoryStream read_stream) {
+                this.read_stream = read_stream;
+            }
+            public Stream getStream() {
+                return this.read_stream;
+            }
+
+            public long getStartAddress() {
+                return 0;
+            }
+            public long getSize() {
+                return read_stream.Length;
+            }
+            public void Dispose() {
+                if (read_stream != null) {
+                    read_stream.Close();
+                    read_stream = null;
+                }
+            }
+        }
+
+
         [Test]
 
         public void T00_SegmentIndex_EncodeDecode() {
@@ -82,10 +107,8 @@ namespace BendTests
 
             // read it back
             {
-                MemoryStream read_stream = new MemoryStream(streamdata);
-                // reset the stream and read it back
-                read_stream.Seek(0, SeekOrigin.Begin);
-                SortedSegmentIndex index = new SortedSegmentIndex(streamdata, read_stream);
+                IRegion testregion = new TestRegion(new MemoryStream(streamdata));                
+                SortedSegmentIndex index = new SortedSegmentIndex(streamdata, testregion);
                 int pos = 0;
                 foreach (KeyValuePair<RecordKey,SortedSegmentIndex._SegBlock> kvp in index.blocks) {
                     SortedSegmentIndex._SegBlock block = kvp.Value;
@@ -120,11 +143,9 @@ namespace BendTests
 
             // segment readback
             {
-                MemoryStream ms = new MemoryStream(databuffer);
-               
-                // rewind
-                ms.Seek(0, SeekOrigin.Begin);
-                SegmentReader reader = new SegmentReader(ms);
+                TestRegion testregion = new TestRegion(new MemoryStream(databuffer));
+              
+                SegmentReader reader = new SegmentReader(testregion);
 
                 // test the length of the block 
 
@@ -196,8 +217,9 @@ namespace BendTests
                 SegmentWriter writer = new SegmentWriter(builder.sortedWalk());
                 writer.writeToStream(ms);
                 ms.Seek(0, SeekOrigin.Begin);
+                TestRegion testregion = new TestRegion(ms);
 
-                SegmentReader reader = new SegmentReader(ms);
+                SegmentReader reader = new SegmentReader(testregion);
                 
                 // VERIFY the reader
                 T03_RangeScan_Helper(reader, p, records_written, "SegmentReader");

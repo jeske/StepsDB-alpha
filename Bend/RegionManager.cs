@@ -23,7 +23,7 @@ namespace Bend
         void disposeRegionAddr(uint region_addr);
     }
 
-    public interface IRegion
+    public interface IRegion : IDisposable
     {
         Stream getStream();
         long getStartAddress();
@@ -65,6 +65,12 @@ namespace Bend
             }
             public long getSize() {
                 return stream.Length;
+            }
+            public void Dispose() {
+                if (stream != null) {
+                    stream.Close();
+                    stream = null;
+                }
             }
         }
        
