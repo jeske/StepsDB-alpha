@@ -216,13 +216,19 @@ namespace Bend
                 Debug.WriteLine(block, "index reader");
             }            
         }
+        private ISegmentBlockDecoder openBlock(_SegBlock block) {
+            // TODO, make this somehow get a threadsafe stream to hand to the basic block
+            // decoder!!
+
+            return new SegmentBlockBasicDecoder(
+                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+        }
+
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
 
             foreach (KeyValuePair<RecordKey,_SegBlock> block_kvp in blocks) {
                 _SegBlock block = block_kvp.Value;
-                // TODO: if the block is applicable to the scan
-                ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
-                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+                ISegmentBlockDecoder decoder = openBlock(block);
                     
                 foreach(KeyValuePair<RecordKey,RecordUpdate> decode_kvp in decoder.sortedWalk()) {
                     yield return decode_kvp;
@@ -248,8 +254,7 @@ namespace Bend
             }
             _SegBlock block = blockkvp.Value;
             // instantiate the block
-            ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
-                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+            ISegmentBlockDecoder decoder = openBlock(block);
             
             KeyValuePair<RecordKey, RecordUpdate> datakvp;
             try {
@@ -262,8 +267,7 @@ namespace Bend
                     // so give the next block(s) a shot if we have more
                     blockkvp = blocks.FindNext(blockkvp.Key, false);
                     block = blockkvp.Value;
-                    decoder = new SegmentBlockBasicDecoder(
-                            new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+                    decoder = openBlock(block);
                     try {
                         return decoder.FindNext(keytest, equal_ok);
                     }
@@ -288,8 +292,7 @@ namespace Bend
 
             _SegBlock block = kvp.Value;
             // instantiate the block
-            ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(
-                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+            ISegmentBlockDecoder decoder = openBlock(block);
 
             return decoder.FindPrev(keytest, equal_ok);
         }
