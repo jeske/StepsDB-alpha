@@ -73,7 +73,6 @@ namespace Bend
             db = new LayerManager(InitMode.RESUME, "c:\\test\\main");
             db.debugDump();
 
-
             System.Console.WriteLine("-------- NOW FINDNEXT ---------------------------------");
             {
                 RecordKey next_key = new RecordKey();
@@ -87,10 +86,22 @@ namespace Bend
                 }
             }
 
-
             System.Console.WriteLine("-------- NOW MERGE ---------------------------------");
             db.mergeAllSegments();
             db.debugDump();
+
+            System.Console.WriteLine("-------- NOW FINDNEXT (after merge) ---------------------------------");
+            {
+                RecordKey next_key = new RecordKey();
+                RecordKey fkey = null;
+                RecordData fdata = null;
+                while (db.getNextRecord(next_key, ref fkey, ref fdata) == GetStatus.PRESENT) {
+                    next_key = fkey;
+
+                    System.Console.WriteLine("  found: {0} -> {1}", fkey.ToString(), fdata.ToString());
+
+                }
+            }
 
 
 
