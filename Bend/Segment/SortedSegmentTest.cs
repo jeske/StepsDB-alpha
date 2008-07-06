@@ -66,6 +66,10 @@ namespace BendTests
             public Stream getNewAccessStream() {
                 return new MemoryStream(data);
             }
+            public Stream getNewBlockAccessStream(int rel_block_start, int block_len) {
+                return new OffsetStream(this.getNewAccessStream(),
+                    rel_block_start, block_len);
+            }
 
             public long getStartAddress() {
                 return 0;
@@ -89,6 +93,10 @@ namespace BendTests
                 } else {
                     throw new Exception("you can only write to TestRegionWriteOnce, once!");
                 }
+            }
+            public Stream getNewBlockAccessStream(int rel_block_start,int len) {
+                // not really a valid thing to do
+                throw new Exception("not valid");
             }
             public long getSize() {
                 if (mystream != null) {

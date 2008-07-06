@@ -219,8 +219,8 @@ namespace Bend
             // decoder!!
 
             return new SegmentBlockBasicDecoder(
-                    new OffsetStream(segmentRegion.getNewAccessStream(), 
-                        block.datastart, (block.dataend - block.datastart)));
+                segmentRegion.getNewBlockAccessStream((int)block.datastart,
+                (int)(block.dataend - block.datastart)));
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -450,7 +450,7 @@ namespace Bend
     class SegmentWriterAdvisor    
     {
         int keys_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 100; // we have this set really low for testing!!
+        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 1000; // set this really low for testing!!
 
         public SegmentWriterAdvisor() { }
         public void fyiAddedRecord(RecordKey key, RecordUpdate update) {

@@ -1,6 +1,10 @@
 ﻿using System;
 using System.IO;
 
+using System.Threading;
+using System.Collections;
+using System.Collections.Generic;
+
 // TODO: raw file, raw partition region managers, tests
 
 namespace Bend
@@ -26,7 +30,7 @@ namespace Bend
     public interface IRegion : IDisposable
     {
         Stream getNewAccessStream();
-        // Stream getBlockAccessStream(long rel_block_start, long block_len);
+        Stream getNewBlockAccessStream(int rel_block_start, int block_len);
         long getStartAddress();
         long getSize();   // TODO: do something better with this, so we can't break
     }
@@ -45,6 +49,8 @@ namespace Bend
     {
         String dir_path;
 
+        Dictionary<uint, EFRegion> region_cache;
+
         enum EFRegionMode {
             READ_ONLY_EXCL,
             READ_ONLY_SHARED,
@@ -52,19 +58,29 @@ namespace Bend
             READ_WRITE
         }
         
+        // ------------ IRegion -------------
         class EFRegion : IRegion
         {
-            // FileStream stream;
+            
             string filepath;
-            EFRegionMode mode;
-
+            EFRegionMode mode;            
             long address;
             long length;
+
+            Dictionary<int, Stream> my_streams;
+            Dictionary<int, byte[]> block_cache;
+
+
+            // -------------
+
             internal EFRegion(long address, long length, string filepath, EFRegionMode mode) {
                 this.address = address;
                 this.length = length;
                 this.mode = mode;
                 this.filepath = filepath;
+                my_streams = new Dictionary<int, Stream>();
+                block_cache = new Dictionary<int, byte[]>();
+                
             }
 
             public Stream getNewAccessStream() {
@@ -85,6 +101,51 @@ namespace Bend
                 }
             }
 
+            private Stream getThreadStream() {
+                int thread_id = Thread.CurrentThread.ManagedThreadId;
+                lock (my_streams) {
+                    if (my_streams.ContainsKey(thread_id)) {
+                        return my_streams[thread_id];
+                    } 
+                }
+
+                Stream new_stream = this.getNewAccessStream();
+                lock (my_streams) {                 
+                    my_streams[thread_id] = new_stream;
+                }
+                return new_stream;                                
+            }
+
+            public Stream getNewBlockAccessStream2(int rel_block_start, int block_len) {
+                // OLD:
+                return new OffsetStream(this.getNewAccessStream(), rel_block_start, block_len);
+            }
+
+            public Stream getNewBlockAccessStream(int rel_block_start, int block_len) {
+                // return it from the block cache if it's there
+                lock (block_cache) {
+                    if (block_cache.ContainsKey(rel_block_start)) {
+                        byte[] datablock = this.block_cache[rel_block_start];
+                        if (datablock.Length == block_len) {
+                            return new MemoryStream(datablock);
+                        }
+                    }
+                }
+                System.Console.WriteLine("zz uncached block");
+                Stream mystream = this.getThreadStream();
+
+                byte[] block = new byte[block_len];
+                mystream.Seek(rel_block_start, SeekOrigin.Begin);
+                if (mystream.Read(block, 0, block_len) != block_len) {
+                    throw new Exception("couldn't read entire block: " + this.ToString());
+                }
+                lock (block_cache) {
+                    block_cache[rel_block_start] = block;
+                }
+
+                return new MemoryStream(block);                
+            }
+
             public long getStartAddress() {
                 return address;
             }
@@ -94,13 +155,14 @@ namespace Bend
             public void Dispose() {
                 // no streams to dispose
             }
-        }
+        } // ------------- IRegion END ----------------------------
        
         public class RegionMissingException : Exception { 
             public RegionMissingException(String msg) : base(msg) { }
         }
         public RegionExposedFiles(String location) {
             this.dir_path = location;
+            region_cache = new Dictionary<uint, EFRegion>();
         }
 
         // first time init        
@@ -138,6 +200,13 @@ namespace Bend
         }
 
         public IRegion readRegionAddrNonExcl(uint region_addr) {
+            lock (region_cache) {
+                if (region_cache.ContainsKey(region_addr)) {
+                    return region_cache[region_addr];
+                }
+            }
+
+            System.Console.WriteLine("zz uncached region");
             String filepath = makeFilepath(region_addr);
             if (File.Exists(filepath)) {
                 // open non-exclusive
@@ -146,7 +215,11 @@ namespace Bend
                 long length = reader.Length;
                 reader.Dispose();
                 
-                return new EFRegion(region_addr, length, filepath, EFRegionMode.READ_ONLY_SHARED);
+                EFRegion newregion = new EFRegion(region_addr, length, filepath, EFRegionMode.READ_ONLY_SHARED);
+                lock (region_cache) {
+                    region_cache[region_addr] = newregion;
+                }
+                return newregion;
             } else {
                 throw new RegionMissingException("no such region address: " + region_addr);
             }

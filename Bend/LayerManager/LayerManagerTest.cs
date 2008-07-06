@@ -451,6 +451,7 @@ namespace BendTests
 
             test.verifyData();
 
+            DateTime start = DateTime.Now;
             List<Thread> threads = new List<Thread>();
             // now do the same thing simultaneously in multiple threads
             for (int numthreads = 0; numthreads < 5; numthreads++) {
@@ -465,6 +466,10 @@ namespace BendTests
                 // rejoin the threads
                 th.Join();
             }
+
+            DateTime end = DateTime.Now;
+
+            System.Console.WriteLine("ReadThreads elapsed time: {0}ms", (end - start).Milliseconds);
             
 
         }

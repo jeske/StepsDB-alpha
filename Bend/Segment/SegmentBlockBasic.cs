@@ -113,13 +113,16 @@ namespace Bend {
 
         private static KeyValuePair<RecordKey, RecordUpdate> decodeRecordFromStream(Stream rs) {
             bool at_endmarker = false;
-            // we are ASSUMING that the records starts right here in the stream, it better be true!
-            // TODO: considering adding two separate record start/end markers
-            // accumulate the key
+            
+            // ..we are ASSUMING that the records starts right here in the stream, it better be true!
+            // ..TODO: considering adding two separate record start/end markers
+
+            // Accumulate the key.
             List<byte> keystr = new List<byte>();
             // StringBuilder keystr = new StringBuilder();
             bool keydone = false;
-            while (rs.Position < rs.Length && !keydone) {
+            long stream_len = rs.Length;
+            while (rs.Position < stream_len && !keydone) {
                 byte c = (byte)rs.ReadByte();
                 switch (c) {
                     case 0x80:   // end of line 
