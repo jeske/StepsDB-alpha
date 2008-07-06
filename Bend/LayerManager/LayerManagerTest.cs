@@ -3,10 +3,11 @@
 
 
 using System;
-
+using System.Collections.Generic;
 using NUnit.Framework;
 
 using Bend;
+using System.Threading;
 
 namespace BendTests
 {
@@ -374,6 +375,116 @@ namespace BendTests
             }
         }
 
+
+        // TEST: Tombstones
+
+        // ----------------------------[ TEST MERGING ]-----------------------------
+
+        // TEST: double flush and merge 2 segments into 1
+        // TEST: random pattern test (long), lots of merging
+        // TEST: Tombstone cleanup
+        // TEST: RANGE walk during getRecord()
+        //        - assure the initial bootstrap does not reach all segments
+        //        - ask for a key in an indirect referenced segment (to assure it uses the metadata to find it)
+        // ----------------------------[  TEST ROW ATTRIBUTES ]---------------------
+
+        // TEST: row attributes
+        // TEST: segment merge row attribute collapse/cleanup for old TX (before it hits the bottom)
+
+        // ----------------------------[    TEST CONCURRENCY    ]------------------
+
+        // TEST: region IO concurrency
+        
+        internal class ReadThreadsTest {
+            LayerManager db; 
+            int TEST_RECORD_COUNT = 100;
+            int RECORDS_PER_SEGMENT = 30;
+            SortedDictionary<string, string> testdata;
+
+            internal ReadThreadsTest() {
+                db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\10");
+                testdata = new SortedDictionary<string, string>();
+
+                // generate some data
+                for (int i=0;i<TEST_RECORD_COUNT;i++) {
+                    string key = "test/" + i.ToString();
+                    testdata[key] = "data: " + key;                
+                }
+
+                // fill the db with some data.
+                int pos = 0;
+                foreach (KeyValuePair<string,string> kvp in testdata) {            
+                    LayerManager.Txn txn = db.newTxn();
+                    txn.setValueParsed(kvp.Key, kvp.Value);
+                    txn.commit();
+                    pos++;
+
+                    if ((pos % RECORDS_PER_SEGMENT) == 0) {
+                        db.flushWorkingSegment();
+                    }
+                }            
+                db.flushWorkingSegment();
+            }
+
+            internal void verifyData() {
+                // make sure it reads back..
+                int pos = 0;
+                foreach (KeyValuePair<string, string> kvp in testdata) {
+                    RecordData rdata;
+                    RecordKey rkey = new RecordKey().appendParsedKey(kvp.Key);
+                    if (db.getRecord(rkey, out rdata) == GetStatus.MISSING) {
+                        Assert.Fail("failed to read: " + kvp.Key.ToString());
+                    }
+                    pos++;
+                    if ((pos % 10) == 0) {
+                        System.Console.WriteLine("at record {0} of {1}", pos, testdata.Count);
+                    }
+                }
+            }
+
+        }
+        
+        
+        [Test]
+        public void T10_LayerManager_ReadThreads() {
+            ReadThreadsTest test = new ReadThreadsTest();
+
+            test.verifyData();
+
+            List<Thread> threads = new List<Thread>();
+            // now do the same thing simultaneously in multiple threads
+            for (int numthreads = 0; numthreads < 5; numthreads++) {
+                Thread newthread = new Thread(new ThreadStart(test.verifyData));
+
+                newthread.Start();
+                threads.Add(newthread);
+                Thread.Sleep(50);
+            }
+
+            foreach (Thread th in threads) {
+                // rejoin the threads
+                th.Join();
+            }
+            
+
+        }
+
+
+        // TEST: that our record-get will see data in ALL in-memory segments
+        // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
+
+        // TEST: assure the atomicity of a LogCommitGroup (Txn?)
+
+        // ----------------------------[   TEST MVCC    ]---------------------------
+        // TEST: MVCC Row Read Locking
+        // TEST: MVCC Row Write Locking
+        // TEST: MVCC Row-Range Read Locking
+        // TEST: MVCC pending TX past restart
+
+        // ----------------------------[  TWO PHASE COMMIT ]------------------------
+        // TEST: two-phase commit prepare past restart
+
+
     }
 
     [TestFixture]
@@ -397,39 +508,5 @@ namespace BendTests
 
 
     
-
-    // TEST: Tombstones
-
-
-    // ----------------------------[ TEST MERGING ]-----------------------------
-
-    // TEST: double flush and merge 2 segments into 1
-    // TEST: random pattern test (long), lots of merging
-    // TEST: Tombstone cleanup
-    // TEST: RANGE walk during getRecord()
-    //        - assure the initial bootstrap does not reach all segments
-    //        - ask for a key in an indirect referenced segment (to assure it uses the metadata to find it)
-    // ----------------------------[  TEST ROW ATTRIBUTES ]---------------------
-
-    // TEST: row attributes
-    // TEST: segment merge row attribute collapse/cleanup for old TX (before it hits the bottom)
-
-    // ----------------------------[    TEST CONCURRENCY    ]------------------
-
-    // TEST: region IO concurrency
-
-    // TEST: that our record-get will see data in ALL in-memory segments
-    // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
-
-    // TEST: assure the atomicity of a LogCommitGroup (Txn?)
-
-    // ----------------------------[   TEST MVCC    ]---------------------------
-    // TEST: MVCC Row Read Locking
-    // TEST: MVCC Row Write Locking
-    // TEST: MVCC Row-Range Read Locking
-    // TEST: MVCC pending TX past restart
-
-    // ----------------------------[  TWO PHASE COMMIT ]------------------------
-    // TEST: two-phase commit prepare past restart
  
 }
