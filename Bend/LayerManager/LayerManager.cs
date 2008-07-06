@@ -211,9 +211,10 @@ namespace Bend
                 // write the checkpoint segment and flush
                 // TODO: make this happen in the background!!
                 SegmentWriter segmentWriter = new SegmentWriter(checkpointSegment.sortedWalk());
-                segmentWriter.writeToStream(writer.getStream());
-                writer.getStream().Flush();
-                writer.getStream().Close();
+                Stream wstream = writer.getNewAccessStream();
+                segmentWriter.writeToStream(wstream);
+                wstream.Flush();
+                wstream.Close();
 
                 // reopen that segment for reading
                 // TODO: figure out how much data we wrote exactly, adjust the freespace, and 
@@ -236,7 +237,9 @@ namespace Bend
               // re-read the segment and use it to replace the checkpoint segment            
               // SegmentReader sr = new SegmentReader(reader.getStream());
               // segmentlayers.Insert(1, sr); // working segment is zero, so insert this after it
-            reader.getStream().Close(); // force close the reader
+            
+            
+            // reader.getStream().Close(); // force close the reader
 
             segmentlayers.Remove(checkpointSegment);
         }
@@ -281,12 +284,15 @@ namespace Bend
                 Txn tx = new Txn(this);
                 // allocate new segment address from freespace
                 IRegion writer = freespacemgr.allocateNewSegment(tx, -1);
-                
+
                 // merge the segments into the output stream, and flush                
                 SegmentWriter segWriter = new SegmentWriter(chain);
-                segWriter.writeToStream(writer.getStream());
-                writer.getStream().Flush();
-                writer.getStream().Close();
+                {
+                    Stream wstream = writer.getNewAccessStream();
+                    segWriter.writeToStream(wstream);
+                    wstream.Flush();
+                    wstream.Close();
+                }
 
                 // reopen that segment for reading
                 // TODO: figure out how much data we wrote exactly, adjust the freespace, and 
@@ -300,10 +306,10 @@ namespace Bend
                 for (int i = 0; i < gen_count; i++) {
                     rangemapmgr.unmapGeneration(tx, i);
                 }
-                rangemapmgr.mapGenerationToRegion(tx, 0, reader);                 
+                rangemapmgr.mapGenerationToRegion(tx, 0, reader);
                 tx.commit();                             // commit the freespace and rangemap transaction
-                
-                reader.getStream().Close();              // force close the reader
+
+                // reader.getStream().Close();              // force close the reader
                 rangemapmgr.shrinkGenerationCount();     // check to see if we can shrink NUMGENERATIONS
             }
 

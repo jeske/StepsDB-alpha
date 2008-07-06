@@ -57,30 +57,53 @@ namespace BendTests
     public class A02_SortedSegmentTests
     {
 
-        class TestRegion : IRegion
+        class TestRegionRead : IRegion
         {
-            Stream read_stream;
-            internal TestRegion(MemoryStream read_stream) {
-                this.read_stream = read_stream;
+            byte[] data;
+            internal TestRegionRead(byte[] data) {
+                this.data = data;
             }
-            public Stream getStream() {
-                return this.read_stream;
+            public Stream getNewAccessStream() {
+                return new MemoryStream(data);
             }
 
             public long getStartAddress() {
                 return 0;
             }
             public long getSize() {
-                return read_stream.Length;
+                return data.Length;
             }
             public void Dispose() {
-                if (read_stream != null) {
-                    read_stream.Close();
-                    read_stream = null;
-                }
             }
         }
 
+        class TestRegionWriteOnce : IRegion
+        {
+            internal MemoryStream mystream = null;
+            internal TestRegionWriteOnce() {
+            }
+            public Stream getNewAccessStream() {
+                if (mystream == null) {
+                    mystream = new MemoryStream();
+                    return mystream;
+                } else {
+                    throw new Exception("you can only write to TestRegionWriteOnce, once!");
+                }
+            }
+            public long getSize() {
+                if (mystream != null) {
+                    return mystream.Length;
+                } else {
+                    return -1;
+                }
+            }
+            public long getStartAddress() {
+                return 0;
+            }
+            public void Dispose() {
+            }
+            
+        }
 
         [Test]
 
@@ -107,7 +130,7 @@ namespace BendTests
 
             // read it back
             {
-                IRegion testregion = new TestRegion(new MemoryStream(streamdata));                
+                IRegion testregion = new TestRegionRead(streamdata);                
                 SortedSegmentIndex index = new SortedSegmentIndex(streamdata, testregion);
                 int pos = 0;
                 foreach (KeyValuePair<RecordKey,SortedSegmentIndex._SegBlock> kvp in index.blocks) {
@@ -143,7 +166,7 @@ namespace BendTests
 
             // segment readback
             {
-                TestRegion testregion = new TestRegion(new MemoryStream(databuffer));
+                TestRegionRead testregion = new TestRegionRead(databuffer);
               
                 SegmentReader reader = new SegmentReader(testregion);
 
@@ -212,14 +235,13 @@ namespace BendTests
             {
                 // TODO: test with multiple advisors (lots of block boundaries, only one block, 
                 //    .. one blocktype, multiple blocktypes...etc)
-                
-                MemoryStream ms = new MemoryStream();
-                SegmentWriter writer = new SegmentWriter(builder.sortedWalk());
-                writer.writeToStream(ms);
-                ms.Seek(0, SeekOrigin.Begin);
-                TestRegion testregion = new TestRegion(ms);
 
-                SegmentReader reader = new SegmentReader(testregion);
+                TestRegionWriteOnce testwregion = new TestRegionWriteOnce();
+                SegmentWriter writer = new SegmentWriter(builder.sortedWalk());
+                writer.writeToStream(testwregion.getNewAccessStream());
+
+                TestRegionRead testr_region = new TestRegionRead(testwregion.mystream.ToArray());     
+                SegmentReader reader = new SegmentReader(testr_region);
                 
                 // VERIFY the reader
                 T03_RangeScan_Helper(reader, p, records_written, "SegmentReader");

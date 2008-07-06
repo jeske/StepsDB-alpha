@@ -73,7 +73,7 @@ namespace Bend
             // test to see if there is already a root record there
             {
                 try {
-                    Stream testrootblockstream = regionmgr.readRegionAddr(0).getStream();
+                    Stream testrootblockstream = regionmgr.readRegionAddr(0).getNewAccessStream();
 
                     RootBlock nroot = Util.readStruct<RootBlock>(testrootblockstream);
                     long rtblksz = testrootblockstream.Position;
@@ -96,8 +96,8 @@ namespace Bend
             root.logsize = LogWriter.DEFAULT_LOG_SIZE;
             root.loghead = 0;
             root.root_checksum = 0;
-            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0).getStream();
-            Stream logwritestream = regionmgr.writeFreshRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
+            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0).getNewAccessStream();
+            Stream logwritestream = regionmgr.writeFreshRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getNewAccessStream();
 
             this.logstream = logwritestream;
             this.rootblockstream = rootblockwritestream;
@@ -125,12 +125,12 @@ namespace Bend
             if (mode != InitMode.RESUME)  {
                 throw new Exception("init method must be called with RESUME init");
             }
-            this.rootblockstream = regionmgr.readRegionAddr(0).getStream();
+            this.rootblockstream = regionmgr.readRegionAddr(0).getNewAccessStream();
             root = Util.readStruct<RootBlock>(rootblockstream);
             if (!root.IsValid()) {
                 throw new Exception("invalid root block");
             }
-            this.logstream = regionmgr.readRegionAddr(root.logstart).getStream();
+            this.logstream = regionmgr.writeExistingRegionAddr(root.logstart).getNewAccessStream();
             recoverLog();
         }
 

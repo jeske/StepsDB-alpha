@@ -25,7 +25,8 @@ namespace Bend
 
     public interface IRegion : IDisposable
     {
-        Stream getStream();
+        Stream getNewAccessStream();
+        // Stream getBlockAccessStream(long rel_block_start, long block_len);
         long getStartAddress();
         long getSize();   // TODO: do something better with this, so we can't break
     }
@@ -38,39 +39,60 @@ namespace Bend
    
     // -----------------[ RegionExposedFiles ]-----------------------------------------------
 
-
+    
     // manage a region of exposed files
     class RegionExposedFiles : IRegionManager
     {
         String dir_path;
 
+        enum EFRegionMode {
+            READ_ONLY_EXCL,
+            READ_ONLY_SHARED,
+            WRITE_NEW,
+            READ_WRITE
+        }
         
         class EFRegion : IRegion
         {
-            FileStream stream;
+            // FileStream stream;
+            string filepath;
+            EFRegionMode mode;
+
             long address;
             long length;
-            internal EFRegion(long address, long length, FileStream stream) {
+            internal EFRegion(long address, long length, string filepath, EFRegionMode mode) {
                 this.address = address;
                 this.length = length;
-                this.stream = stream;
+                this.mode = mode;
+                this.filepath = filepath;
             }
 
-            public Stream getStream() {
-                return stream;
+            public Stream getNewAccessStream() {
+                if (this.mode == EFRegionMode.READ_ONLY_EXCL) {
+                    FileStream reader = File.Open(filepath, FileMode.Open,FileAccess.Read, FileShare.None);
+                    return reader;
+                } else if (this.mode == EFRegionMode.READ_ONLY_SHARED) {
+                    FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    return reader;
+                } else if (this.mode == EFRegionMode.WRITE_NEW) {
+                    FileStream writer = File.Open(filepath, FileMode.CreateNew,FileAccess.Write, FileShare.None);
+                    return writer;
+                } else if (this.mode == EFRegionMode.READ_WRITE) {
+                    FileStream writer = File.Open(filepath, FileMode.Open,FileAccess.ReadWrite, FileShare.None);
+                    return writer;
+                } else {
+                    throw new Exception("unknown EFRegionMode: " + this.mode.ToString());
+                }
             }
 
             public long getStartAddress() {
                 return address;
             }
             public long getSize() {
-                return stream.Length;
+                return this.length;
             }
             public void Dispose() {
-                if (stream != null) {
-                    stream.Close();
-                    stream = null;
-                }
+                // no streams to dispose
             }
         }
        
@@ -102,9 +124,13 @@ namespace Bend
 
         public IRegion readRegionAddr(uint region_addr) {
             String filepath = makeFilepath(region_addr);
-            if (File.Exists(filepath)) {
+            if (File.Exists(filepath)) {                
                 FileStream reader = File.Open(filepath, FileMode.Open);
-                return new EFRegion(region_addr, reader.Length, reader);
+                long length = reader.Length;                
+                reader.Dispose();
+
+                return new EFRegion(region_addr, length, filepath, EFRegionMode.READ_ONLY_EXCL);
+
             } else {
                 throw new RegionMissingException("no such region address: " + region_addr);
                 
@@ -115,8 +141,12 @@ namespace Bend
             String filepath = makeFilepath(region_addr);
             if (File.Exists(filepath)) {
                 // open non-exclusive
-                FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read,FileShare.Read);
-                return new EFRegion(region_addr, reader.Length, reader);
+                
+                FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                long length = reader.Length;
+                reader.Dispose();
+                
+                return new EFRegion(region_addr, length, filepath, EFRegionMode.READ_ONLY_SHARED);
             } else {
                 throw new RegionMissingException("no such region address: " + region_addr);
             }
@@ -125,8 +155,11 @@ namespace Bend
 
         public IRegion writeExistingRegionAddr(uint region_addr) {
             String filepath = makeFilepath(region_addr);
-            FileStream writer = File.Open(filepath, FileMode.Open);
-            return new EFRegion(region_addr, -1, writer);
+            FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            long length = reader.Length;
+            reader.Dispose();
+
+            return new EFRegion(region_addr, length, filepath, EFRegionMode.READ_WRITE);
         }
 
         public IRegion writeFreshRegionAddr(uint region_addr) {
@@ -134,8 +167,7 @@ namespace Bend
             if (File.Exists(filepath)) {
                 this.disposeRegionAddr(region_addr);
             }
-            FileStream writer = File.Open(filepath, FileMode.CreateNew);
-            return new EFRegion(region_addr,-1,writer);
+            return new EFRegion(region_addr,-1,filepath,EFRegionMode.WRITE_NEW);
         }
         public void disposeRegionAddr(uint region_addr) {
             String filepath = this.makeFilepath(region_addr);
@@ -154,15 +186,43 @@ namespace BendTests
     [TestFixture]
     public class A01_RegionExposedFiles
     {
-        [Test]
-        public void T00_Basic_Region() {
-
-
-        }
-
+        // TODO: make a basic region test
 
         [Test]
         public void T05_Region_Concurrency() {
+            RegionExposedFiles rm = new RegionExposedFiles(InitMode.NEW_REGION,
+                    @"C:\test\T05_Region_Concurrency");
+            byte[] data = { 1 , 3, 4, 5, 6, 7, 8, 9, 10 };
+
+            {
+                // put some data in the region
+                IRegion region1 = rm.writeFreshRegionAddr(0);
+                {
+                    Stream output = region1.getNewAccessStream();
+                    output.Write(data, 0, data.Length);
+                    output.Dispose();
+                }
+            }
+            
+            {
+                IRegion region1 = rm.readRegionAddrNonExcl(0);
+                Stream rd1 = region1.getNewAccessStream();
+               
+
+                Stream rd2 = region1.getNewAccessStream();
+
+                // Assert.AreNotEqual(rd1, rd2, "streams should be separate");
+
+                for (int i = 0; i < data.Length; i++) {
+                    Assert.AreEqual(0, rd2.Position, "stream rd2 position should be indpendent");
+
+                    Assert.AreEqual(i, rd1.Position, "stream rd1 position");
+                    Assert.AreEqual(data[i], rd1.ReadByte(), "stream rd1 data correcness");
+                }
+
+            }
+
+
         }
     }
 

@@ -26,8 +26,8 @@ namespace BendTests
                 lr.Dispose();
             }
 
-            Stream rootblockstream = rmgr.readRegionAddr(0).getStream();
-            Stream logstream = rmgr.readRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getStream();
+            Stream rootblockstream = rmgr.readRegionAddr(0).getNewAccessStream();
+            Stream logstream = rmgr.readRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getNewAccessStream();
 
             // check rootblock
             RootBlock root = new RootBlock();

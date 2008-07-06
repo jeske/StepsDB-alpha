@@ -171,8 +171,7 @@ namespace Bend
                 
         internal IScannableDictionary<RecordKey, _SegBlock> blocks;
 
-        IRegion segmentRegion;
-        Stream dataAccessStream;
+        IRegion segmentRegion;        
 
         public SortedSegmentIndex() {
             // TODO: switch this to use a scannable array when we read back
@@ -182,7 +181,6 @@ namespace Bend
         public SortedSegmentIndex(byte[] index_data,IRegion segmentRegion) : this() {
             this.segmentRegion = segmentRegion;
             readFromBytes(index_data);
-            dataAccessStream = segmentRegion.getStream();
         }
 
         public void addBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
@@ -221,7 +219,8 @@ namespace Bend
             // decoder!!
 
             return new SegmentBlockBasicDecoder(
-                    new OffsetStream(dataAccessStream, block.datastart, (block.dataend - block.datastart)));
+                    new OffsetStream(segmentRegion.getNewAccessStream(), 
+                        block.datastart, (block.dataend - block.datastart)));
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -374,7 +373,7 @@ namespace Bend
 
         public SegmentReader(IRegion segmentRegion) {
             this.segmentRegion = segmentRegion;
-            Stream fs = segmentRegion.getStream();
+            Stream fs = segmentRegion.getNewAccessStream();
             
             // read the footer index size
             // FIXME: BUG BUG BUG!! using SeekOrigin.End is only valid here because our current RegionManager
