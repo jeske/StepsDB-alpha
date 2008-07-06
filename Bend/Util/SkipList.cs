@@ -128,144 +128,146 @@ namespace Bend
         public void Clear() {
             // Initialize the sentinel nodes. We have a list of nodes on both end of the
             // skiplist, so we can start at either end and traverse
-            
-            this.head = new Node<K, V>[maxLevelHeight + 1];
-            this.tail = new Node<K, V>[maxLevelHeight + 1];
+            lock (this) { 
+                this.head = new Node<K, V>[maxLevelHeight + 1];
+                this.tail = new Node<K, V>[maxLevelHeight + 1];
 
-            for (int i = 0; i <= maxLevelHeight; i++) {
-                this.head[i] = Node<K, V>.newSentinel();
-                this.tail[i] = Node<K, V>.newSentinel();
-            }
-
-            /* Link the head sentinels of the lists one to another. Also link all head
-             * sentinels to the Singleton tail second sentinel. */
-            for (int i = 0; i <= maxLevelHeight; i++) {
-                head[i].right = tail[i];
-                tail[i].left = head[i];
-                if (i > 0) {
-                    head[i].down = head[i - 1];
-                    head[i - 1].up = head[i];
-
-                    tail[i].down = tail[i - 1];
-                    tail[i - 1].up = tail[i];
+                for (int i = 0; i <= maxLevelHeight; i++) {
+                    this.head[i] = Node<K, V>.newSentinel();
+                    this.tail[i] = Node<K, V>.newSentinel();
                 }
+
+                /* Link the head sentinels of the lists one to another. Also link all head
+                 * sentinels to the Singleton tail second sentinel. */
+                for (int i = 0; i <= maxLevelHeight; i++) {
+                    head[i].right = tail[i];
+                    tail[i].left = head[i];
+                    if (i > 0) {
+                        head[i].down = head[i - 1];
+                        head[i - 1].up = head[i];
+
+                        tail[i].down = tail[i - 1];
+                        tail[i - 1].up = tail[i];
+                    }
+                }
+
+                /* For the beginning we have no additional list, only the bottom list. */
+                this.currentListsCount = 0;
+
+                this.nodeCount = 0;
             }
-
-            /* For the beginning we have no additional list, only the bottom list. */
-            this.currentListsCount = 0;
-
-            this.nodeCount = 0;
         }
 
         /* Adds a pair of (key, value) into the Skip List structure. */
         public void Add(K key, V value) {
-            /* When inserting a key into the list, we will start from the top list and 
-             * move right until we find a node that has a greater key than the one we want to insert.
-             * At this moment we move down to the next list and then again right. 
-             * 
-             * In this array we store the rightmost node that we reach on each level. We need to
-             * store them because when we will insert the new key in the lists, it will be inserted
-             * after these rightmost nodes. 
-             *
-             * Because we are a BIDIRECTIONAL skip list, we do this once forwards, and once backwards
-             */
-
-            // Forward from head
-            Node<K, V>[] next = new Node<K, V>[maxLevelHeight + 1];
-
-            /* Now we will parse the skip list structure, from the top list, going right and then down
-             * and then right again and then down again and so on. We use a "cursor" variable that will
-             * represent the current node that we reached in the skip list structure. */
-            {
-                Node<K, V> cursor = head[currentListsCount];
-                for (int i = currentListsCount; i >= 0; i--) {
-                    /* If we are not at the topmost list, then we move down with one level. */
-                    if (i < currentListsCount)
-                        cursor = cursor.down;
-
-                    /* While we do not reach the tail sentinel and we do not find a greater 
-                     * numeric value than the one we want to insert, keep moving right. */
-                    while ((!cursor.right.is_sentinel) && (cursor.right.key.CompareTo(key) < 0))
-                        cursor = cursor.right;
-
-                    /* Store this rightmost reached node on this level. */
-                    next[i] = cursor;
-                }
-            }
-
-            // Backward from tail
-            Node<K, V>[] prev = new Node<K, V>[maxLevelHeight + 1];
-            /* Now we will parse the skip list structure, from the top list, going left and then down
-             * and then left again and then down again and so on. We use a "cursor" variable that will
-             * represent the current node that we reached in the skip list structure. */
-            {
-                Node<K, V> pcursor = tail[currentListsCount];
-                for (int i = currentListsCount; i >= 0; i--) {
-                    /* If we are not at the topmost list, then we move down with one level. */
-                    if (i < currentListsCount)
-                        pcursor = pcursor.down;
-
-                    /* While we do not reach the tail sentinel and we do not find a lessor
-                     * numeric value than the one we want to insert, keep moving left. */
-                    while ((!pcursor.left.is_sentinel) && (pcursor.left.key.CompareTo(key) > 0))
-                        pcursor = pcursor.left;
-
-                    /* Store this rightmost reached node on this level. */
-                    prev[i] = pcursor;
-                }
-            }
-
-            /* Here we are on the bottom list, and we test to see if the new value to add
-             * is not already in the skip list. If it already exists, then we just update
-             * the value of the key. */
-            if ((!next[0].right.is_sentinel) && (next[0].right.key.Equals(key))) {
-                next[0].right.value = value;
-            }
-
-                /* If the number to insert is not in the list, then we flip the coin and insert
-                 * it in the lists. */
-            else {
-                /* We find a new level number which will tell us in how many lists to add the new number. 
-                 * This new random level number is generated by flipping the coin (see below). */
-                int newLevel = NewRandomLevel();
-
-                /* If the new level is greater than the current number of lists, then we extend our
-                 * "next/prev nodes" array to include more head/tail pointers. 
-                 * At the same time we increase the number of current lists. 
+            lock (this) {
+                /* When inserting a key into the list, we will start from the top list and 
+                 * move right until we find a node that has a greater key than the one we want to insert.
+                 * At this moment we move down to the next list and then again right. 
+                 * 
+                 * In this array we store the rightmost node that we reach on each level. We need to
+                 * store them because when we will insert the new key in the lists, it will be inserted
+                 * after these rightmost nodes. 
+                 *
+                 * Because we are a BIDIRECTIONAL skip list, we do this once forwards, and once backwards
                  */
-                if (newLevel > currentListsCount) {
-                    for (int i = currentListsCount + 1; i <= newLevel; i++) {
-                        next[i] = head[i];
-                        prev[i] = tail[i];
+
+                // Forward from head
+                Node<K, V>[] next = new Node<K, V>[maxLevelHeight + 1];
+
+                /* Now we will parse the skip list structure, from the top list, going right and then down
+                 * and then right again and then down again and so on. We use a "cursor" variable that will
+                 * represent the current node that we reached in the skip list structure. */
+                {
+                    Node<K, V> cursor = head[currentListsCount];
+                    for (int i = currentListsCount; i >= 0; i--) {
+                        /* If we are not at the topmost list, then we move down with one level. */
+                        if (i < currentListsCount)
+                            cursor = cursor.down;
+
+                        /* While we do not reach the tail sentinel and we do not find a greater 
+                         * numeric value than the one we want to insert, keep moving right. */
+                        while ((!cursor.right.is_sentinel) && (cursor.right.key.CompareTo(key) < 0))
+                            cursor = cursor.right;
+
+                        /* Store this rightmost reached node on this level. */
+                        next[i] = cursor;
                     }
-                    currentListsCount = newLevel;
                 }
 
-                /* Now we add the node to the lists and adjust the pointers accordingly. 
-                 * We add the node starting from the bottom list and moving up to the next lists.
-                 * When we get above the bottom list, we start updating the "up" and "down" pointer of the 
-                 * nodes. */
-
-                // handle both the "next" and prev case at the same time
-                // First for the "forward" case
+                // Backward from tail
+                Node<K, V>[] prev = new Node<K, V>[maxLevelHeight + 1];
+                /* Now we will parse the skip list structure, from the top list, going left and then down
+                 * and then left again and then down again and so on. We use a "cursor" variable that will
+                 * represent the current node that we reached in the skip list structure. */
                 {
-                    Node<K, V> prevNode = null;
-                    Node<K, V> n = null;
-                    for (int i = 0; i <= newLevel; i++) {
-                        prevNode = n;
-                        n = new Node<K, V>(key, value);
-                        n.right = next[i].right;
-                        n.left = prev[i].left;      
-                        next[i].right = n;
-                        prev[i].left = n;
-                        if (i > 0) {
-                            n.down = prevNode;
-                            prevNode.up = n;
+                    Node<K, V> pcursor = tail[currentListsCount];
+                    for (int i = currentListsCount; i >= 0; i--) {
+                        /* If we are not at the topmost list, then we move down with one level. */
+                        if (i < currentListsCount)
+                            pcursor = pcursor.down;
+
+                        /* While we do not reach the tail sentinel and we do not find a lessor
+                         * numeric value than the one we want to insert, keep moving left. */
+                        while ((!pcursor.left.is_sentinel) && (pcursor.left.key.CompareTo(key) > 0))
+                            pcursor = pcursor.left;
+
+                        /* Store this rightmost reached node on this level. */
+                        prev[i] = pcursor;
+                    }
+                }
+
+                /* Here we are on the bottom list, and we test to see if the new value to add
+                 * is not already in the skip list. If it already exists, then we just update
+                 * the value of the key. */
+                if ((!next[0].right.is_sentinel) && (next[0].right.key.Equals(key))) {
+                    next[0].right.value = value;
+                }
+
+                    /* If the number to insert is not in the list, then we flip the coin and insert
+                     * it in the lists. */
+                else {
+                    /* We find a new level number which will tell us in how many lists to add the new number. 
+                     * This new random level number is generated by flipping the coin (see below). */
+                    int newLevel = NewRandomLevel();
+
+                    /* If the new level is greater than the current number of lists, then we extend our
+                     * "next/prev nodes" array to include more head/tail pointers. 
+                     * At the same time we increase the number of current lists. 
+                     */
+                    if (newLevel > currentListsCount) {
+                        for (int i = currentListsCount + 1; i <= newLevel; i++) {
+                            next[i] = head[i];
+                            prev[i] = tail[i];
+                        }
+                        currentListsCount = newLevel;
+                    }
+
+                    /* Now we add the node to the lists and adjust the pointers accordingly. 
+                     * We add the node starting from the bottom list and moving up to the next lists.
+                     * When we get above the bottom list, we start updating the "up" and "down" pointer of the 
+                     * nodes. */
+
+                    // handle updating the right/left links at the same time
+                    {
+                        Node<K, V> prevNode = null;
+                        Node<K, V> n = null;
+                        for (int i = 0; i <= newLevel; i++) {
+                            prevNode = n;
+                            n = new Node<K, V>(key, value);
+                            n.right = next[i].right;
+                            n.left = prev[i].left;
+                            next[i].right = n;
+                            prev[i].left = n;
+                            if (i > 0) {
+                                n.down = prevNode;
+                                prevNode.up = n;
+                            }
                         }
                     }
-                }
 
-                nodeCount++; // increment our count of nods
+                    nodeCount++; // increment our count of nods
+                }
             }
         }
 
@@ -292,133 +294,44 @@ namespace Bend
          * If valuetest is null, only the key is considered
          */
         public bool Remove(IComparable<K> keytest, IEquatable<V> valuetest) {
-            bool did_remove = false;
-            /* For removal too we will search for the element to remove. While searching 
-             * the element, we parse each list, starting from the top list and going down
-             * towards the bottom list. On each list, we move from the first sentinel node
-             * rightwards until either we reach the second sentinel node, either we find 
-             * a node with a key greater or equal than the key we want to remove.
-             * 
-             * For each list we remember the rightmost node that we reached. */
+            lock (this) {
+                bool did_remove = false;
 
-            // -------------- first "forward" from the left ------------------------------
-            Node<K, V>[] next = new Node<K, V>[maxLevelHeight + 1];
+                /* To remove in this bidirectional skiplist, we find the  
+                 * matching node, and then unlink it from both sides.
+                 */
 
-            /* We search for the value to remove. We start from the topmost list, from the first 
-             * sentinel node and move right, down, right, down, etc.
-             * As we said above, we will remember for each
-             * level the rightmost node that we reach. */
-            {
-                Node<K, V> cursor = head[currentListsCount];
-                for (int i = currentListsCount; i >= 0; i--) {
-                    /* If we are not on the top level, then we move down one level. */
-                    if (i < currentListsCount)
-                        cursor = cursor.down;
+                Node<K, V> target = _findNextNode(keytest, true);
 
-                    /* Move right as long as we encounter values smaller than the value we want to
-                     * remove. */
-                    while ((!cursor.right.is_sentinel) && (keytest.CompareTo(cursor.right.key) > 0)) {
-                        cursor = cursor.right;
-                    }
-
-                    /* If we are doing valuematch, move right as long as keys match but values don't */
-                    if (valuetest != null) {
-                        while ((!cursor.right.is_sentinel) &&
-                            (keytest.CompareTo(cursor.right.key) == 0) &&
-                            (!valuetest.Equals(cursor.right.value))) {
-                            cursor = cursor.right;
-                        }
-                    }
-
-
-
-                    /* When we got here, either we reached the second sentinel node on the current
-                     * level, either we found a node that is not smaller than the value we want to
-                     * remove. It is possible that the node we found is equal to the value that we
-                     * want to remove, or it can be greater. In both cases we will store this
-                     * rightmost node. */
-                    next[i] = cursor;
+                if (target == null) {
+                    // nothing to remove
+                    return false;
                 }
-            }
 
-            /* When we got here, we parsed even the bottom list and we stopped before a node
-             * that is greater or equal with the value to remove. We test to see if it is equal
-             * with the value or not. If it is equal, then we remove the value from the bottom
-             * list and also from the lists above. */
-            if ((!next[0].right.is_sentinel) && (keytest.CompareTo(next[0].right.key) == 0)) {
-                /* Parse each existing list. */
+                /* If we are doing valuematch, check the value of the node we found*/
+                if (valuetest != null) {
+                    if (!valuetest.Equals(target.value)) {
+                        // values don't match, so we won't remove
+                        return false;
+                    }
+                }
+
+
+                // REMOVE! - Now remove it from both sides.
                 did_remove = true;
+               
+                while (target.up != null) {
+                    Node<K,V> left = target.left;
+                    Node<K,V> right = target.right;
+                    left.right = right;
+                    right.left = left;
 
-                for (int i = currentListsCount; i >= 0; i--) {
-                    /* And if the rightmost reached node is followed by the key to remove, then
-                     * remove the key from the list. */
-                    if ((!next[i].right.is_sentinel) && (keytest.CompareTo(next[i].right.key) == 0)) {
-                        next[i].right = next[i].right.right;
-                    }
+                    target = target.up;                    
                 }
+
+                nodeCount--;  // decrement our node counter
+                return did_remove;
             }
-
-
-            // ----------------- second "backward" from the right ----------------------------
-
-            Node<K, V>[] prev = new Node<K, V>[maxLevelHeight + 1];
-
-            /* We search for the value to remove. We start from the topmost list, from the first 
-             * sentinel node and move right, down, right, down, etc.
-             * As we said above, we will remember for each
-             * level the rightmost node that we reach. */
-            {
-                Node<K, V> pcursor = tail[currentListsCount];
-                for (int i = currentListsCount; i >= 0; i--) {
-                    /* If we are not on the top level, then we move down one level. */
-                    if (i < currentListsCount)
-                        pcursor = pcursor.down;
-
-                    /* Move left as long as we encounter values bigger than the value we want to
-                     * remove. */
-                    while ((!pcursor.right.is_sentinel) && (keytest.CompareTo(pcursor.right.key) > 0)) {
-                        pcursor = pcursor.left;
-                    }
-
-                    /* If we are doing valuematch, move left as long as keys match but values don't */
-                    if (valuetest != null) {
-                        while ((!pcursor.left.is_sentinel) &&
-                            (keytest.CompareTo(pcursor.left.key) == 0) &&
-                            (!valuetest.Equals(pcursor.left.value))) {
-                            pcursor = pcursor.left;
-                        }
-                    }
-
-                    /* When we got here, either we reached the second sentinel node on the current
-                     * level, either we found a node that is not smaller than the value we want to
-                     * remove. It is possible that the node we found is equal to the value that we
-                     * want to remove, or it can be greater. In both cases we will store this
-                     * rightmost node. */
-                    prev[i] = pcursor;
-                }
-            }
-
-            /* When we got here, we parsed even the bottom list and we stopped before a node
-             * that is greater or equal with the value to remove. We test to see if it is equal
-             * with the value or not. If it is equal, then we remove the value from the bottom
-             * list and also from the lists above. */
-            if ((!next[0].right.is_sentinel) && (keytest.CompareTo(next[0].right.key) == 0)) {
-                /* Parse each existing list. */
-                did_remove = true;
-
-                for (int i = currentListsCount; i >= 0; i--) {
-                    /* And if the rightmost reached node is followed by the key to remove, then
-                     * remove the key from the list. */
-                    if ((!next[i].right.is_sentinel) && (keytest.CompareTo(next[i].right.key) == 0)) {
-                        next[i].right = next[i].right.right;
-                    }
-                }
-            }
-
-
-
-            if (did_remove) { nodeCount--; } // increment our node counter
-            return did_remove;
         }
         #endregion
 
