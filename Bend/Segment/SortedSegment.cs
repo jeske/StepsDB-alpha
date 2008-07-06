@@ -219,7 +219,7 @@ namespace Bend
             // decoder!!
 
             return new SegmentBlockBasicDecoder(
-                segmentRegion.getNewBlockAccessStream((int)block.datastart,
+                segmentRegion.getNewBlockAccessor((int)block.datastart,
                 (int)(block.dataend - block.datastart)));
         }
 

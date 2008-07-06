@@ -394,11 +394,12 @@ namespace Bend
         }
 
         public override bool Equals(object obj) {
-            if (obj.GetType() != this.GetType()) {
+            try {
+                return this.CompareTo((RecordKey)obj) == 0;
+            }
+            catch (InvalidCastException) {
                 return false;
             }
-            RecordKey okey = (RecordKey)obj;
-            return this.CompareTo(okey) == 0;
         }
 
         public string DebugToString()

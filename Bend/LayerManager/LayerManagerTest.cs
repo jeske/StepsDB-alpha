@@ -13,7 +13,7 @@ namespace BendTests
 {
 
     [TestFixture]
-    public class A03_LayerManagerTests : LayerManager
+    public class A03_LayerManagerTests 
     {
         [SetUp]
         public void TestSetup() {
@@ -396,10 +396,11 @@ namespace BendTests
         // TEST: region IO concurrency
         
         internal class ReadThreadsTest {
-            LayerManager db; 
+            internal LayerManager db; 
             int TEST_RECORD_COUNT = 100;
             int RECORDS_PER_SEGMENT = 30;
             SortedDictionary<string, string> testdata;
+            internal int records_read = 0;
 
             internal ReadThreadsTest() {
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\10");
@@ -420,7 +421,7 @@ namespace BendTests
                     pos++;
 
                     if ((pos % RECORDS_PER_SEGMENT) == 0) {
-                        db.flushWorkingSegment();
+                       db.flushWorkingSegment();
                     }
                 }            
                 db.flushWorkingSegment();
@@ -435,13 +436,40 @@ namespace BendTests
                     if (db.getRecord(rkey, out rdata) == GetStatus.MISSING) {
                         Assert.Fail("failed to read: " + kvp.Key.ToString());
                     }
+                    records_read++;
                     pos++;
                     if ((pos % 10) == 0) {
                         System.Console.WriteLine("at record {0} of {1}", pos, testdata.Count);
                     }
                 }
             }
+            internal void threadedVerify(int numthreads) {
+                this.records_read = 0;
+                DateTime start = DateTime.Now;
+                List<Thread> threads = new List<Thread>();
+                // now do the same thing simultaneously in multiple threads
+                for (int threadnum = 0; threadnum < numthreads; threadnum++) {
+                    Thread newthread = new Thread(new ThreadStart(this.verifyData));
 
+                    newthread.Start();
+                    threads.Add(newthread);
+                    Thread.Sleep(50);
+                }
+
+                foreach (Thread th in threads) {
+                    // rejoin the threads
+                    th.Join();
+                }
+
+                DateTime end = DateTime.Now;
+                TimeSpan duration = end - start;
+                double dur_ms = (end - start).TotalMilliseconds;
+
+                double records_per_second = (double)this.records_read * (1000.0 / dur_ms);
+
+                System.Console.WriteLine("ReadThreads ({0} records) in elapsed time: {1} -- {2} rec/sec",
+                    this.records_read, duration, records_per_second);
+            }
         }
         
         
@@ -451,25 +479,12 @@ namespace BendTests
 
             test.verifyData();
 
-            DateTime start = DateTime.Now;
-            List<Thread> threads = new List<Thread>();
-            // now do the same thing simultaneously in multiple threads
-            for (int numthreads = 0; numthreads < 5; numthreads++) {
-                Thread newthread = new Thread(new ThreadStart(test.verifyData));
+            test.threadedVerify(5);
 
-                newthread.Start();
-                threads.Add(newthread);
-                Thread.Sleep(50);
-            }
 
-            foreach (Thread th in threads) {
-                // rejoin the threads
-                th.Join();
-            }
+            // test.db.mergeAllSegments();
 
-            DateTime end = DateTime.Now;
-
-            System.Console.WriteLine("ReadThreads elapsed time: {0}ms", (end - start).Milliseconds);
+            // test.threadedVerify(5);
             
 
         }

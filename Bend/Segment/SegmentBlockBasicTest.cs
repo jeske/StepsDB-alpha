@@ -42,7 +42,7 @@ namespace BendTests
 
             // test FindNext(key,equal_ok=true)
             {
-                MemoryStream rs = new MemoryStream(databuffer);
+                BlockAccessor rs = new BlockAccessor(databuffer);
                 SegmentBlockBasicDecoder decoder = new SegmentBlockBasicDecoder(rs);
                 for (int i = testvalues.Length -1; i >= 0; i--) {
                     RecordKey tkey = new RecordKey().appendParsedKey(testvalues[i]); 
@@ -56,7 +56,7 @@ namespace BendTests
 
             // test FindNext(key,equal_ok=false)
             {
-                MemoryStream rs = new MemoryStream(databuffer);
+                BlockAccessor rs = new BlockAccessor(databuffer);
                 SegmentBlockBasicDecoder decoder = new SegmentBlockBasicDecoder(rs);
                 for (int i = testvalues.Length - 2; i >= 0; i--) {
                     RecordKey tkey = new RecordKey().appendParsedKey(testvalues[i]);
@@ -108,7 +108,7 @@ namespace BendTests
 
             // decode and test the buffer, scan enumerators
             {
-                MemoryStream rs = new MemoryStream(databuffer);
+                BlockAccessor rs = new BlockAccessor(databuffer);
                 SegmentBlockBasicDecoder decoder = new SegmentBlockBasicDecoder(rs);
                 int pos = 0;
                 IScanner<RecordKey> scanner = ScanRange<RecordKey>.All();

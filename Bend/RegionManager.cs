@@ -30,11 +30,50 @@ namespace Bend
     public interface IRegion : IDisposable
     {
         Stream getNewAccessStream();
-        Stream getNewBlockAccessStream(int rel_block_start, int block_len);
+        BlockAccessor getNewBlockAccessor(int rel_block_start, int block_len);
         long getStartAddress();
         long getSize();   // TODO: do something better with this, so we can't break
     }
-   
+
+    // read only block access abstraction
+    public class BlockAccessor
+    {
+        byte[] data;
+        int seek_pointer;
+        
+        public BlockAccessor(byte[] data) {            
+            this.data = data;
+            seek_pointer = 0;
+        }
+
+        public int Length {
+            get { return data.Length; }
+        }
+        public int Position {
+            get { return seek_pointer; }
+        }
+
+        public void Seek(int pos, SeekOrigin origin) {
+            if (origin == SeekOrigin.Begin) {
+                seek_pointer = pos;
+            } else {
+                throw new Exception("not implemented");
+            }
+        }
+
+        public byte ReadByte() {
+            return data[seek_pointer++];
+        }
+
+        public int Read(byte[] buf, int buf_offset, int count) {
+            int num_to_copy = Math.Min(this.data.Length - buf_offset, count);
+            Buffer.BlockCopy(this.data, this.seek_pointer, buf, buf_offset, num_to_copy);
+            return num_to_copy;
+        }
+        
+
+    }
+
 
     public interface IRegionWriter : IRegion
     {
@@ -121,13 +160,13 @@ namespace Bend
                 return new OffsetStream(this.getNewAccessStream(), rel_block_start, block_len);
             }
 
-            public Stream getNewBlockAccessStream(int rel_block_start, int block_len) {
+            public BlockAccessor getNewBlockAccessor(int rel_block_start, int block_len) {
                 // return it from the block cache if it's there
                 lock (block_cache) {
                     if (block_cache.ContainsKey(rel_block_start)) {
                         byte[] datablock = this.block_cache[rel_block_start];
                         if (datablock.Length == block_len) {
-                            return new MemoryStream(datablock);
+                            return new BlockAccessor(datablock);
                         }
                     }
                 }
@@ -143,7 +182,7 @@ namespace Bend
                     block_cache[rel_block_start] = block;
                 }
 
-                return new MemoryStream(block);                
+                return new BlockAccessor(block);                
             }
 
             public long getStartAddress() {

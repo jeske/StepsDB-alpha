@@ -66,9 +66,14 @@ namespace BendTests
             public Stream getNewAccessStream() {
                 return new MemoryStream(data);
             }
-            public Stream getNewBlockAccessStream(int rel_block_start, int block_len) {
-                return new OffsetStream(this.getNewAccessStream(),
-                    rel_block_start, block_len);
+            public BlockAccessor getNewBlockAccessor(int rel_block_start, int block_len) {
+                byte[] data = new byte[block_len];
+                Stream stream = this.getNewAccessStream();
+                stream.Seek(rel_block_start,SeekOrigin.Begin);
+                if (stream.Read(data,0,block_len) != block_len) {
+                    throw new Exception("memory stream read returned partial");
+                }
+                return new BlockAccessor(data);
             }
 
             public long getStartAddress() {
@@ -94,7 +99,7 @@ namespace BendTests
                     throw new Exception("you can only write to TestRegionWriteOnce, once!");
                 }
             }
-            public Stream getNewBlockAccessStream(int rel_block_start,int len) {
+            public BlockAccessor getNewBlockAccessor(int rel_block_start,int len) {
                 // not really a valid thing to do
                 throw new Exception("not valid");
             }

@@ -104,14 +104,14 @@ namespace Bend {
 
     class SegmentBlockBasicDecoder : ISegmentBlockDecoder
     {
-        Stream datastream; // keep in mind, we don't want to share this, since it has only one seek pointer
+        BlockAccessor datastream; // keep in mind, we don't want to share this, since it has only one seek pointer
        
         // prepare to read from a stream
-        public SegmentBlockBasicDecoder(Stream datastream) {
+        public SegmentBlockBasicDecoder(BlockAccessor datastream) {
             this.datastream = datastream;
         }
 
-        private static KeyValuePair<RecordKey, RecordUpdate> decodeRecordFromStream(Stream rs) {
+        private static KeyValuePair<RecordKey, RecordUpdate> decodeRecordFromBlock(BlockAccessor rs) {
             bool at_endmarker = false;
             
             // ..we are ASSUMING that the records starts right here in the stream, it better be true!
@@ -220,7 +220,7 @@ namespace Bend {
             if (new_start < datastream_length) {
                 this.datastream.Seek(new_start, SeekOrigin.Begin);
                 rloc.start_pos = new_start;
-                rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);                
+                rloc.record = SegmentBlockBasicDecoder.decodeRecordFromBlock(this.datastream);                
                 rloc.after_end_pos = (int)this.datastream.Position;
                 rloc.have_record = true;
                 return;
@@ -271,7 +271,7 @@ namespace Bend {
                         int new_record_start = cur_stream_pos + bufpos + 1;
                        
                         this.datastream.Seek(new_record_start, SeekOrigin.Begin);
-                        rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);
+                        rloc.record = SegmentBlockBasicDecoder.decodeRecordFromBlock(this.datastream);
                         rloc.after_end_pos = (int) this.datastream.Position;
                         if (rloc.after_end_pos != rloc.start_pos) {
                             // if this decode didn't bring us to the start of the record we were
@@ -291,7 +291,7 @@ namespace Bend {
                     // if we landed on the beginnng of the block, then decode the first record in the block
                     int new_record_start = 0;
                     this.datastream.Seek(new_record_start, SeekOrigin.Begin);
-                    rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);
+                    rloc.record = SegmentBlockBasicDecoder.decodeRecordFromBlock(this.datastream);
                     rloc.after_end_pos = (int)this.datastream.Position;
                     if (rloc.after_end_pos != rloc.start_pos) {
                         // if this decode didn't bring us to the start of the record we were
@@ -403,7 +403,7 @@ namespace Bend {
                         
                         // decode the record
                         this.datastream.Seek(record_start_pos, SeekOrigin.Begin);
-                        rloc.record = SegmentBlockBasicDecoder.decodeRecordFromStream(this.datastream);
+                        rloc.record = SegmentBlockBasicDecoder.decodeRecordFromBlock(this.datastream);
                         rloc.start_pos = record_start_pos;
                         rloc.after_end_pos = (int)this.datastream.Position;
                         rloc.have_record = true;                        

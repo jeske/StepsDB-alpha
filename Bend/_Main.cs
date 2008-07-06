@@ -10,6 +10,8 @@ using NUnit.Framework;
 
 namespace Bend
 {
+    using BendTests;
+
     // ---------------[ Main ]---------------------------------------------------------
 
 
@@ -103,6 +105,9 @@ namespace Bend
                 }
             }
 
+
+            A03_LayerManagerTests test = new A03_LayerManagerTests();
+            test.T10_LayerManager_ReadThreads();
 
 
             Console.WriteLine("press any key...");            
