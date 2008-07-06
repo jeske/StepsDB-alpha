@@ -181,11 +181,21 @@ namespace Bend
 
                 byte[] block = new byte[block_len];
                 mystream.Seek(rel_block_start, SeekOrigin.Begin);
+                DateTime before_read = DateTime.Now;
                 if (mystream.Read(block, 0, block_len) != block_len) {
                     throw new Exception("couldn't read entire block: " + this.ToString());
                 }
+                double duration_ms = (DateTime.Now - before_read).TotalMilliseconds;
+
                 lock (block_cache) {
                     block_cache[rel_block_start] = new WeakReference<byte[]>(block);
+                }
+
+                if (duration_ms > 6.0) {
+                    // TODO: check for reasons it might not have been a disk seek:
+                    //  - garbage collector occured
+                    //  - system load is high
+                    System.Console.WriteLine("getNewBlockAccessor may have caused disk seek");
                 }
 
                 return new BlockAccessor(block);                
