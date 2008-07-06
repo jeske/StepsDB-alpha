@@ -107,7 +107,7 @@ namespace Bend
             long length;
 
             Dictionary<int, Stream> my_streams;
-            Dictionary<int, byte[]> block_cache;
+            Dictionary<int, WeakReference<byte[]>> block_cache;
 
 
             // -------------
@@ -118,7 +118,7 @@ namespace Bend
                 this.mode = mode;
                 this.filepath = filepath;
                 my_streams = new Dictionary<int, Stream>();
-                block_cache = new Dictionary<int, byte[]>();
+                block_cache = new Dictionary<int, WeakReference<byte[]>>();
                 
             }
 
@@ -164,13 +164,19 @@ namespace Bend
                 // return it from the block cache if it's there
                 lock (block_cache) {
                     if (block_cache.ContainsKey(rel_block_start)) {
-                        byte[] datablock = this.block_cache[rel_block_start];
-                        if (datablock.Length == block_len) {
-                            return new BlockAccessor(datablock);
+                        byte[] datablock = this.block_cache[rel_block_start].Target;
+                        if (datablock != null) {
+                            if (datablock.Length == block_len) {
+                                return new BlockAccessor(datablock);
+                            }
+                        } else {
+                            // weakref lost...
+                            block_cache.Remove(rel_block_start);
                         }
                     }
                 }
-                System.Console.WriteLine("zz uncached block");
+
+                // System.Console.WriteLine("zz uncached block");
                 Stream mystream = this.getThreadStream();
 
                 byte[] block = new byte[block_len];
@@ -179,7 +185,7 @@ namespace Bend
                     throw new Exception("couldn't read entire block: " + this.ToString());
                 }
                 lock (block_cache) {
-                    block_cache[rel_block_start] = block;
+                    block_cache[rel_block_start] = new WeakReference<byte[]>(block);
                 }
 
                 return new BlockAccessor(block);                
