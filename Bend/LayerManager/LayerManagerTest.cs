@@ -444,7 +444,8 @@ namespace BendTests
                     if (db.getRecord(rkey, out rdata) == GetStatus.MISSING) {
                         Assert.Fail("failed to read: " + kvp.Key.ToString());
                     }
-                    records_read++;
+                    Interlocked.Increment(ref records_read);
+                    
                     pos++;
                     if ((pos % 10) == 0) {
                         // System.Console.WriteLine("at record {0} of {1}", pos, testdata.Count);
