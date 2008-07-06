@@ -451,8 +451,8 @@ namespace Bend
                             return RecordUpdateResult.FINAL;
                         }
                     } else if (update.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
-                        // TODO: handle tombstones for ranges!
-                        throw new Exception("TBD: implement handling for rangemap tombstones");
+                        // A tombstone for a rangemap means we can skip it!
+                        // throw new Exception("TBD: implement handling for rangemap tombstones");
                     } else {
                         throw new Exception("Invalid rangerecord updatetype in walk: " + update.type.ToString());
                     }

@@ -315,8 +315,11 @@ namespace Bend
                     }
                 }
 
-                // consider this keypart
+                // CompareTo()  this keypart with target keypart
+                // TODO: consider making singleton keypart objects so we can do
+                //    MUCH faster equality testing for each part (a common case)
                 cur_result = this.key_parts[pos].CompareTo(target.key_parts[pos]);
+                
                 pos++; // move pointer to next
             }
 

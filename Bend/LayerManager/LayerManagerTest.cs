@@ -482,9 +482,9 @@ namespace BendTests
             test.threadedVerify(5);
 
 
-            // test.db.mergeAllSegments();
+            test.db.mergeAllSegments();
 
-            // test.threadedVerify(5);
+            test.threadedVerify(5);
             
 
         }

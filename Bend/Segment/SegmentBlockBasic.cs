@@ -121,9 +121,9 @@ namespace Bend {
             List<byte> keystr = new List<byte>();
             // StringBuilder keystr = new StringBuilder();
             bool keydone = false;
-            long stream_len = rs.Length;
-            while (rs.Position < stream_len && !keydone) {
-                byte c = (byte)rs.ReadByte();
+
+            while (rs.Position < rs.Length && !keydone) {
+                byte c = (byte)rs.ReadByte(); 
                 switch (c) {
                     case 0x80:   // end of line 
                         throw new Exception("reached end of line before keyvalue delimiter");
@@ -131,7 +131,7 @@ namespace Bend {
                         keydone = true;
                         break;
                     case 0x81:
-                        byte nc = (byte)rs.ReadByte();
+                        byte nc = (byte)rs.ReadByte(); 
                         byte unescaped = (byte)(nc + 0x7F);
                         if (unescaped < 0x80 || unescaped > 0x82) {
                             // throw new Exception("unhandled escape sequence");
