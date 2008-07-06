@@ -394,6 +394,10 @@ namespace BendTests
     }
 
 
+
+
+    
+
     // TEST: Tombstones
 
 
@@ -412,7 +416,9 @@ namespace BendTests
 
     // ----------------------------[    TEST CONCURRENCY    ]------------------
 
-    // TEST: that our record-get will see data in ALL in-memory segments (currently broken)
+    // TEST: region IO concurrency
+
+    // TEST: that our record-get will see data in ALL in-memory segments
     // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
 
     // TEST: assure the atomicity of a LogCommitGroup (Txn?)

@@ -52,22 +52,19 @@ namespace Bend
         }
 
 
-        internal SegmentReader segmentReaderForAddr(KeyValuePair<RecordKey, RecordUpdate> segmentrow) {
+        internal SegmentReader segmentReaderFromRow(KeyValuePair<RecordKey, RecordUpdate> segmentrow) {
+            return segmentReaderFromRow(segmentrow.Key, segmentrow.Value);
+        }
 
-            if (disk_segment_cache.ContainsKey(segmentrow.Key)) {
-                return disk_segment_cache[segmentrow.Key];
+        internal SegmentReader segmentReaderFromRow(RecordKey key, RecordUpdate update) {
+
+
+            if (disk_segment_cache.ContainsKey(key)) {
+                return disk_segment_cache[key];
             } else {
-                RecordUpdate update = segmentrow.Value;
-                // TODO:unpack the update data when we change it to "<addr>:<length>"
-                byte[] segmetadata_addr = update.data;
+                SegmentReader next_seg = getSegmentFromMetadataBytes(update.data);
 
-                // we now have a pointer to a segment address for the gen pointer
-                uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
-
-                IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-                SegmentReader next_seg = new SegmentReader(region);
-
-                disk_segment_cache[segmentrow.Key] = next_seg;
+                disk_segment_cache[key] = next_seg;
                 return next_seg;
             }
 
@@ -136,7 +133,7 @@ namespace Bend
             mapGenerationToRegion(tx, newgen, region);
         }
 
-        private ISortedSegment getSegmentFromMetadataBytes(byte[] data) {
+        private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
             // TODO:unpack the update data when we change it to "<addr>:<length>"
             byte[] segmetadata_addr = data;
 
@@ -147,7 +144,6 @@ namespace Bend
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
             SegmentReader sr = new SegmentReader(region);
             return sr;
-
         }
 
         public ISortedSegment getSegmentFromMetadata(RecordData data) {
@@ -372,7 +368,7 @@ namespace Bend
             // now repeat the walk through our todo list:
             foreach (KeyValuePair<RecordKey,RecordUpdate> rangepointer in todo_list) {
 
-                SegmentReader next_seg = segmentReaderForAddr(rangepointer);
+                SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
                 RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
                 Debug.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
@@ -439,21 +435,15 @@ namespace Bend
             for (int i = maxgen; i >= 0; i--) {
                 
                 RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
-                    .appendKeyPart(Lsd.numberToLsd(i,3)).appendParsedKey("</>");
+                    .appendKeyPart(Lsd.numberToLsd(i,GEN_LSD_PAD)).appendParsedKey("</>");
 
                
 
                 RecordUpdate update;  
                 if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
                     if (update.type == RecordUpdateTypes.FULL) {
-                        // TODO:unpack the update data when we change it to "<addr>:<length>"
-                        byte[] segmetadata_addr = update.data;
-
-                        // we now have a pointer to a segment addres for the gen pointer
-                        uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
-
-                        IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
-                        SegmentReader sr = new SegmentReader(region);
+                        
+                        SegmentReader sr = segmentReaderFromRow(rangekey,update);
 
                         // RECURSE
                         if (INTERNAL_segmentWalkForKey(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {

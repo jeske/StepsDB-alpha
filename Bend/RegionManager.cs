@@ -144,3 +144,26 @@ namespace Bend
         }
     }
 }
+
+
+namespace BendTests
+{
+    using Bend;
+    using NUnit.Framework;
+
+    [TestFixture]
+    public class A01_RegionExposedFiles
+    {
+        [Test]
+        public void T00_Basic_Region() {
+
+
+        }
+
+
+        [Test]
+        public void T05_Region_Concurrency() {
+        }
+    }
+
+}
