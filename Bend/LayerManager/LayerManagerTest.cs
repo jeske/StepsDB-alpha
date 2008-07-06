@@ -400,23 +400,31 @@ namespace BendTests
             int TEST_RECORD_COUNT = 100;
             int RECORDS_PER_SEGMENT = 30;
             SortedDictionary<string, string> testdata;
+            SortedDictionary<RecordKey, RecordUpdate> testrows;
             internal int records_read = 0;
 
             internal ReadThreadsTest() {
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\10");
                 testdata = new SortedDictionary<string, string>();
+                testrows = new SortedDictionary<RecordKey, RecordUpdate>();
 
                 // generate some data
                 for (int i=0;i<TEST_RECORD_COUNT;i++) {
                     string key = "test/" + i.ToString();
-                    testdata[key] = "data: " + key;                
+                    string value = "data: " + key;
+                    testdata[key] = value;
+
+                    RecordKey rkey = new RecordKey().appendParsedKey(key);
+                    RecordUpdate rupdate = RecordUpdate.WithPayload(value);
+
+                    testrows[rkey] = rupdate;
                 }
 
                 // fill the db with some data.
                 int pos = 0;
-                foreach (KeyValuePair<string,string> kvp in testdata) {            
+                foreach (KeyValuePair<RecordKey,RecordUpdate> kvp in testrows) {
                     LayerManager.Txn txn = db.newTxn();
-                    txn.setValueParsed(kvp.Key, kvp.Value);
+                    txn.setValue(kvp.Key, kvp.Value);
                     txn.commit();
                     pos++;
 
@@ -430,16 +438,16 @@ namespace BendTests
             internal void verifyData() {
                 // make sure it reads back..
                 int pos = 0;
-                foreach (KeyValuePair<string, string> kvp in testdata) {
+                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in testrows) {
                     RecordData rdata;
-                    RecordKey rkey = new RecordKey().appendParsedKey(kvp.Key);
+                    RecordKey rkey = kvp.Key;
                     if (db.getRecord(rkey, out rdata) == GetStatus.MISSING) {
                         Assert.Fail("failed to read: " + kvp.Key.ToString());
                     }
                     records_read++;
                     pos++;
                     if ((pos % 10) == 0) {
-                        System.Console.WriteLine("at record {0} of {1}", pos, testdata.Count);
+                        // System.Console.WriteLine("at record {0} of {1}", pos, testdata.Count);
                     }
                 }
             }
@@ -453,7 +461,7 @@ namespace BendTests
 
                     newthread.Start();
                     threads.Add(newthread);
-                    Thread.Sleep(50);
+                    Thread.Sleep(1);
                 }
 
                 foreach (Thread th in threads) {
@@ -479,12 +487,12 @@ namespace BendTests
 
             test.verifyData();
 
-            test.threadedVerify(5);
+            test.threadedVerify(10);
 
 
             test.db.mergeAllSegments();
 
-            test.threadedVerify(5);
+            test.threadedVerify(10);
             
 
         }
