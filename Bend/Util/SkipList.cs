@@ -208,7 +208,7 @@ namespace Bend
                         if (i < currentListsCount)
                             pcursor = pcursor.down;
 
-                        /* While we do not reach the tail sentinel and we do not find a lessor
+                        /* While we do not reach the head sentinel and we do not find a lessor
                          * numeric value than the one we want to insert, keep moving left. */
                         while ((!pcursor.left.is_sentinel) && (pcursor.left.key.CompareTo(key) > 0))
                             pcursor = pcursor.left;
@@ -293,8 +293,6 @@ namespace Bend
          */
         private bool _Remove(IComparable<K> keytest, IEquatable<V> valuetest) {
             lock (this) {
-                bool did_remove = false;
-
                 /* To remove in this bidirectional skiplist, we find the  
                  * matching node, and then unlink it from both sides.
                  */
@@ -306,6 +304,11 @@ namespace Bend
                     return false;
                 }
 
+                if (keytest.CompareTo(target.key) != 0) {
+                    // not equal
+                    return false;
+                }
+
                 /* If we are doing valuematch, check the value of the node we found*/
                 if (valuetest != null) {
                     if (!valuetest.Equals(target.value)) {
@@ -314,11 +317,10 @@ namespace Bend
                     }
                 }
 
-
+                // ---------------------------------------
                 // REMOVE! - Now remove it from both sides.
-                did_remove = true;
                
-                while (target.up != null) {
+                while (target != null) {
                     Node<K,V> left = target.left;
                     Node<K,V> right = target.right;
                     left.right = right;
@@ -328,7 +330,7 @@ namespace Bend
                 }
 
                 nodeCount--;  // decrement our node counter
-                return did_remove;
+                return true;
             }
         }
         #endregion
@@ -1028,6 +1030,8 @@ namespace BendTests
 
             }
             public void doVerify(int thread_num) {
+                Random rnd = new Random(thread_num);
+                Thread.Sleep(rnd.Next(500));
                 // add the values
                 for (int i = 0; i < datavalues.Length; i++) {
                     string value = datavalues[i].ToString() + ":" + thread_num.ToString();
@@ -1057,9 +1061,9 @@ namespace BendTests
 
         [Test]
         public void T10_Skiplist_Threading() {
-            SkipList_Threading_Tester tester = new SkipList_Threading_Tester(1000);
+            SkipList_Threading_Tester tester = new SkipList_Threading_Tester(100);
             // tester.doVerify(0);
-            tester.threadedTest(400);
+            tester.threadedTest(200);
         }
 
     }
