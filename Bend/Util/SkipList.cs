@@ -287,13 +287,10 @@ namespace Bend
             return (d < this.probability);
         }
 
-        public bool Remove(IComparable<K> keytest) {
-            return Remove(keytest, null);
-        }
         /* This method removes a fully matching key/value combo from the Skip List structure. 
          * If valuetest is null, only the key is considered
          */
-        public bool Remove(IComparable<K> keytest, IEquatable<V> valuetest) {
+        private bool _Remove(IComparable<K> keytest, IEquatable<V> valuetest) {
             lock (this) {
                 bool did_remove = false;
 
@@ -340,103 +337,113 @@ namespace Bend
 
 
         Node<K, V> _findNextNode(IComparable<K> keytest, bool equal_ok) {
-            /* We parse the skip list structure starting from the topmost list, from the head sentinel
-             * node. As long as we have keys smaller than the key we search for, we keep moving right.
-             * When we find a key that is greater or equal that the key we search, then we go down one
-             * level and there we try to go again right. When we reach the bottom list, we stop. */
-            Node<K, V> cursor = head[currentListsCount];
-            for (int i = currentListsCount; i >= 0; i--) {
-                if (i < currentListsCount) {
-                    cursor = cursor.down;
-                }
-                if (equal_ok) {
-                    while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) > 0)) {
-                        cursor = cursor.right;
+            lock (this) {
+                /* We parse the skip list structure starting from the topmost list, from the head sentinel
+                 * node. As long as we have keys smaller than the key we search for, we keep moving right.
+                 * When we find a key that is greater or equal that the key we search, then we go down one
+                 * level and there we try to go again right. When we reach the bottom list, we stop. */
+                Node<K, V> cursor = head[currentListsCount];
+                for (int i = currentListsCount; i >= 0; i--) {
+                    if (i < currentListsCount) {
+                        cursor = cursor.down;
                     }
-                } else {
-                    while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) >= 0)) {
-                        cursor = cursor.right;
+                    if (equal_ok) {
+                        while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) > 0)) {
+                            cursor = cursor.right;
+                        }
+                    } else {
+                        while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) >= 0)) {
+                            cursor = cursor.right;
+                        }
                     }
                 }
-            }
 
-            /* Here we are on the bottom list. Now we see if the next node is valid, if it is
-             * we return the node, if not, we return null.
-             */
-            if (!cursor.right.is_sentinel) {
-                return cursor.right;
-            } else {
-                return null;
+                /* Here we are on the bottom list. Now we see if the next node is valid, if it is
+                 * we return the node, if not, we return null.
+                 */
+                if (!cursor.right.is_sentinel) {
+                    return cursor.right;
+                } else {
+                    return null;
+                }
             }
         }
         Node<K, V> _findPrevNode(IComparable<K> keytest, bool equal_ok) {
-            /* We parse the skip list structure starting from the topmost list, from the tail sentinel
-             * node. As long as we have keys bigger than the key we search for, we keep moving left.
-             * When we find a key that is less or equal to the key we're searching for, then we go down one
-             * level and there we try to go again left. When we reach the bottom list, we stop. */
-            Node<K, V> pcursor = tail[currentListsCount];
-            for (int i = currentListsCount; i >= 0; i--) {
-                if (i < currentListsCount) {
-                    pcursor = pcursor.down;
-                }
-                if (equal_ok) {
-                    while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) < 0)) {
-                        pcursor = pcursor.left;
+            lock (this) {
+                /* We parse the skip list structure starting from the topmost list, from the tail sentinel
+                 * node. As long as we have keys bigger than the key we search for, we keep moving left.
+                 * When we find a key that is less or equal to the key we're searching for, then we go down one
+                 * level and there we try to go again left. When we reach the bottom list, we stop. */
+                Node<K, V> pcursor = tail[currentListsCount];
+                for (int i = currentListsCount; i >= 0; i--) {
+                    if (i < currentListsCount) {
+                        pcursor = pcursor.down;
                     }
+                    if (equal_ok) {
+                        while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) < 0)) {
+                            pcursor = pcursor.left;
+                        }
+                    } else {
+                        while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) <= 0)) {
+                            pcursor = pcursor.left;
+                        }
+                    }
+                }
+
+                /* Here we are on the bottom list. Now we see if the next node is valid, if it is
+                 * we return the node, if not, we return null.
+                 */
+                if (!pcursor.left.is_sentinel) {
+                    return pcursor.left;
                 } else {
-                    while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) <= 0)) {
-                        pcursor = pcursor.left;
-                    }
+                    return null;
                 }
             }
-
-            /* Here we are on the bottom list. Now we see if the next node is valid, if it is
-             * we return the node, if not, we return null.
-             */
-            if (!pcursor.left.is_sentinel) {
-                return pcursor.left;
-            } else {
-                return null;
-            }
         }
 
-        Node<K, V> _findNode(IComparable<K> keytest) {
-            Node<K,V> next_node = _findNextNode(keytest,true);
-            if (next_node != null) {
-                if (keytest.CompareTo(next_node.key) == 0) {
-                    return next_node;  // node match
-                } 
-            }
-            return null;
-        }
         Node<K, V> _findNext(Node<K, V> node) {
-            // double check that we are in the bottom level "real" linked list
-            while ((node!=null) && (node.down!=null)) {
-                node = node.down;
-            }
-            Node<K, V> next_node = node.right;
-            // if it is the sentinel value, return null instead
-            if (next_node.is_sentinel) {
-                return null;
-            } else {
-                return next_node;
+            lock (this) {
+                // double check that we are in the bottom level "real" linked list
+                while ((node != null) && (node.down != null)) {
+                    node = node.down;
+                }
+                Node<K, V> next_node = node.right;
+                // if it is the sentinel value, return null instead
+                if (next_node.is_sentinel) {
+                    return null;
+                } else {
+                    return next_node;
+                }
             }
         }
 
         Node<K, V> _findPrev(Node<K, V> node) {
-            // double check that we are in the bottom level "real" linked list
-            while ((node != null) && (node.down != null)) {
-                node = node.down;
-            }
-            Node<K, V> prev_node = node.left;
-            // if it is the sentinel value, return null instead
-            if (prev_node.is_sentinel) {
-                return null;
-            } else {
-                return prev_node;
+            lock (this) {
+                // double check that we are in the bottom level "real" linked list
+                while ((node != null) && (node.down != null)) {
+                    node = node.down;
+                }
+                Node<K, V> prev_node = node.left;
+                // if it is the sentinel value, return null instead
+                if (prev_node.is_sentinel) {
+                    return null;
+                } else {
+                    return prev_node;
+                }
             }
         }
-        
+
+
+        Node<K, V> findNode(IComparable<K> keytest) {
+            Node<K, V> next_node = _findNextNode(keytest, true);
+            if (next_node != null) {
+                if (keytest.CompareTo(next_node.key) == 0) {
+                    return next_node;  // node match
+                }
+            }
+            return null;
+        }
+
         public IEnumerator<KeyValuePair<K, V>> GetEnumerator() {
             foreach (Node<K, V> cursor in this._internalEnumerator()) {
                 yield return new KeyValuePair<K, V>(cursor.key, cursor.value);
@@ -474,6 +481,10 @@ namespace Bend
         }
 
         #endregion
+
+        public bool Remove(IComparable<K> keytest) {
+            return _Remove(keytest, null);
+        }
 
         /* This method prints the content of the Skip List structure. It can be useful for debugging. */
         override public string ToString() {
@@ -573,7 +584,7 @@ namespace Bend
 
         public V this[K key] {
             get {
-                Node<K,V> node = _findNode(key);
+                Node<K,V> node = findNode(key);
                 if (node != null) {
                     return node.value;
                 } else {
@@ -581,7 +592,7 @@ namespace Bend
                 }
             }
             set {
-                Node<K,V> node = _findNode(key);
+                Node<K,V> node = findNode(key);
                 if (node != null) {
                     node.value = value;
                 } else {
@@ -595,14 +606,14 @@ namespace Bend
         #region IDictionary_mapping
         // ---------------------[ IDictionary ]-------------------------------
         public bool ContainsKey(K key) {
-            Node<K,V> node = _findNode(key);
+            Node<K,V> node = findNode(key);
             return (node != null);
         }
         public bool Remove(K key) {
             return Remove((IComparable<K>) key);
         }
         public bool TryGetValue(K key, out V value) {
-            Node<K,V> node = _findNode(key);
+            Node<K,V> node = findNode(key);
             if (node != null) {
                 value = node.value;
                 return true;
@@ -630,7 +641,7 @@ namespace Bend
             }
 
             public bool Contains(K key) {
-                Node<K, V> node = target._findNode(key);
+                Node<K, V> node = target.findNode(key);
                 return (node != null);
             }
             public void CopyTo(K[] keys, int start_index) {
