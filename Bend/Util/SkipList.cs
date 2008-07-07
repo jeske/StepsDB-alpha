@@ -29,6 +29,7 @@
 
 using System;
 using System.Text;
+using System.Threading;
 
 using System.Collections.Generic;
 
@@ -961,7 +962,105 @@ namespace BendTests
             
         }
 
+        public class SkipList_Threading_Tester
+        {
+            SkipList<string, int> list;
+            int[] datavalues;
 
+            int num_additions = 0;
+            int num_retrievals = 0;
+            int num_removals = 0;
+
+            public SkipList_Threading_Tester(int num_values) {
+                list = new SkipList<string, int>();
+                Random rnd = new Random();
+                datavalues = new int[num_values];
+                for (int i = 0; i < num_values; i++) {
+                    datavalues[i] = rnd.Next(0xfffff);
+                }
+            }
+
+            public class threadLauncher
+            {
+                SkipList_Threading_Tester parent;
+                int thread_num;
+                public threadLauncher(SkipList_Threading_Tester parent, int thread_num) {
+                    this.parent = parent;
+                    this.thread_num = thread_num;
+                }
+                public void doVerify() {
+                    this.parent.doVerify(this.thread_num);
+                }
+            }
+
+            public void threadedTest(int numthreads) {                
+                List<Thread> threads = new List<Thread>();
+
+                for (int threadnum = 0; threadnum < numthreads; threadnum++) {
+                    threadLauncher launcher = new threadLauncher(this, threadnum);
+                    Thread newthread = new Thread(new ThreadStart(launcher.doVerify));
+                    threads.Add(newthread); 
+                }
+
+                num_additions = 0; num_removals = 0; num_retrievals = 0;
+                DateTime start = DateTime.Now;
+                foreach (Thread th in threads) {
+                    th.Start();
+                }
+
+                foreach (Thread th in threads) {
+                    // rejoin the threads
+                    th.Join();
+                }
+                double duration_ms = (DateTime.Now - start).TotalMilliseconds;
+                double ops_per_sec = (num_additions + num_retrievals + num_removals) * (1000.0 / duration_ms);
+
+                System.Console.WriteLine("SkipList Threading Test, {0} ms elapsed",
+                    duration_ms);
+                System.Console.WriteLine("  {0} additions, {1} retrievals, {2} removals",
+                    num_additions, num_retrievals, num_removals);
+                System.Console.WriteLine("  {0} ops/sec", ops_per_sec);
+
+                int expected_count = numthreads * datavalues.Length;
+                Assert.AreEqual(expected_count, num_additions, "addition count");
+                Assert.AreEqual(expected_count, num_retrievals, "retrieval count");
+                Assert.AreEqual(expected_count, num_removals, "removal count");
+
+            }
+            public void doVerify(int thread_num) {
+                // add the values
+                for (int i = 0; i < datavalues.Length; i++) {
+                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
+                    this.list[value] = datavalues[i];
+                    Interlocked.Increment(ref num_additions);
+                }
+
+                // read the values
+                for (int i = 0; i < datavalues.Length; i++) {
+                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
+                    Assert.AreEqual(datavalues[i], list[value]);
+                    Interlocked.Increment(ref num_retrievals);
+                }
+
+                // remove the values
+                for (int i = 0; i < datavalues.Length; i++) {
+                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
+                    bool did_remove = this.list.Remove(value);
+                    Assert.AreEqual(true, did_remove, "couldn't remove value: " + value);
+                    if (did_remove) {
+                        Interlocked.Increment(ref num_removals);
+                    }
+                }               
+
+            }
+        }
+
+        [Test]
+        public void T10_Skiplist_Threading() {
+            SkipList_Threading_Tester tester = new SkipList_Threading_Tester(1000);
+            // tester.doVerify(0);
+            tester.threadedTest(400);
+        }
 
     }
 
