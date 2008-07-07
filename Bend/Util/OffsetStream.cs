@@ -93,34 +93,37 @@ namespace BendTests
 
     public partial class A00_UtilTest
     {
+        public static byte[] testdata = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        public static long O_LENGTH = 2;
+        public static long O_OFFSET = 4;
+
+
+        public static void testStream(Stream os) {
+            // read it back through my offset stream            
+            Assert.AreEqual(O_LENGTH, os.Length, "test .Length");
+
+            Assert.AreEqual(0, os.Seek(0, SeekOrigin.Begin), "seek to beginning of my offset range");
+            Assert.AreEqual(0, os.Position, "test .Position");
+
+            Assert.AreEqual(4, os.ReadByte(), "read byte pos 4");
+            Assert.AreEqual(1, os.Position, "test .Position == 1");
+            Assert.AreEqual(5, os.ReadByte(), "read byte pos 5");
+            Assert.AreEqual(2, os.Position, "test .Position == 2");
+
+            Assert.AreEqual(1, os.Seek(-1, SeekOrigin.Current), "seek to beginning of my offset range AGAIN");
+            Assert.AreEqual(1, os.Position, "test .Position AGAIN");
+
+            Assert.AreEqual(5, os.ReadByte(), "read byte pos 5 AGAIN");
+
+        }
+
         [Test]
         public void T00_TestOffsetStream() {
-            MemoryStream ms = new MemoryStream();
-            byte[] testdata = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+            MemoryStream ms = new MemoryStream(testdata);            
 
-            // write the testdata
-            ms.Write(testdata, 0, testdata.Length);
+            OffsetStream os = new OffsetStream(ms, O_OFFSET, O_LENGTH);
+            testStream(os);
 
-            // read it back through my offset stream
-            {
-                long O_LENGTH = 2;;
-                long O_OFFSET = 2;
-                OffsetStream os = new OffsetStream(ms, O_OFFSET, O_LENGTH);
-                Assert.AreEqual(O_LENGTH, os.Length, "test .Length");
-
-                Assert.AreEqual(0, os.Seek(0, SeekOrigin.Begin), "seek to beginning of my offset range");
-                Assert.AreEqual(0, os.Position, "test .Position");
-
-                Assert.AreEqual(2, os.ReadByte(), "read byte pos 2");
-                Assert.AreEqual(1, os.Position, "test .Position == 1");
-                Assert.AreEqual(3, os.ReadByte(), "read byte pos 3");
-                Assert.AreEqual(2, os.Position, "test .Position == 2");
-
-                Assert.AreEqual(1, os.Seek(-1, SeekOrigin.Current), "seek to beginning of my offset range AGAIN");
-                Assert.AreEqual(1, os.Position, "test .Position AGAIN");
-
-                Assert.AreEqual(3, os.ReadByte(), "read byte pos 3 AGAIN");
-            }
         }
 
     }
@@ -131,35 +134,11 @@ namespace BendTests
 
         [Test]
         public void T00_TestOffsetStreamWrappedInBufferedStream() {
-            MemoryStream ms = new MemoryStream();
-            byte[] testdata = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+            MemoryStream ms = new MemoryStream(A00_UtilTest.testdata);
+            OffsetStream os = new OffsetStream(ms, A00_UtilTest.O_OFFSET, A00_UtilTest.O_LENGTH);
 
-            // write the testdata
-            ms.Write(testdata, 0, testdata.Length);
-
-            // wrap it in a buffered stream and do the same things
-            {
-                long O_LENGTH = 2;
-                long O_OFFSET = 4;
-                BufferedStream bs = new BufferedStream(new OffsetStream(ms, O_OFFSET, O_LENGTH));
-
-                Assert.AreEqual(O_LENGTH, bs.Length, "test Buffered .Length");
-
-                Assert.AreEqual(0, bs.Seek(0, SeekOrigin.Begin), "seek to beginning of my offset range");
-                Assert.AreEqual(0, bs.Position, "test .Position");
-
-                Assert.AreEqual(4, bs.ReadByte(), "read byte pos 4");
-                Assert.AreEqual(1, bs.Position, "test .Position == 1");
-                Assert.AreEqual(5, bs.ReadByte(), "read byte pos 5");
-                Assert.AreEqual(2, bs.Position, "test .Position == 2");
-
-                Assert.AreEqual(1, bs.Seek(-1, SeekOrigin.Current), "seek to beginning of my offset range AGAIN");
-                Assert.AreEqual(1, bs.Position, "test .Position == 1");
-
-                Assert.AreEqual(5, bs.ReadByte(), "read byte pos 3 AGAIN");
-
-            }
-
+            BufferedStream bs = new BufferedStream(os);
+            A00_UtilTest.testStream(bs);
         }
     }
 
