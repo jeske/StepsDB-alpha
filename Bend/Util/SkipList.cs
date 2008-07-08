@@ -1068,24 +1068,4 @@ namespace BendTests
 
     }
 
-    [TestFixture]
-    public class ZZ_Todo_Skiplist
-    {
-
-        [Test]
-        public void T00_Skiplist_remove_while_iterating() {
-            // the current skiplist iterators will break if we remove the element we're iterating on
-            // while iterating, because that Node<K,V> will lose the next/prev pointers to continue 
-            // iterating. 
-
-            // There are two possible/interesting solutions...
-            // (1) when we see a null right/left INSTEAD of a sentinel, we know that our node was
-            //     removed. At this point we can recompose the key from the node we're holding onto
-            //     and search again.
-            // (2) We could create a "snapshot skiplist" that would somehow maintain the illusion of
-            //     no change for the Enumerator. Sounds complicated.
-
-            Assert.Fail("not implemented");
-        }
-    }
 }
