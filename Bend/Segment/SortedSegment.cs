@@ -478,8 +478,7 @@ namespace Bend
             this.enumeration = enumeration;
         }
 
-        public void writeToStream(Stream rawwriter) {
-            BufferedStream writer = new BufferedStream(rawwriter);            
+        public void writeToStream(Stream writer) {
             SortedSegmentIndex index = new SortedSegmentIndex();
             SegmentWriterAdvisor advisor = new SegmentWriterAdvisor();
             int num_blocks = 0;
