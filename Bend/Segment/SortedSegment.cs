@@ -450,7 +450,7 @@ namespace Bend
     class SegmentWriterAdvisor    
     {
         int keys_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 1000; // set this really low for testing!!
+        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 2000; // set this really low for testing!!
 
         public SegmentWriterAdvisor() { }
         public void fyiAddedRecord(RecordKey key, RecordUpdate update) {
@@ -478,9 +478,12 @@ namespace Bend
             this.enumeration = enumeration;
         }
 
-        public void writeToStream(Stream writer) {
+        public void writeToStream(Stream rawwriter) {
+            BufferedStream writer = new BufferedStream(rawwriter);            
             SortedSegmentIndex index = new SortedSegmentIndex();
             SegmentWriterAdvisor advisor = new SegmentWriterAdvisor();
+            int num_blocks = 0;
+            int num_rows = 0;
 
             RecordKey block_start_key = null;
             RecordKey last_seen_key = null;
@@ -501,7 +504,11 @@ namespace Bend
                     encoder = new SegmentBlockBasicEncoder();
                     encoder.setStream(writer);
                     block_start_key = kvp.Key;
-                    System.Console.WriteLine("new block starting at: " + kvp.Key.ToString());
+                    num_blocks++;
+                    if ((num_blocks % 100) == 0) {
+                        System.Console.WriteLine("block {0} starting at row: {1}, key: {2}",
+                            num_blocks,num_rows,kvp.Key.ToString());
+                    }
 
                 }
                 // handle this row
@@ -509,6 +516,7 @@ namespace Bend
                     encoder.add(kvp.Key, kvp.Value);
                     last_seen_key = kvp.Key;
                     advisor.fyiAddedRecord(kvp.Key, kvp.Value);
+                    num_rows++;
                 }
 
                 // move to next row

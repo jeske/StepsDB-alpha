@@ -177,34 +177,38 @@ namespace Bend
             }
         }
         public void addCommand(byte cmdtype, byte[] cmdbytes) {
-            nextChunkBuffer.Write((UInt32)cmdbytes.Length);
-            nextChunkBuffer.Write((byte)cmdtype);
-            nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
+            lock (this) {
+                nextChunkBuffer.Write((UInt32)cmdbytes.Length);
+                nextChunkBuffer.Write((byte)cmdtype);
+                nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
+            }
         }
         public void flushPendingCommands() {
-            nextChunkBuffer.Seek(0, SeekOrigin.Begin);
-            byte[] cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
-            BinaryWriter logbr = new BinaryWriter(logstream);
+            lock (this) {
+                nextChunkBuffer.Seek(0, SeekOrigin.Begin);
+                byte[] cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
+                BinaryWriter logbr = new BinaryWriter(logstream);
 
-            if (cmds.Length != 0) {
-                UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
+                if (cmds.Length != 0) {
+                    UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
 
+                    logbr.Write((UInt32)LOG_MAGIC);
+                    logbr.Write((UInt32)cmds.Length);
+                    logbr.Write((UInt16)checksum);
+                    logbr.Write(cmds);
+                }
+
+                // TODO: write "end of log" marker  (magic, size=0, checksum=0);
                 logbr.Write((UInt32)LOG_MAGIC);
-                logbr.Write((UInt32)cmds.Length);
-                logbr.Write((UInt16)checksum);
-                logbr.Write(cmds);
+                logbr.Write((UInt32)0); // size
+                logbr.Write((UInt16)0); // checksum
+                logbr.Flush();
+
+                // ..then, seek back so it will be overwritten when the next log entry is written
+                logbr.BaseStream.Seek(-(4 + 4 + 2), SeekOrigin.Current);
+
+                nextChunkBuffer = new BinaryWriter(new MemoryStream());
             }
-
-            // TODO: write "end of log" marker  (magic, size=0, checksum=0);
-            logbr.Write((UInt32)LOG_MAGIC);
-            logbr.Write((UInt32)0); // size
-            logbr.Write((UInt16)0); // checksum
-            logbr.Flush();
-
-            // ..then, seek back so it will be overwritten when the next log entry is written
-            logbr.BaseStream.Seek(- (4+4+2), SeekOrigin.Current);
-        
-            nextChunkBuffer = new BinaryWriter(new MemoryStream());
         }
 
         void abortCorrupt(String reason) {

@@ -498,6 +498,149 @@ namespace BendTests
 
         }
 
+        class WriteThreadsTest
+        {
+            internal LayerManager db;
+
+            int[] datavalues;
+
+            int num_additions = 0;
+            int num_retrievals = 0;
+            int num_removals = 0;
+
+            internal int checkpoint_interval;
+
+            internal WriteThreadsTest(int num_values, int checkpoint_interval_rowcount) {
+                db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\11");
+                this.checkpoint_interval = checkpoint_interval_rowcount;
+                
+                Random rnd = new Random();
+                datavalues = new int[num_values];
+                for (int i = 0; i < num_values; i++) {
+                    datavalues[i] = rnd.Next(0xfffff);
+                }
+            
+            }
+
+            public class threadLauncher
+            {
+                WriteThreadsTest parent;
+                int thread_num;
+                public threadLauncher(WriteThreadsTest parent, int thread_num) {
+                    this.parent = parent;
+                    this.thread_num = thread_num;
+                }
+                public void doVerify() {
+                    this.parent.doVerify(this.thread_num);
+                }
+            }
+            public void checkpointer() {
+                int iteration = 0;
+                while (checkpoint_interval != 0) {                    
+                    Thread.Sleep(2000);
+                    
+                    if (db.workingSegment.RowCount > checkpoint_interval) {
+                        DateTime start = DateTime.Now;
+                        iteration++;
+                        System.Console.WriteLine("checkpoint {0} start ", iteration);
+                        db.flushWorkingSegment();
+                        double duration_ms = (DateTime.Now - start).TotalMilliseconds;
+                        System.Console.WriteLine("checkpoint {0} end in {1} ms", iteration, duration_ms);
+
+                    }
+                }
+
+            }
+            public void threadedTest(int numthreads) {
+                List<Thread> threads = new List<Thread>();
+
+                for (int threadnum = 0; threadnum < numthreads; threadnum++) {
+                    threadLauncher launcher = new threadLauncher(this, threadnum);
+                    Thread newthread = new Thread(new ThreadStart(launcher.doVerify));
+                    threads.Add(newthread);
+                }
+                Thread checkpointer = new Thread(new ThreadStart(this.checkpointer));
+                DateTime start = DateTime.Now;
+                try {
+                    
+                    checkpointer.Start();
+
+                    num_additions = 0; num_removals = 0; num_retrievals = 0;
+                    
+                    foreach (Thread th in threads) {
+                        th.Start();
+                    }
+
+                    foreach (Thread th in threads) {
+                        // rejoin the threads
+                        th.Join();
+                    }
+                } finally {
+                    // stop the checkpointer
+                    checkpoint_interval = 0;
+                }
+                checkpointer.Join();
+
+                double duration_ms = (DateTime.Now - start).TotalMilliseconds;
+                double ops_per_sec = (num_additions + num_retrievals + num_removals) * (1000.0 / duration_ms);
+
+                System.Console.WriteLine("LayerManager Threading Test, {0} ms elapsed",
+                    duration_ms);
+                System.Console.WriteLine("  {0} additions, {1} retrievals, {2} removals",
+                    num_additions, num_retrievals, num_removals);
+                System.Console.WriteLine("  {0} ops/sec", ops_per_sec);
+
+                int expected_count = numthreads * datavalues.Length;
+                Assert.AreEqual(expected_count, num_additions, "addition count");
+                Assert.AreEqual(expected_count, num_retrievals, "retrieval count");
+                Assert.AreEqual(expected_count, num_removals, "removal count");
+
+            }
+            public void doVerify(int thread_num) {
+                Random rnd = new Random(thread_num);
+                Thread.Sleep(rnd.Next(500));
+                System.Console.WriteLine("starwrites.. " + thread_num);
+                // add the values
+                for (int i = 0; i < datavalues.Length; i++) {
+                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
+                    db.setValueParsed("v/" + value, datavalues[i].ToString());                    
+                    Interlocked.Increment(ref num_additions);
+                }
+                
+                System.Console.WriteLine("endwrites, startread " + thread_num);
+
+                // read the values
+                for (int i = 0; i < datavalues.Length; i++) {
+                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
+                    RecordData data;
+                    if (db.getRecord(new RecordKey().appendParsedKey("v/" + value), out data) == GetStatus.PRESENT) {
+                        Assert.AreEqual(datavalues[i].ToString(), data.ToString());
+                        Interlocked.Increment(ref num_retrievals);
+                    }
+                }
+
+                System.Console.WriteLine("endreads, startremove " + thread_num);
+
+                // remove the values
+                for (int i = 0; i < datavalues.Length; i++) {
+                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
+                    db.setValue(new RecordKey().appendParsedKey("v/" + value), RecordUpdate.DeletionTombstone());
+                    Interlocked.Increment(ref num_removals);
+
+                }
+
+            }
+        }
+
+
+        [Test]
+        public void T11_LayerManager_WriteThreads() {
+            WriteThreadsTest test = new WriteThreadsTest(1000,2000);
+
+            test.threadedTest(60);
+
+        }
+
 
         // TEST: that our record-get will see data in ALL in-memory segments
         // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
