@@ -537,8 +537,6 @@ namespace BendTests
             public void checkpointer() {
                 int iteration = 0;
                 while (checkpoint_interval != 0) {                    
-                    Thread.Sleep(2000);
-                    
                     if (db.workingSegment.RowCount > checkpoint_interval) {
                         DateTime start = DateTime.Now;
                         iteration++;
@@ -546,7 +544,8 @@ namespace BendTests
                         db.flushWorkingSegment();
                         double duration_ms = (DateTime.Now - start).TotalMilliseconds;
                         System.Console.WriteLine("checkpoint {0} end in {1} ms", iteration, duration_ms);
-
+                    } else {
+                        Thread.Sleep(200);
                     }
                 }
 
