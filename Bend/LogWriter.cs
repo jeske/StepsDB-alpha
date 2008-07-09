@@ -57,7 +57,7 @@ namespace Bend
         BinaryWriter nextChunkBuffer;
         ILogReceiver receiver;
 
-        static UInt32 LOG_MAGIC = 44332211;
+        static UInt32 LOG_MAGIC = 0x44332211;
         public static UInt32 DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
 
         LogWriter() {
