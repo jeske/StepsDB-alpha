@@ -195,7 +195,8 @@ namespace Bend
                     // TODO: check for reasons it might not have been a disk seek:
                     //  - garbage collector occured
                     //  - system load is high
-                    System.Console.WriteLine("getNewBlockAccessor may have caused disk seek");
+                    System.Console.WriteLine("getNewBlockAccessor({0},{1}) may have caused disk seek (ms={2},totalmem={3})", 
+                        rel_block_start,block_len, duration_ms, System.GC.GetTotalMemory(false));
                 }
 
                 return new BlockAccessor(block);                

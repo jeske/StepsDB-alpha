@@ -26,6 +26,7 @@ namespace Bend
     {
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;
+
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
         internal List<WeakReference<Txn>> pending_txns;
@@ -95,12 +96,17 @@ namespace Bend
                 } else if (cmd == (byte)LogCommands.CHECKPOINT) {
                     // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
                     checkpointSegment = mylayer.workingSegment;
-                    mylayer.workingSegment = new SegmentMemoryBuilder();
-                    mylayer.segmentlayers.Insert(0, mylayer.workingSegment);
+                    SegmentMemoryBuilder newsegment = new SegmentMemoryBuilder();
+                    lock (mylayer.segmentlayers) {
+                        mylayer.workingSegment = newsegment;
+                        mylayer.segmentlayers.Insert(0, mylayer.workingSegment);
+                    }
                 } else if (cmd == (byte)LogCommands.CHECKPOINT_DROP) {
                     // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
                     if (checkpointSegment != null) {
-                        mylayer.segmentlayers.Remove(checkpointSegment);
+                        lock (mylayer.segmentlayers) {
+                            mylayer.segmentlayers.Remove(checkpointSegment);
+                        }
                     } else {
                         throw new Exception("can't drop, no segment to drop");
                     }
@@ -193,10 +199,17 @@ namespace Bend
         }
 
         public void flushWorkingSegment() {
-            // create a new working segment
-            SegmentMemoryBuilder checkpointSegment = workingSegment;
-            workingSegment = new SegmentMemoryBuilder();
-            segmentlayers.Insert(0, workingSegment);
+            // create a new working segment            
+            SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
+            SegmentMemoryBuilder checkpointSegment;
+
+            // grab the checkpoint segment and move it aside
+            lock (this.segmentlayers) {
+                checkpointSegment = workingSegment;
+                workingSegment = newlayer;
+                segmentlayers.Insert(0, workingSegment);
+            }
+
             {
                 byte[] emptydata = new byte[0];
                 this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata);
@@ -241,7 +254,9 @@ namespace Bend
             
             // reader.getStream().Close(); // force close the reader
 
-            segmentlayers.Remove(checkpointSegment);
+            lock (this.segmentlayers) {
+                segmentlayers.Remove(checkpointSegment);
+            }
         }
 
         public void mergeAllSegments() {
@@ -322,15 +337,22 @@ namespace Bend
             //    currently this will miss records if we allow another thread to do a get during the
             //    period where we're writing out a new segment (and there are multiple workingsegments in segmentlayers)
 
-            if (rangemapmgr.segmentWalkForKey(key, workingSegment, ref record) == RecordUpdateResult.FINAL) {
-                if (record.State == RecordDataState.FULL) {
-                    return GetStatus.PRESENT;
-                } else {
-                    return GetStatus.MISSING;
-                }
-            } else {
-                return GetStatus.MISSING;
+            SegmentMemoryBuilder[] layers;
+            lock (this.segmentlayers) {
+                layers = this.segmentlayers.ToArray();
             }
+
+            foreach (SegmentMemoryBuilder layer in layers) {
+                if (rangemapmgr.segmentWalkForKey(key, layer, ref record) == RecordUpdateResult.FINAL) {
+                    if (record.State == RecordDataState.FULL) {
+                        return GetStatus.PRESENT;
+                    } else {
+                        return GetStatus.MISSING;
+                    }
+                } 
+            }
+
+            return GetStatus.MISSING;            
         }
 
         public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey found_key, ref RecordData found_record) {

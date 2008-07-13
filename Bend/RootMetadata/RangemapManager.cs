@@ -178,16 +178,26 @@ namespace Bend
             SkipList<RecordKey, RecordData> handledIndexRecords = new SkipList<RecordKey,RecordData>();
             SkipList<RecordKey, RecordData> recordsBeingAssembled = new SkipList<RecordKey, RecordData>();
 
-            INTERNAL_segmentWalkForNextKey(
-                lowkey,
-                this.store.workingSegment,
-                RangeKey.newSegmentRangeKey(
-                   new RecordKey().appendKeyPart("<"),
-                   new RecordKey().appendKeyPart(">"),
-                   num_generations),
-                handledIndexRecords,
-                num_generations,
-                recordsBeingAssembled);
+
+            SegmentMemoryBuilder[] layers;
+            // snapshot the working segment layers
+            lock (this.store.segmentlayers) {
+                 layers = this.store.segmentlayers.ToArray();
+            }
+            
+            foreach (SegmentMemoryBuilder layer in layers) {
+
+                INTERNAL_segmentWalkForNextKey(
+                    lowkey,
+                    layer,
+                    RangeKey.newSegmentRangeKey(
+                       new RecordKey().appendKeyPart("<"),
+                       new RecordKey().appendKeyPart(">"),
+                       num_generations),
+                    handledIndexRecords,
+                    num_generations,
+                    recordsBeingAssembled);
+            }
 
             // now check the assembled records list
             try {

@@ -15,7 +15,7 @@ namespace Bend
     // ---------------[ Main ]---------------------------------------------------------
 
 
-    [TestFixture]
+    // [TestFixture]
     public class MainTest
     {
         // [Test]

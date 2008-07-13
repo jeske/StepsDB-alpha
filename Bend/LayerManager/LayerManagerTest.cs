@@ -544,8 +544,9 @@ namespace BendTests
                         db.flushWorkingSegment();
                         double duration_ms = (DateTime.Now - start).TotalMilliseconds;
                         System.Console.WriteLine("checkpoint {0} end in {1} ms", iteration, duration_ms);
+                        Thread.Sleep(5);
                     } else {
-                        Thread.Sleep(200);
+                        Thread.Sleep(5);
                     }
                 }
 
@@ -597,8 +598,8 @@ namespace BendTests
             }
             public void doVerify(int thread_num) {
                 Random rnd = new Random(thread_num);
-                Thread.Sleep(rnd.Next(500));
-                System.Console.WriteLine("starwrites.. " + thread_num);
+                Thread.Sleep(rnd.Next(5000));
+                System.Console.WriteLine("startwrites.. " + thread_num);
                 // add the values
                 for (int i = 0; i < datavalues.Length; i++) {
                     string value = datavalues[i].ToString() + ":" + thread_num.ToString();
