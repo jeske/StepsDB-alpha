@@ -450,17 +450,19 @@ namespace Bend
     class SegmentWriterAdvisor    
     {
         int keys_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 2000; // set this really low for testing!!
+        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 200; // set this really low for testing!!
 
-        public SegmentWriterAdvisor() { }
+        public SegmentWriterAdvisor() {
+            this.keys_since_last_block = 0;
+        }
         public void fyiAddedRecord(RecordKey key, RecordUpdate update) {
-            keys_since_last_block++;
+            this.keys_since_last_block++;
         }
         public void fyiFinishedBlock() {
-            keys_since_last_block = 0;
+            this.keys_since_last_block = 0;
         }
         public bool recommendsNewBlock() {
-            if (keys_since_last_block >= RECOMMEND_MAX_KEYS_PER_BLOCK) {
+            if (this.keys_since_last_block >= RECOMMEND_MAX_KEYS_PER_BLOCK) {
                 return true;
             } else {
                 return false;
@@ -503,12 +505,13 @@ namespace Bend
                     encoder = new SegmentBlockBasicEncoder();
                     encoder.setStream(writer);
                     block_start_key = kvp.Key;
-                    num_blocks++;
-                    if ((num_blocks % 100) == 0) {
+
+
+                    if ((num_blocks % 2) == 0) {
                         System.Console.WriteLine("block {0} starting at row: {1}, key: {2}",
                             num_blocks,num_rows,kvp.Key.ToString());
                     }
-
+                    num_blocks++;
                 }
                 // handle this row
                 {
@@ -521,10 +524,16 @@ namespace Bend
                 // move to next row
                 hasmore = cursor.MoveNext();
 
-                if (!hasmore || advisor.recommendsNewBlock()) {
+                if ((!hasmore) || advisor.recommendsNewBlock() ) {
                     encoder.flush();  encoder = null;
                     endpos = writer.Position;
                     index.addBlock(block_start_key, encoder, startpos, endpos);
+                    advisor.fyiFinishedBlock();
+
+                    if (!hasmore) {
+                        System.Console.WriteLine("lastblock {0} ending at row: {1}, key: {2}",
+                            num_blocks, num_rows, kvp.Key.ToString());
+                    }
                 }
             }
 
