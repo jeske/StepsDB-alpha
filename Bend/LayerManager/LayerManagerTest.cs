@@ -573,7 +573,7 @@ namespace BendTests
 
                     foreach (Thread th in threads) {
                         // rejoin the threads
-                        th.Join();
+                        th.Join(); 
                     }
                 } finally {
                     // stop the checkpointer

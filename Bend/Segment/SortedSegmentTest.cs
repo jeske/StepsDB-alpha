@@ -270,9 +270,6 @@ namespace BendTests
 
             // TODO: test FindNext, FindPrev (false,true) cases...
 
-
-
-
             int max_i = 0;
             // scan FORWARD for a set of matching records (a subset of all records)
             {
@@ -315,6 +312,7 @@ namespace BendTests
 
             }
         }
+
     }
 
     [TestFixture]
