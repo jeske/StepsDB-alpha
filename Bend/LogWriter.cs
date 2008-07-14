@@ -239,7 +239,7 @@ namespace Bend
         private void _flushThread() {
 
             while (commitThread_should_run) {                
-                Thread.Sleep(30);
+                Thread.Sleep(5);
                 groupCommitWorkerHndl.WaitOne();                
                 _doWritePendingCmds();
             }
