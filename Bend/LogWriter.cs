@@ -59,11 +59,12 @@ namespace Bend
         BinaryWriter nextChunkBuffer;
         ILogReceiver receiver;
 
-        WaitHandle groupCommitWorkerHndl;
-        WaitHandle groupCommitRequestorsHndl;
+        AutoResetEvent groupCommitWorkerHndl;
+        ManualResetEvent groupCommitRequestorsHndl;
         Thread commitThread;
         bool commitThread_should_run = true;
-        long logGroupWaitSequenceNumber = 1; // this must never be zero
+        long logWaitSequenceNumber = 1; // this must never be zero
+        long finishedLWSN = 0; 
         DateTime firstWaiter, lastWaiter;
         int numWaiters = 0;
 
@@ -75,7 +76,7 @@ namespace Bend
 
             // setup the commitThread
             groupCommitWorkerHndl = new AutoResetEvent(false);
-            groupCommitRequestorsHndl = new AutoResetEvent(false);
+            groupCommitRequestorsHndl = new ManualResetEvent(false);
             commitThread = new Thread(new ThreadStart(this._flushThread));
             commitThread.Start();
         }
@@ -197,24 +198,24 @@ namespace Bend
                 nextChunkBuffer.Write((UInt32)cmdbytes.Length);
                 nextChunkBuffer.Write((byte)cmdtype);
                 nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
-                logWaitNumber = this.logGroupWaitSequenceNumber;
+                logWaitNumber = this.logWaitSequenceNumber;
             }
         }
 
         public void flushPendingCommands() {
             long waitForLWSN;
             lock (this) {
-                waitForLWSN = this.logGroupWaitSequenceNumber;
+                waitForLWSN = this.logWaitSequenceNumber;
             }
             flushPendingCommandsThrough(waitForLWSN);
         }
 
         public void flushPendingCommandsThrough(long waitForLWSN) {
             DateTime started_waiting_at = DateTime.Now;
+            if (finishedLWSN >= waitForLWSN) {
+                return;
+            }            
             lock (this) {
-                if (waitForLWSN < logGroupWaitSequenceNumber) {
-                    return;
-                }
                 lastWaiter = started_waiting_at;
                 if (firstWaiter < started_waiting_at) {
                     firstWaiter = started_waiting_at;
@@ -222,14 +223,24 @@ namespace Bend
                 numWaiters++;
             }
             do {
-                WaitHandle.SignalAndWait(groupCommitWorkerHndl, groupCommitRequestorsHndl);                
-            } while (waitForLWSN >= this.logGroupWaitSequenceNumber);
+                if ((DateTime.Now - started_waiting_at).TotalMilliseconds > 30000) {
+                    throw new Exception("30s flush timeout exceeded");
+                }
+                groupCommitWorkerHndl.Set(); // wakeup the worker
+                groupCommitRequestorsHndl.WaitOne();
+                //if (this.finishedLWSN < waitForLWSN) {
+                //    System.Console.WriteLine("still waiting... {0} < {1}",
+                //        this.finishedLWSN,waitForLWSN);
+                //}
+            } while (this.finishedLWSN < waitForLWSN);
            
         }
 
         private void _flushThread() {
-            while (commitThread_should_run) {
-                WaitHandle.SignalAndWait(groupCommitRequestorsHndl,groupCommitWorkerHndl);                
+
+            while (commitThread_should_run) {                
+                Thread.Sleep(30);
+                groupCommitWorkerHndl.WaitOne();                
                 _doWritePendingCmds();
             }
         }
@@ -247,34 +258,53 @@ namespace Bend
         private void _doWritePendingCmds() {
             int groupSize;
             double groupDuration;
+            byte[] cmds;
+            long curLWSN;
+            DateTime curFirstWaiter;
+            BinaryWriter newChunkBuffer = new BinaryWriter(new MemoryStream());
+            ManualResetEvent wakeUpThreads;
+
             lock (this) {                
-                nextChunkBuffer.Seek(0, SeekOrigin.Begin);
-                byte[] cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
+                // grab the current chunkbuffer
+                cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
+                curLWSN = this.logWaitSequenceNumber;
+                groupSize = numWaiters;
+                curFirstWaiter = firstWaiter;
 
-                BinaryWriter logbr = new BinaryWriter(logstream);
+                // grab the monitor handle
+                wakeUpThreads = this.groupCommitRequestorsHndl;
+                this.groupCommitRequestorsHndl = new ManualResetEvent(false);
 
-                if (cmds.Length != 0) {
-                    UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
+                // make a clean chunkbuffer
+                this.logWaitSequenceNumber++; // increment the wait sequence number
+                nextChunkBuffer = newChunkBuffer;
+                numWaiters = 0;
+                firstWaiter = DateTime.MinValue;
+            }
 
-                    logbr.Write((UInt32)LOG_MAGIC);
-                    logbr.Write((UInt32)cmds.Length);
-                    logbr.Write((UInt16)checksum);
-                    logbr.Write(cmds);
-                }
+            BinaryWriter logbr = new BinaryWriter(logstream);
+
+            if (cmds.Length != 0) {
+                UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
+
+                logbr.Write((UInt32)LOG_MAGIC);
+                logbr.Write((UInt32)cmds.Length);
+                logbr.Write((UInt16)checksum);
+                logbr.Write(cmds);
 
                 _doLogEnd(logbr);
-
-                nextChunkBuffer = new BinaryWriter(new MemoryStream());
-                // reset the group commit waiting machinery
-                {
-                    this.logGroupWaitSequenceNumber++; // increment the wait sequence number
-                    groupSize = numWaiters;
-                    groupDuration = (DateTime.Now - firstWaiter).TotalMilliseconds;
-                    numWaiters = 0;
-                    firstWaiter = DateTime.MinValue;
-                }
+                // System.Console.WriteLine("-flush finished for LWSN {0}", curLWSN);            
             }
-            if (groupSize > 2 && groupDuration > 10.0) {
+                
+            // reset the group commit waiting machinery
+            {                
+                finishedLWSN = curLWSN;
+                groupDuration = (DateTime.Now - curFirstWaiter).TotalMilliseconds;
+                wakeUpThreads.Set();
+                
+            }
+        
+            if (groupSize > 2) {
                 System.Console.WriteLine("group commit {0}, longest wait {1} ms", 
                     groupSize, groupDuration);
             }
