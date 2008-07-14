@@ -58,17 +58,16 @@ namespace Bend
         }
 
         internal SegmentReader segmentReaderFromRow(RecordKey key, RecordUpdate update) {
+            lock (disk_segment_cache) {
+                try {
+                    return disk_segment_cache[key];
+                } catch (KeyNotFoundException) {
+                    SegmentReader next_seg = getSegmentFromMetadataBytes(update.data);
 
-
-            if (disk_segment_cache.ContainsKey(key)) {
-                return disk_segment_cache[key];
-            } else {
-                SegmentReader next_seg = getSegmentFromMetadataBytes(update.data);
-
-                disk_segment_cache[key] = next_seg;
-                return next_seg;
+                    disk_segment_cache[key] = next_seg;
+                    return next_seg;
+                }
             }
-
         }
 
 
