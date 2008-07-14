@@ -154,6 +154,8 @@ namespace Bend
                         ref this.last_logwaitnumber);
 
                 }
+                // TODO: switch our writes to always occur through "handling the log"
+                // TODO: make our writes only visible to US, by creating a "transaction segment"
                 mylayer.workingSegment.setRecord(key, update); // add to working set
             }
 

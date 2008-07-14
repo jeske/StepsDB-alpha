@@ -450,7 +450,7 @@ namespace Bend
     class SegmentWriterAdvisor    
     {
         int keys_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 200; // set this really low for testing!!
+        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 200000; // set this really low for testing!!
 
         public SegmentWriterAdvisor() {
             this.keys_since_last_block = 0;

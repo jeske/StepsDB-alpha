@@ -593,7 +593,7 @@ namespace BendTests
             }
             public void doVerify(int thread_num) {
                 Random rnd = new Random(thread_num);
-                Thread.Sleep(rnd.Next(5000));
+                Thread.Sleep(rnd.Next(1000));
                 System.Console.WriteLine("startwrites.. " + thread_num);
                 // add the values
                 for (int i = 0; i < datavalues.Length; i++) {
@@ -692,10 +692,18 @@ namespace BendPerfTest {
         }
 
         [Test]
+        public void T1_WriteThreads_Perf_Small() {
+            A03_LayerManagerTests.WriteThreadsTest test =
+                new A03_LayerManagerTests.WriteThreadsTest(20, 800);
+            test.threadedTest(100);
+        }
+
+
+        [Test]
         public void T11_WriteThreads_Perf() {
             A03_LayerManagerTests.WriteThreadsTest test = 
-                new A03_LayerManagerTests.WriteThreadsTest(200, 500);
-            test.threadedTest(60);
+                new A03_LayerManagerTests.WriteThreadsTest(3000, 15000);
+            test.threadedTest(100);
         }
 
     }
