@@ -395,7 +395,7 @@ namespace BendTests
 
         // TEST: region IO concurrency
         
-        internal class ReadThreadsTest {
+        public class ReadThreadsTest {
             internal LayerManager db; 
             int TEST_RECORD_COUNT = 100;
             int RECORDS_PER_SEGMENT = 30;
@@ -487,18 +487,13 @@ namespace BendTests
             ReadThreadsTest test = new ReadThreadsTest();
 
             test.verifyData();
-
             test.threadedVerify(10);
-
 
             test.db.mergeAllSegments();
-
-            test.threadedVerify(10);
-            
-
+            test.threadedVerify(10);            
         }
 
-        class WriteThreadsTest
+        public class WriteThreadsTest
         {
             internal LayerManager db;
 
@@ -635,10 +630,8 @@ namespace BendTests
 
         [Test]
         public void T11_LayerManager_WriteThreads() {
-            WriteThreadsTest test = new WriteThreadsTest(1000,2000);
-
-            test.threadedTest(60);
-
+            WriteThreadsTest test = new WriteThreadsTest(10,50);
+            test.threadedTest(100);
         }
 
 
@@ -677,8 +670,34 @@ namespace BendTests
     }
 
 
+}
+
+namespace BendPerfTest {
+    using BendTests;
+
+    [TestFixture]
+    public class A02_LayerManagerPerf {
 
 
-    
- 
+        [Test]
+        public void T10_ReadThreads_Perf() {
+            A03_LayerManagerTests.ReadThreadsTest test =                 
+                new A03_LayerManagerTests.ReadThreadsTest();
+
+            test.verifyData();
+            test.threadedVerify(50);
+
+            test.db.mergeAllSegments();
+            test.threadedVerify(50);            
+        }
+
+        [Test]
+        public void T11_WriteThreads_Perf() {
+            A03_LayerManagerTests.WriteThreadsTest test = 
+                new A03_LayerManagerTests.WriteThreadsTest(200, 500);
+            test.threadedTest(60);
+        }
+
+    }
+
 }

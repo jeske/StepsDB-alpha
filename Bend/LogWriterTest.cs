@@ -89,7 +89,8 @@ namespace BendTests
                 LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr);
 
                 // add ONE record to the log
-                lr.addCommand(cmd, cmddata);
+                long logWaitNumber=0;
+                lr.addCommand(cmd, cmddata, ref logWaitNumber);
                 lr.flushPendingCommands();
                 lr.Dispose();
             }

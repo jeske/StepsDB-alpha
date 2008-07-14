@@ -5,6 +5,8 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 
+using System.Threading;
+
 // TODO: handle circular log
 // TODO: reserve enough space for a log truncation record, prevent us from "filling" the log without a
 //       special flag saying we are allowed to take up the reserved space
@@ -57,11 +59,25 @@ namespace Bend
         BinaryWriter nextChunkBuffer;
         ILogReceiver receiver;
 
+        WaitHandle groupCommitWorkerHndl;
+        WaitHandle groupCommitRequestorsHndl;
+        Thread commitThread;
+        bool commitThread_should_run = true;
+        long logGroupWaitSequenceNumber = 1; // this must never be zero
+        DateTime firstWaiter, lastWaiter;
+        int numWaiters = 0;
+
         static UInt32 LOG_MAGIC = 0x44332211;
         public static UInt32 DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
 
-        LogWriter() {
+        LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
+
+            // setup the commitThread
+            groupCommitWorkerHndl = new AutoResetEvent(false);
+            groupCommitRequestorsHndl = new AutoResetEvent(false);
+            commitThread = new Thread(new ThreadStart(this._flushThread));
+            commitThread.Start();
         }
         // special "init" of a region
         public LogWriter(InitMode mode, IRegionManager regionmgr)
@@ -109,7 +125,7 @@ namespace Bend
 
             // write the initial "log-end" record
             logstream.Seek(0, SeekOrigin.Begin);
-            flushPendingCommands();  // there should be no pending commands
+            _doLogEnd(new BinaryWriter(logstream));  // force log end flush            
 
             // now write the root record
             rootblockstream.Seek(0, SeekOrigin.Begin);
@@ -176,17 +192,65 @@ namespace Bend
                 // log resume complete...
             }
         }
-        public void addCommand(byte cmdtype, byte[] cmdbytes) {
+        public void addCommand(byte cmdtype, byte[] cmdbytes, ref long logWaitNumber) {
             lock (this) {
                 nextChunkBuffer.Write((UInt32)cmdbytes.Length);
                 nextChunkBuffer.Write((byte)cmdtype);
                 nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
+                logWaitNumber = this.logGroupWaitSequenceNumber;
             }
         }
+
         public void flushPendingCommands() {
+            long waitForLWSN;
             lock (this) {
+                waitForLWSN = this.logGroupWaitSequenceNumber;
+            }
+            flushPendingCommandsThrough(waitForLWSN);
+        }
+
+        public void flushPendingCommandsThrough(long waitForLWSN) {
+            DateTime started_waiting_at = DateTime.Now;
+            lock (this) {
+                if (waitForLWSN < logGroupWaitSequenceNumber) {
+                    return;
+                }
+                lastWaiter = started_waiting_at;
+                if (firstWaiter < started_waiting_at) {
+                    firstWaiter = started_waiting_at;
+                }
+                numWaiters++;
+            }
+            do {
+                WaitHandle.SignalAndWait(groupCommitWorkerHndl, groupCommitRequestorsHndl);                
+            } while (waitForLWSN >= this.logGroupWaitSequenceNumber);
+           
+        }
+
+        private void _flushThread() {
+            while (commitThread_should_run) {
+                WaitHandle.SignalAndWait(groupCommitRequestorsHndl,groupCommitWorkerHndl);                
+                _doWritePendingCmds();
+            }
+        }
+        private void _doLogEnd(BinaryWriter logbr) {
+            // write "end of log" marker  (magic, size=0, checksum=0);
+            logbr.Write((UInt32)LOG_MAGIC);
+            logbr.Write((UInt32)0); // size
+            logbr.Write((UInt16)0); // checksum
+            logbr.Flush();
+
+            // ..then, seek back so it will be overwritten when the next log entry is written
+            logbr.BaseStream.Seek(-(4 + 4 + 2), SeekOrigin.Current);
+
+        }
+        private void _doWritePendingCmds() {
+            int groupSize;
+            double groupDuration;
+            lock (this) {                
                 nextChunkBuffer.Seek(0, SeekOrigin.Begin);
                 byte[] cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
+
                 BinaryWriter logbr = new BinaryWriter(logstream);
 
                 if (cmds.Length != 0) {
@@ -198,17 +262,24 @@ namespace Bend
                     logbr.Write(cmds);
                 }
 
-                // TODO: write "end of log" marker  (magic, size=0, checksum=0);
-                logbr.Write((UInt32)LOG_MAGIC);
-                logbr.Write((UInt32)0); // size
-                logbr.Write((UInt16)0); // checksum
-                logbr.Flush();
-
-                // ..then, seek back so it will be overwritten when the next log entry is written
-                logbr.BaseStream.Seek(-(4 + 4 + 2), SeekOrigin.Current);
+                _doLogEnd(logbr);
 
                 nextChunkBuffer = new BinaryWriter(new MemoryStream());
+                // reset the group commit waiting machinery
+                {
+                    this.logGroupWaitSequenceNumber++; // increment the wait sequence number
+                    groupSize = numWaiters;
+                    groupDuration = (DateTime.Now - firstWaiter).TotalMilliseconds;
+                    numWaiters = 0;
+                    firstWaiter = DateTime.MinValue;
+                }
             }
+            if (groupSize > 2 && groupDuration > 10.0) {
+                System.Console.WriteLine("group commit {0}, longest wait {1} ms", 
+                    groupSize, groupDuration);
+            }
+
+        
         }
 
         void abortCorrupt(String reason) {
@@ -217,8 +288,10 @@ namespace Bend
         }
 
         public void Dispose() {
+            if (this.commitThread != null) { this.commitThread.Abort(); }                               
             if (this.logstream != null) { this.logstream.Close(); this.logstream = null; }
             if (this.rootblockstream != null) { this.rootblockstream.Close(); this.rootblockstream = null; }
+            
         }
     }
 

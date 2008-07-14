@@ -127,6 +127,7 @@ namespace Bend
         {
             LayerManager mylayer;
             long tsn; // transaction sequence number
+            long last_logwaitnumber = 0;
             enum TxnState
             {
                 PENDING,
@@ -149,7 +150,8 @@ namespace Bend
                     encoder.setStream(writer);
                     encoder.add(key, update);
                     encoder.flush();
-                    mylayer.logwriter.addCommand((byte)LogCommands.UPDATE, writer.ToArray());
+                    mylayer.logwriter.addCommand((byte)LogCommands.UPDATE, writer.ToArray(), 
+                        ref this.last_logwaitnumber);
 
                 }
                 mylayer.workingSegment.setRecord(key, update); // add to working set
@@ -163,7 +165,7 @@ namespace Bend
                 this.setValue(key, update);
             }
             public void addCommand(byte cmd, byte[] cmddata) {
-                mylayer.logwriter.addCommand(cmd, cmddata);
+                mylayer.logwriter.addCommand(cmd, cmddata, ref this.last_logwaitnumber);
             }
 
             public void commit() {
@@ -176,7 +178,10 @@ namespace Bend
                 //   multiple valid TXs. Currently if someone else is in the middle of
                 //   adding elements to the log, some of their stuff will be flushed with this
                 //   flush, while others will go in the next flush -- BAD.
-                mylayer.logwriter.flushPendingCommands();
+
+                if (this.last_logwaitnumber != 0) {
+                    mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
+                }
 
                 state = TxnState.COMMITTED;
             }
@@ -212,7 +217,8 @@ namespace Bend
 
             {
                 byte[] emptydata = new byte[0];
-                this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata);
+                long logWaitNumber = 0;
+                this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata, ref logWaitNumber);
             }
 
             IRegion reader;
