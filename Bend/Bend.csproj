@@ -76,6 +76,9 @@
     <Compile Include="RowPipe\PipeTest.cs" />
     <Compile Include="RowPipe\Qualifiers.cs" />
     <Compile Include="RowPipe\QualifiersTest.cs" />
+    <Compile Include="Segment\SegmentBlockCompressed.cs" />
+    <Compile Include="Segment\SegmentBlockCompressedTest.cs" />
+    <Compile Include="Segment\_SegmentBlockTest.cs" />
     <Compile Include="Segment\SortedSegmentTest.cs" />
     <Compile Include="LogWriterTest.cs" />
     <Compile Include="LogWriter.cs" />
