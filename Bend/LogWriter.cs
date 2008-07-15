@@ -62,7 +62,7 @@ namespace Bend
         AutoResetEvent groupCommitWorkerHndl;
         ManualResetEvent groupCommitRequestorsHndl;
         Thread commitThread;
-        bool commitThread_should_run = true;
+        bool commitThread_should_die = false;
         long logWaitSequenceNumber = 1; // this must never be zero
         long finishedLWSN = 0; 
         DateTime firstWaiter, lastWaiter;
@@ -238,9 +238,12 @@ namespace Bend
 
         private void _flushThread() {
 
-            while (commitThread_should_run) {                
+            while (true) {                
                 Thread.Sleep(5);
-                groupCommitWorkerHndl.WaitOne();                
+                groupCommitWorkerHndl.WaitOne();
+                if (commitThread_should_die) {
+                    return;
+                }
                 _doWritePendingCmds();
             }
         }
@@ -304,10 +307,10 @@ namespace Bend
                 
             }
         
-            if (groupSize > 2) {
-                System.Console.WriteLine("group commit {0}, longest wait {1} ms", 
-                    groupSize, groupDuration);
-            }
+            //if (groupSize > 2) {
+            //    System.Console.WriteLine("group commit {0}, longest wait {1} ms", 
+            //        groupSize, groupDuration);
+            //}
 
         
         }
@@ -318,7 +321,14 @@ namespace Bend
         }
 
         public void Dispose() {
-            if (this.commitThread != null) { this.commitThread.Abort(); }                               
+            if (this.commitThread != null) {
+                commitThread_should_die = true;
+                groupCommitWorkerHndl.Set();
+                if (!this.commitThread.Join(500)) {
+                    System.Console.WriteLine("commitThread join Timeout");
+                    this.commitThread.Abort();
+                }
+            }                               
             if (this.logstream != null) { this.logstream.Close(); this.logstream = null; }
             if (this.rootblockstream != null) { this.rootblockstream.Close(); this.rootblockstream = null; }
             
