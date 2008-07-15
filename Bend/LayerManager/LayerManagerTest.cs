@@ -487,15 +487,25 @@ namespace BendTests
                 Assert.AreEqual(false, had_errors, "should have no read errors");
             }
         }
-        
-        
+
+        [Test]
+        public void T09_LayerManager_ReadMergeAll() {
+            ReadThreadsTest test = new ReadThreadsTest(100, 30);
+
+            test.verifyData();
+            System.Console.WriteLine("----- merge --------");
+            test.db.mergeAllSegments();
+            test.verifyData();
+
+        }
+
         [Test]
         public void T10_LayerManager_ReadThreads() {
             ReadThreadsTest test = new ReadThreadsTest(100,30);
 
             test.verifyData();
             test.threadedVerify(10);
-
+            System.Console.WriteLine("----- merge --------");
             test.db.mergeAllSegments();
             test.threadedVerify(10);            
         }
@@ -693,8 +703,9 @@ namespace BendPerfTest {
 
             test.verifyData();
             test.threadedVerify(50);
-
+            System.Console.WriteLine("----- merge --------");
             test.db.mergeAllSegments();
+            test.verifyData();
             test.threadedVerify(50);            
         }
         
@@ -713,7 +724,7 @@ namespace BendPerfTest {
 
             test.verifyData();
             test.threadedVerify(50);
-
+            System.Console.WriteLine("----- merge --------");
             test.db.mergeAllSegments();
             test.threadedVerify(50);            
         }
