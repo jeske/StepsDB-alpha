@@ -396,8 +396,13 @@ namespace Bend
         }
 
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
-
-            KeyValuePair<RecordKey,RecordUpdate> kvp = this.FindNext(key, true);
+            KeyValuePair<RecordKey, RecordUpdate> kvp;
+            try {
+                kvp = this.FindNext(key, true);
+            } catch (KeyNotFoundException) {
+                update = RecordUpdate.NoUpdate();
+                return GetStatus.MISSING;
+            }
 
             if (kvp.Key.Equals(key)) {
                 update = kvp.Value;
