@@ -397,16 +397,14 @@ namespace Bend
 
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
 
-            // TODO: need to BINARY SEARCH!!!! for the key
-            foreach (KeyValuePair<RecordKey,RecordUpdate> kvp in this.sortedWalk()) {
-                if (kvp.Key.Equals(key)) {
-                    update = kvp.Value;
-                    return GetStatus.PRESENT;
-                }
+            KeyValuePair<RecordKey,RecordUpdate> kvp = this.FindNext(key, true);
+
+            if (kvp.Key.Equals(key)) {
+                update = kvp.Value;
+                return GetStatus.PRESENT;
             }
             update = RecordUpdate.NoUpdate();
             return GetStatus.MISSING;
-
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
             return index.sortedWalk();
