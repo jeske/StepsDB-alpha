@@ -597,8 +597,9 @@ namespace BendTests
                 System.Console.WriteLine("startwrites.. " + thread_num);
                 // add the values
                 for (int i = 0; i < datavalues.Length; i++) {
-                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
-                    db.setValueParsed("v/" + value, datavalues[i].ToString());                    
+                    string data = datavalues[i].ToString();
+                    string value = "v/" + data + ":" + thread_num.ToString();                    
+                    db.setValueParsed(value, data);                    
                     Interlocked.Increment(ref num_additions);
                 }
                 
@@ -702,8 +703,8 @@ namespace BendPerfTest {
         [Test]
         public void T11_WriteThreads_Perf() {
             A03_LayerManagerTests.WriteThreadsTest test = 
-                new A03_LayerManagerTests.WriteThreadsTest(3000, 15000);
-            test.threadedTest(100);
+                new A03_LayerManagerTests.WriteThreadsTest(100, 1000);
+            test.threadedTest(50);
         }
 
     }
