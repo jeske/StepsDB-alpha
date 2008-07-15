@@ -736,8 +736,8 @@ namespace BendPerfTest {
         [Test]
         public void T11_WriteThreads_Perf() {
             A03_LayerManagerTests.WriteThreadsTest test = 
-                new A03_LayerManagerTests.WriteThreadsTest(100, 1000);
-            test.threadedTest(50);
+                new A03_LayerManagerTests.WriteThreadsTest(500, 7000);
+            test.threadedTest(60);
             test.Dispose();
         }
 
