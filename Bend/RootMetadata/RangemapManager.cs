@@ -92,14 +92,28 @@ namespace Bend
 
         }
 
+        public void clearSegmentCacheHack() {            
+            lock (disk_segment_cache) {
+                disk_segment_cache = new Dictionary<RecordKey, SegmentReader>();
+            }
+            System.Console.WriteLine("*** clearSegmentCacheHack() ***");
+            // TODO: see unmapGeneration(). This should go away when a transaction apply which
+            //  .. touches a rangemap row automagically causes an invalidation of the segment cache            
+        }
+
         public void unmapGeneration(LayerManager.Txn tx, int gen_number) {
-            // TODO: somehow verify this is a valid thing to do!!
+            // TODO: how do we assure that existing read operations flush and reload all segments?          
+
             RecordKey key = new RecordKey();
             key.appendParsedKey(".ROOT/GEN");
             key.appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD));
             key.appendParsedKey("</>");
             lock (disk_segment_cache) {
                 // clear the entry from the cache
+                // TODO: fix this so it works when we fix setValue...
+                //   ... technically this only works right now because setValue applies immediately.
+                //   ... if it actually applied when the TX commits like it's supposed to, there would
+                //   ... be a race condition here
                 try {
                     disk_segment_cache.Remove(key);
                 }
@@ -108,6 +122,7 @@ namespace Bend
                 }
             }
             tx.setValue(key, RecordUpdate.DeletionTombstone());
+            
         }
 
         public void shrinkGenerationCount() {

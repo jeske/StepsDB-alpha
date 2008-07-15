@@ -395,7 +395,7 @@ namespace BendTests
 
         // TEST: region IO concurrency
         
-        public class ReadThreadsTest {
+        public class ReadThreadsTest : IDisposable {
             internal LayerManager db; 
             int TEST_RECORD_COUNT = 100;
             int RECORDS_PER_SEGMENT = 30;
@@ -437,6 +437,10 @@ namespace BendTests
                     }
                 }            
                 db.flushWorkingSegment();
+            }
+
+            public void Dispose() {
+                if (db != null) { db.Dispose(); db = null; }                
             }
 
             internal void verifyData() {
@@ -489,17 +493,6 @@ namespace BendTests
         }
 
         [Test]
-        public void T09_LayerManager_ReadMergeAll() {
-            ReadThreadsTest test = new ReadThreadsTest(100, 30);
-
-            test.verifyData();
-            System.Console.WriteLine("----- merge --------");
-            test.db.mergeAllSegments();
-            test.verifyData();
-
-        }
-
-        [Test]
         public void T10_LayerManager_ReadThreads() {
             ReadThreadsTest test = new ReadThreadsTest(100,30);
 
@@ -507,10 +500,12 @@ namespace BendTests
             test.threadedVerify(10);
             System.Console.WriteLine("----- merge --------");
             test.db.mergeAllSegments();
-            test.threadedVerify(10);            
+            test.verifyData();
+            test.threadedVerify(10);
+            test.Dispose();
         }
 
-        public class WriteThreadsTest
+        public class WriteThreadsTest : IDisposable
         {
             internal LayerManager db;
 
@@ -533,6 +528,10 @@ namespace BendTests
                     datavalues[i] = rnd.Next(0xfffff);
                 }
             
+            }
+
+            public void Dispose() {
+                if (db != null) { db.Dispose(); db = null; }
             }
 
             public class threadLauncher
@@ -651,6 +650,7 @@ namespace BendTests
         public void T11_LayerManager_WriteThreads() {
             WriteThreadsTest test = new WriteThreadsTest(10,50);
             test.threadedTest(100);
+            test.Dispose();
         }
 
 
@@ -707,7 +707,9 @@ namespace BendPerfTest {
             System.Console.WriteLine("----- merge --------");
             test.db.mergeAllSegments();
             test.verifyData();
-            test.threadedVerify(50);            
+            test.threadedVerify(50);
+            test.Dispose();
+          
         }
         
         [Test]
@@ -727,7 +729,8 @@ namespace BendPerfTest {
             test.threadedVerify(50);
             System.Console.WriteLine("----- merge --------");
             test.db.mergeAllSegments();
-            test.threadedVerify(50);            
+            test.threadedVerify(50);
+            test.Dispose();
         }
 
         [Test]
@@ -735,6 +738,7 @@ namespace BendPerfTest {
             A03_LayerManagerTests.WriteThreadsTest test = 
                 new A03_LayerManagerTests.WriteThreadsTest(100, 1000);
             test.threadedTest(50);
+            test.Dispose();
         }
 
     }

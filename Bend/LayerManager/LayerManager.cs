@@ -332,6 +332,7 @@ namespace Bend
                 rangemapmgr.mapGenerationToRegion(tx, 0, reader);
                 tx.commit();                             // commit the freespace and rangemap transaction
 
+                rangemapmgr.clearSegmentCacheHack();
                 // reader.getStream().Close();              // force close the reader
                 rangemapmgr.shrinkGenerationCount();     // check to see if we can shrink NUMGENERATIONS
             }
