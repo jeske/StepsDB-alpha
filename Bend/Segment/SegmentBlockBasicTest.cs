@@ -168,7 +168,7 @@ namespace BendPerfTest
             // random key queries to see how fast retrieval is
 
             int[] block_sizes = { 2 * 1024, 40 * 1024, 100 * 1024, 2 * 1024 * 1024 };
-            int[] value_sizes = { 10, 100, 1000, 10000 };
+            int[] value_sizes = { 4, 10, 30, 100, 1000, 10000 };
             int[,] perf_results = new int[block_sizes.Length,value_sizes.Length];
             int READ_COUNT = 1000;
 

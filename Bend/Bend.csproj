@@ -89,6 +89,7 @@
     <Compile Include="Util\GenericWeakReference.cs" />
     <Compile Include="LayerManager\LayerManagerTest.cs" />
     <Compile Include="Util\IScanner.cs" />
+    <Compile Include="Util\LRUCache.cs" />
     <Compile Include="Util\NumberFormat.cs" />
     <Compile Include="Util\OffsetStream.cs" />
     <Compile Include="Util\SkipList.cs" />

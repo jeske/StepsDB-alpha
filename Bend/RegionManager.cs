@@ -82,7 +82,7 @@ namespace Bend
    
     // -----------------[ RegionExposedFiles ]-----------------------------------------------
 
-    
+
     // manage a region of exposed files
     class RegionExposedFiles : IRegionManager
     {
@@ -107,7 +107,7 @@ namespace Bend
             long length;
 
             Dictionary<int, Stream> my_streams;
-            Dictionary<int, WeakReference<byte[]>> block_cache;
+            LRUCache<int, byte[]> block_cache;
 
 
             // -------------
@@ -118,7 +118,7 @@ namespace Bend
                 this.mode = mode;
                 this.filepath = filepath;
                 my_streams = new Dictionary<int, Stream>();
-                block_cache = new Dictionary<int, WeakReference<byte[]>>();
+                block_cache = new LRUCache<int, byte[]>(5000);                    
                 
             }
 
@@ -163,16 +163,13 @@ namespace Bend
             public BlockAccessor getNewBlockAccessor(int rel_block_start, int block_len) {
                 // return it from the block cache if it's there
                 lock (block_cache) {
-                    if (block_cache.ContainsKey(rel_block_start)) {
-                        byte[] datablock = this.block_cache[rel_block_start].Target;
-                        if (datablock != null) {
-                            if (datablock.Length == block_len) {
-                                return new BlockAccessor(datablock);
-                            }
-                        } else {
-                            // weakref lost...
-                            block_cache.Remove(rel_block_start);
+                    try {
+                        byte[] datablock = this.block_cache.Get(rel_block_start);
+                        if (datablock.Length == block_len) {
+                            return new BlockAccessor(datablock);
                         }
+                    } catch (KeyNotFoundException) {
+                        // fall through below...
                     }
                 }
 
@@ -188,7 +185,7 @@ namespace Bend
                 double duration_ms = (DateTime.Now - before_read).TotalMilliseconds;
 
                 lock (block_cache) {
-                    block_cache[rel_block_start] = new WeakReference<byte[]>(block);
+                    block_cache.Add(rel_block_start, block);
                 }
 
                 if (duration_ms > 6.0) {

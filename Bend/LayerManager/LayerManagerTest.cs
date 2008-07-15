@@ -705,7 +705,7 @@ namespace BendPerfTest {
         [Test]
         public void T10_ReadThreads_Perf() {
             A03_LayerManagerTests.ReadThreadsTest test =                 
-                new A03_LayerManagerTests.ReadThreadsTest(1000,300);
+                new A03_LayerManagerTests.ReadThreadsTest(500,100);
 
             test.verifyData();
             test.threadedVerify(50);

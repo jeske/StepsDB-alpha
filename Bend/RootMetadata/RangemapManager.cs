@@ -63,12 +63,11 @@ namespace Bend
                     return disk_segment_cache[key];
                 } catch (KeyNotFoundException) {
                     SegmentReader next_seg = getSegmentFromMetadataBytes(update.data);
-
                     disk_segment_cache[key] = next_seg;
                     return next_seg;
                 }
             }
-        }
+        }        
 
 
         public void mapGenerationToRegion(LayerManager.Txn tx, int gen_number, IRegion region) {
@@ -140,10 +139,11 @@ namespace Bend
             // we now have a pointer to a segment addres for GEN<max>
             uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
 
-
+            System.Console.WriteLine("-- open SegmentReader {0}", region_addr);
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
             SegmentReader sr = new SegmentReader(region);
             return sr;
+
         }
 
         public ISortedSegment getSegmentFromMetadata(RecordData data) {
