@@ -403,7 +403,10 @@ namespace BendTests
             SortedDictionary<RecordKey, RecordUpdate> testrows;
             internal int records_read = 0;
 
-            internal ReadThreadsTest() {
+            internal ReadThreadsTest(int rec_count, int rec_per_segment) {
+                this.TEST_RECORD_COUNT = rec_count;
+                this.RECORDS_PER_SEGMENT = rec_per_segment;
+
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\10");
                 testdata = new SortedDictionary<string, string>();
                 testrows = new SortedDictionary<RecordKey, RecordUpdate>();
@@ -484,7 +487,7 @@ namespace BendTests
         
         [Test]
         public void T10_LayerManager_ReadThreads() {
-            ReadThreadsTest test = new ReadThreadsTest();
+            ReadThreadsTest test = new ReadThreadsTest(100,30);
 
             test.verifyData();
             test.threadedVerify(10);
@@ -679,11 +682,10 @@ namespace BendPerfTest {
     [TestFixture]
     public class A02_LayerManagerPerf {
 
-
         [Test]
-        public void T10_ReadThreads_Perf() {
+        public void T01_Small_ReadThreads_Perf() {
             A03_LayerManagerTests.ReadThreadsTest test =                 
-                new A03_LayerManagerTests.ReadThreadsTest();
+                new A03_LayerManagerTests.ReadThreadsTest(100,30);
 
             test.verifyData();
             test.threadedVerify(50);
@@ -691,14 +693,26 @@ namespace BendPerfTest {
             test.db.mergeAllSegments();
             test.threadedVerify(50);            
         }
-
+        
         [Test]
-        public void T1_WriteThreads_Perf_Small() {
+        public void T02_Small_WriteThreads_Perf() {
             A03_LayerManagerTests.WriteThreadsTest test =
                 new A03_LayerManagerTests.WriteThreadsTest(20, 800);
             test.threadedTest(100);
         }
 
+
+        [Test]
+        public void T10_ReadThreads_Perf() {
+            A03_LayerManagerTests.ReadThreadsTest test =                 
+                new A03_LayerManagerTests.ReadThreadsTest(1000,300);
+
+            test.verifyData();
+            test.threadedVerify(50);
+
+            test.db.mergeAllSegments();
+            test.threadedVerify(50);            
+        }
 
         [Test]
         public void T11_WriteThreads_Perf() {
