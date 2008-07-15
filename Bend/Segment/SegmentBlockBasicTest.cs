@@ -159,6 +159,8 @@ namespace BendTests
 
 namespace BendPerfTest
 {
+    using System.Threading;
+
     [TestFixture]
     public class A01_BasicBlock_Perf {
 
@@ -170,9 +172,9 @@ namespace BendPerfTest
             int[] block_sizes = { 2 * 1024, 40 * 1024, 100 * 1024, 2 * 1024 * 1024 };
             int[] value_sizes = { 4, 10, 30, 100, 1000, 10000 };
             int[,] perf_results = new int[block_sizes.Length,value_sizes.Length];
-            int READ_COUNT = 1000;
+            int READ_COUNT = 2000;
 
-            Random rnd = new Random();
+            Random rnd = new Random((int)DateTime.Now.ToBinary());
 
             foreach (int block_size in block_sizes) {
                 foreach (int value_size in value_sizes) {
@@ -200,8 +202,8 @@ namespace BendPerfTest
 
                     // init the decoder
                     SegmentBlockBasicDecoder dec = new SegmentBlockBasicDecoder(new BlockAccessor(ms.ToArray()));
-
-
+                    
+                    System.GC.Collect();  // force GC so it may not happen during the test                    
                     // perform random access test
                     DateTime start = DateTime.Now;
                     for (int i=0;i<READ_COUNT;i++) {
