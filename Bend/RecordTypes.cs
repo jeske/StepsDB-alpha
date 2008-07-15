@@ -404,6 +404,13 @@ namespace Bend
                 return false;
             }
         }
+        public override int GetHashCode() {
+            int hash_code = 0;
+            foreach (string part in key_parts) {
+                hash_code += part.GetHashCode();
+            }
+            return hash_code;
+        }
 
         public string DebugToString()
         {

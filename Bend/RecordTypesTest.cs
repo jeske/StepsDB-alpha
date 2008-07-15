@@ -25,6 +25,9 @@ namespace BendTests
             Assert.AreEqual(key1, key2, "object equal");
             Assert.AreEqual(true, key1.Equals(key2), "key1.Equals(key2)");
 
+            Assert.AreEqual(key1.GetHashCode(), key2.GetHashCode(), 
+                "equals keys need equal HashCodes");
+
             RecordKey key3 = new RecordKey().appendParsedKey("");
             RecordKey key4 = new RecordKey().appendKeyPart(new byte[0]);
             Assert.AreEqual(true, key3.Equals(key4), "null keys should match");
