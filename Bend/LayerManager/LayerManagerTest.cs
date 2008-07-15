@@ -402,6 +402,7 @@ namespace BendTests
             SortedDictionary<string, string> testdata;
             SortedDictionary<RecordKey, RecordUpdate> testrows;
             internal int records_read = 0;
+            internal bool had_errors = false;
 
             internal ReadThreadsTest(int rec_count, int rec_per_segment) {
                 this.TEST_RECORD_COUNT = rec_count;
@@ -445,7 +446,8 @@ namespace BendTests
                     RecordData rdata;
                     RecordKey rkey = kvp.Key;
                     if (db.getRecord(rkey, out rdata) == GetStatus.MISSING) {
-                        Assert.Fail("failed to read: " + kvp.Key.ToString());
+                        had_errors = true;
+                        Assert.Fail("failed to read: " + kvp.Key.ToString());                        
                     }
                     Interlocked.Increment(ref records_read);
                     
@@ -481,6 +483,8 @@ namespace BendTests
 
                 System.Console.WriteLine("ReadThreads ({0} records) in elapsed time: {1} -- {2} rec/sec",
                     this.records_read, duration, records_per_second);
+
+                Assert.AreEqual(false, had_errors, "should have no read errors");
             }
         }
         
