@@ -407,7 +407,7 @@ namespace BendTests
             internal ReadThreadsTest(int rec_count, int rec_per_segment) {
                 this.TEST_RECORD_COUNT = rec_count;
                 this.RECORDS_PER_SEGMENT = rec_per_segment;
-
+                System.GC.Collect();
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\10");
                 testdata = new SortedDictionary<string, string>();
                 testrows = new SortedDictionary<RecordKey, RecordUpdate>();
@@ -523,6 +523,7 @@ namespace BendTests
             internal int checkpoint_interval;
 
             internal WriteThreadsTest(int num_values, int checkpoint_interval_rowcount) {
+                System.GC.Collect();
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\11");
                 this.checkpoint_interval = checkpoint_interval_rowcount;
                 

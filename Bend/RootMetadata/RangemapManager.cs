@@ -92,13 +92,21 @@ namespace Bend
 
         }
 
-
         public void unmapGeneration(LayerManager.Txn tx, int gen_number) {
             // TODO: somehow verify this is a valid thing to do!!
             RecordKey key = new RecordKey();
             key.appendParsedKey(".ROOT/GEN");
             key.appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD));
             key.appendParsedKey("</>");
+            lock (disk_segment_cache) {
+                // clear the entry from the cache
+                try {
+                    disk_segment_cache.Remove(key);
+                }
+                catch (KeyNotFoundException) {
+                    // not being in ths cache is okay
+                }
+            }
             tx.setValue(key, RecordUpdate.DeletionTombstone());
         }
 
