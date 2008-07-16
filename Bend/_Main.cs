@@ -105,7 +105,7 @@ namespace Bend
                 }
             }
 
-
+            System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
             A03_LayerManagerTests test = new A03_LayerManagerTests();
             test.T10_LayerManager_ReadThreads();
 
