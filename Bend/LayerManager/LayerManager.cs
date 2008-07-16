@@ -91,7 +91,9 @@ namespace Bend
                     ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
                     foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in decoder.sortedWalk()) {
                         // populate our working segment
-                        mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
+                        lock (mylayer.segmentlayers) {
+                            mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
+                        }
                     }
                 } else if (cmd == (byte)LogCommands.CHECKPOINT) {
                     // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
@@ -156,7 +158,9 @@ namespace Bend
                 }
                 // TODO: switch our writes to always occur through "handling the log"
                 // TODO: make our writes only visible to US, by creating a "transaction segment"
-                mylayer.workingSegment.setRecord(key, update); // add to working set
+                lock (mylayer.segmentlayers) {
+                    mylayer.workingSegment.setRecord(key, update); // add to working set
+                }
             }
 
             public void setValueParsed(String skey, String svalue) {
@@ -209,19 +213,23 @@ namespace Bend
             // create a new working segment            
             SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
             SegmentMemoryBuilder checkpointSegment;
+            int checkpoint_segment_size;
 
             // grab the checkpoint segment and move it aside
             lock (this.segmentlayers) {
                 checkpointSegment = workingSegment;
+                checkpoint_segment_size = checkpointSegment.RowCount;
                 workingSegment = newlayer;
-                segmentlayers.Insert(0, workingSegment);
+                segmentlayers.Insert(0, workingSegment);                
             }
 
-            {
+            { // TODO: does this need to be in the lock?
                 byte[] emptydata = new byte[0];
                 long logWaitNumber = 0;
                 this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata, ref logWaitNumber);
             }
+                       
+
 
             IRegion reader;
             {
@@ -263,6 +271,10 @@ namespace Bend
             // reader.getStream().Close(); // force close the reader
 
             lock (this.segmentlayers) {
+                if (checkpointSegment.RowCount != checkpoint_segment_size) {
+                    System.Console.WriteLine("checkpointSegment was added to while checkpointing!! lost {0} rows",
+                        checkpointSegment.RowCount - checkpoint_segment_size);
+                }
                 segmentlayers.Remove(checkpointSegment);
             }
         }

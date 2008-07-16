@@ -627,8 +627,15 @@ namespace BendTests
                     string value = datavalues[i].ToString() + ":" + thread_num.ToString();
                     RecordData data;
                     if (db.getRecord(new RecordKey().appendParsedKey("v/" + value), out data) == GetStatus.PRESENT) {
-                        Assert.AreEqual(datavalues[i].ToString(), data.ToString());
-                        Interlocked.Increment(ref num_retrievals);
+                        if (datavalues[i].ToString() == data.ToString()) {
+                            Interlocked.Increment(ref num_retrievals);
+                        } else {
+                            System.Console.WriteLine("-- ERR: record data didn't match for key({0}). {1} != {2}",
+                                "v/" + value, data.ToString(), datavalues[i].ToString());
+                        }
+                    } else {
+                        System.Console.WriteLine("-- ERR: missing record, thread({0}), key({1})",
+                            thread_num, "v/" + value);
                     }
                 }
 
