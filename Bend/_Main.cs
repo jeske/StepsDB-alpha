@@ -44,7 +44,7 @@ namespace Bend
 
         public static void do_bringup_test() {
         
-            LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\test\\main");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\BENDtst\\main");
          
             db.setValueParsed("test/3","a");
             db.setValueParsed("test/2","b");
@@ -72,7 +72,7 @@ namespace Bend
             db.Dispose();
 
             System.Console.WriteLine("-------- NOW RESUME ---------------------------------");
-            db = new LayerManager(InitMode.RESUME, "c:\\test\\main");
+            db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\main");
             db.debugDump();
 
             System.Console.WriteLine("-------- NOW FINDNEXT ---------------------------------");

@@ -22,7 +22,7 @@ namespace BendTests
 
         [Test]
         public void T000_EmptyLayerInitAndResume() {
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\3");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\3");
 
             Assert.AreEqual(1, db.segmentlayers.Count);
             Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
@@ -38,7 +38,7 @@ namespace BendTests
             String[] values = {"a","b","c" };
 
             {
-                LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\4");
+                LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\4");
 
                 LayerManager.Txn txn = db.newTxn();
                 for (int i=0;i<keys.Length;i++) {
@@ -60,7 +60,7 @@ namespace BendTests
             }
 
             {
-                LayerManager db = new LayerManager(InitMode.RESUME, "c:\\test\\4");
+                LayerManager db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\4");
                 
                 // assure we still have not committed any segments
                 Assert.AreEqual(1, db.segmentlayers.Count);
@@ -100,7 +100,7 @@ namespace BendTests
             String[] keys = { "test-1", "test-2", "test-3" };
             String[] values = { "a", "b", "c" };
 
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\5");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\5");
 
             LayerManager.Txn txn = db.newTxn();
             for (int i = 0; i < keys.Length; i++) {
@@ -164,7 +164,7 @@ namespace BendTests
             // Assure that when records are written more than once, the updates are applied in the correct
             // order so we see the proper current data value
 
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\6");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\6");
 
             {
                 String[] keys = { "test-1", "test-2", "test-3" };
@@ -273,7 +273,7 @@ namespace BendTests
             T03_SegmentLayerGetRecordApplicationOrder();
 
             // ... and then perform a resume
-            LayerManager db = new LayerManager(InitMode.RESUME, "c:\\test\\6");
+            LayerManager db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\6");
 
             String[] keys = { "test-1", "test-2", "test-3" };
             String[] values = { "a-second", "b-second", "c-second" };
@@ -320,7 +320,7 @@ namespace BendTests
                     db.Dispose();
 
                     // RESUME
-                    db = new LayerManager(InitMode.RESUME, "c:\\test\\6");
+                    db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\6");
 
                     // first test records should still be visible
                     for (int i = 0; i < keys.Length; i++) {
@@ -408,7 +408,7 @@ namespace BendTests
                 this.TEST_RECORD_COUNT = rec_count;
                 this.RECORDS_PER_SEGMENT = rec_per_segment;
                 System.GC.Collect();
-                db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\10");
+                db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\10");
                 testdata = new SortedDictionary<string, string>();
                 testrows = new SortedDictionary<RecordKey, RecordUpdate>();
 
@@ -519,7 +519,7 @@ namespace BendTests
 
             internal WriteThreadsTest(int num_values, int checkpoint_interval_rowcount) {
                 System.GC.Collect();
-                db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\11");
+                db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\11");
                 this.checkpoint_interval = checkpoint_interval_rowcount;
                 
                 Random rnd = new Random();
@@ -684,7 +684,7 @@ namespace BendTests
 
         [Test]
         public void T001_FullScanWithOnlyWorkingSegment() {
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\test\\31");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\31");
             db.setValueParsed("test/1", "a");
             Assert.Fail("test not implemented");
         }

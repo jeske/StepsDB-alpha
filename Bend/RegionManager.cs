@@ -317,7 +317,7 @@ namespace BendTests
         [Test]
         public void T05_Region_Concurrency() {
             RegionExposedFiles rm = new RegionExposedFiles(InitMode.NEW_REGION,
-                    @"C:\test\T05_Region_Concurrency");
+                    "C:\\BENDtst\\T05_Region_Concurrency");
             byte[] data = { 1 , 3, 4, 5, 6, 7, 8, 9, 10 };
 
             {

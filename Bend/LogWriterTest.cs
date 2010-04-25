@@ -20,7 +20,7 @@ namespace BendTests
         public void T00_LogInit() {
 
 
-            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");  // TODO, create random directory
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\1");  // TODO, create random directory
             {
                 LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr);
                 lr.Dispose();
@@ -69,7 +69,7 @@ namespace BendTests
         [Test]
         public void T00_ResumeEmpty() {
             T00_LogInit();
-            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\1");
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\1");
             TestReceiver receiver = new TestReceiver();
             LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
             // TODO: add a log handler that asserts there were no log events
@@ -78,7 +78,7 @@ namespace BendTests
 
         [Test]
         public void T00_ResumeWithRecords() {
-            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\test\\2");
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\2");
 
             byte cmd = 0x01;
             byte[] cmddata = { 0x81, 0x82, 0x83 };
