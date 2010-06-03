@@ -438,7 +438,7 @@ namespace Bend
 
     // ---------------------------[  SegmentWriter  ]--------------------------------
     
-    // tells the segmentwriter when to split, and what type of block to use
+    // SegmentWriterAdvisor tells the SegmentWriter when to split, and what type of block to use
     // TODO: figure out how we can get access to the source segment information about what is coming
     //       for lookahead.... Maybe we should stage blocks before we decide which format to put them
     //       in and add all the keys. (i.e. first find the end of the block, then go through again
@@ -528,7 +528,7 @@ namespace Bend
                 hasmore = cursor.MoveNext();
 
                 if ((!hasmore) || advisor.recommendsNewBlock() ) {
-                    encoder.flush();  encoder = null;
+                    encoder.flush();  encoder = null; // this will trigger reinit above
                     endpos = writer.Position;
                     index.addBlock(block_start_key, encoder, startpos, endpos);
                     advisor.fyiFinishedBlock();
