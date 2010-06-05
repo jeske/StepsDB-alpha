@@ -458,10 +458,11 @@ namespace Bend
         }
 
         private IEnumerable<Node<K, V>> _internalEnumerator() {
-            Node<K, V> cursor = this.head[0];
+            Node<K, V> cursor = this.head[0];           
+
             // check that we are on the full-linked-list layer (i.e. bottom)
             if (cursor.down != null) {
-                throw new Exception("Skiplist head[maxListsCount] didn't bring us to the bottom, full-linked-list layer");
+                throw new Exception("Skiplist head[0] didn't bring us to the bottom, full-linked-list layer");
             }
             // move past the starting sentinel value
             if (cursor.is_sentinel) {
@@ -470,7 +471,7 @@ namespace Bend
                 throw new Exception("Invalid head sentinel in SkipList");
             }
             // now iterate across the linked list
-            do {
+            while (!cursor.is_sentinel) {
                 if (!cursor.is_sentinel) { // check for sentinel
                     yield return cursor;
                 } else {
@@ -479,8 +480,7 @@ namespace Bend
                     }
                 }
                 cursor = cursor.right;
-            } while (!cursor.is_sentinel);
-
+            }
         }
 
         #endregion
@@ -778,7 +778,7 @@ namespace BendTests
                 Assert.AreEqual("abc", rec.Key);
                 rec = l.FindNext("", false);
                 Assert.AreEqual("abc", rec.Key);
-                
+
                 // FindPrev(null) should return the last element
                 rec = l.FindPrev(null, true);
                 Assert.AreEqual("ghi", rec.Key);
@@ -787,9 +787,10 @@ namespace BendTests
 
                 // FindPrev("") should return nothing
                 bool err = false;
-                try { rec = l.FindPrev("", true); } catch { err = true; }
+                try { rec = l.FindPrev("", true); }
+                catch { err = true; }
                 Assert.AreEqual(true, err);
-                
+
 
             }
             {
@@ -840,6 +841,14 @@ namespace BendTests
                 }
                 Assert.AreEqual(pos, keylist.Length, "iterator did not return all elements it should have");
             }
+
+            // use an iterator over an empty skiplist
+            {
+                SkipList<string, int> l2 = new SkipList<string, int>();
+                foreach (KeyValuePair<string, int> kvp in l2) {
+                    Assert.Fail("empty list should not cause iteration");
+                }
+            }
         }
 
 
@@ -861,6 +870,8 @@ namespace BendTests
             }
 
         }
+
+        
 
         [Test]
         public void T01_Skiplist_ScannableDictionaryInterface() {
