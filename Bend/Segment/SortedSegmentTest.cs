@@ -59,6 +59,7 @@ namespace BendTests
 
         class TestRegionRead : IRegion
         {
+
             byte[] data;
             internal TestRegionRead(byte[] data) {
                 this.data = data;
@@ -89,11 +90,14 @@ namespace BendTests
         class TestRegionWriteOnce : IRegion
         {
             internal MemoryStream mystream = null;
-            internal TestRegionWriteOnce() {
+            long size = -1;
+            internal TestRegionWriteOnce(long size) {
+                this.size = size;
             }
             public Stream getNewAccessStream() {
                 if (mystream == null) {
                     mystream = new MemoryStream();
+                    mystream.SetLength(this.size);
                     return mystream;
                 } else {
                     throw new Exception("you can only write to TestRegionWriteOnce, once!");
@@ -118,8 +122,10 @@ namespace BendTests
             
         }
 
-        [Test]
 
+        long TEST_BLOCK_LENGTH = 1 * 1024 * 1024; // 1MB
+
+        [Test]
         public void T00_SegmentIndex_EncodeDecode() {
             string[] block_start_keys = { "test/1/2/3/4", "test/1/2/3/5" };
             int[] block_start_pos = { 0, 51 };
@@ -160,10 +166,12 @@ namespace BendTests
         [Test]
         public void T02_BuilderReader() {
             byte[] databuffer;
+            
 
             // write the segment
             {
                 MemoryStream ms = new MemoryStream();
+                ms.SetLength(TEST_BLOCK_LENGTH);
                 SegmentMemoryBuilder builder = new SegmentMemoryBuilder();
                 builder.setRecord(new RecordKey().appendParsedKey("test/1"),
                     RecordUpdate.WithPayload("3"));
@@ -176,7 +184,10 @@ namespace BendTests
                 databuffer = ms.ToArray();
             }
 
+            Assert.AreEqual(TEST_BLOCK_LENGTH, databuffer.Length, "Databuffer is not equal to blocklength");
 
+            System.Console.WriteLine(databuffer);
+            
             // segment readback
             {
                 TestRegionRead testregion = new TestRegionRead(databuffer);
@@ -249,7 +260,7 @@ namespace BendTests
                 // TODO: test with multiple advisors (lots of block boundaries, only one block, 
                 //    .. one blocktype, multiple blocktypes...etc)
 
-                TestRegionWriteOnce testwregion = new TestRegionWriteOnce();
+                TestRegionWriteOnce testwregion = new TestRegionWriteOnce(TEST_BLOCK_LENGTH);
                 SegmentWriter writer = new SegmentWriter(builder.sortedWalk());
                 writer.writeToStream(testwregion.getNewAccessStream());
 

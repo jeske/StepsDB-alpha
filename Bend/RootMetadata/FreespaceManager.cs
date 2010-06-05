@@ -23,7 +23,7 @@ namespace Bend
     public class FreespaceManager
     {
         int next_allocation;
-        static int DEFAULT_SEGMENT_SIZE = 8 * 1024 * 1024;
+        
         LayerManager store;
         public FreespaceManager(LayerManager store) {
             this.store = store;
@@ -39,12 +39,12 @@ namespace Bend
 
         // right now we're going to use a "top of heap" allocation strategy with no reclamation
         // .ROOT/FREELIST/HEAD -> "top of heap"
-        public IRegion allocateNewSegment(LayerManager.Txn tx, int remaining_bytes_to_write) {
+        public IRegion allocateNewSegment(LayerManager.Txn tx, int length) {
             int new_addr;
             // grab a chunk
 
             new_addr = next_allocation;
-            next_allocation = next_allocation + DEFAULT_SEGMENT_SIZE;
+            next_allocation = next_allocation + length;
 
             // write our new top of heap pointer
             {
@@ -52,7 +52,7 @@ namespace Bend
                 tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 10)));
             }
 
-            return store.regionmgr.writeFreshRegionAddr((uint)new_addr);
+            return store.regionmgr.writeFreshRegionAddr((uint)new_addr, length);
         }
     }
 }

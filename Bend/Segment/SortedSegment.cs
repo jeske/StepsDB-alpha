@@ -361,6 +361,20 @@ namespace Bend
         }
 
 
+
+        internal long maxLengthAfterMicroBlockAdded(SegmentWriter.MicroBlockStream mb_writer) {
+            // FIXME: this is a VERY slow way to compute this.
+
+            MemoryStream test = new MemoryStream();
+            int PAD_LENGTH = 1024;
+
+            this.writeToStream(test);
+            return (test.Length + 
+                mb_writer.block_start_key.ToString().Length + 
+                mb_writer.last_seen_key.ToString().Length + 
+                PAD_LENGTH);
+            
+        }
     }
 
     // ---------------[ SegmentReader ]---------------------------------------------------------
@@ -453,19 +467,23 @@ namespace Bend
     class SegmentWriterAdvisor    
     {
         int keys_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_BLOCK = 200000; // set this really low for testing!!
+        int bytes_since_last_block = 0;
+        static int RECOMMEND_MAX_KEYS_PER_MICROBLOCK = 200000; 
+        static int RECOMMEND_MAX_BYTES_PER_MICROBLOCK = 64 * 1024;
 
         public SegmentWriterAdvisor() {
-            this.keys_since_last_block = 0;
         }
         public void fyiAddedRecord(RecordKey key, RecordUpdate update) {
             this.keys_since_last_block++;
+            this.bytes_since_last_block+= (key.ToString().Length + update.ToString().Length); // FIXME: this seems expensive!
         }
         public void fyiFinishedBlock() {
             this.keys_since_last_block = 0;
+            this.bytes_since_last_block = 0;
         }
         public bool recommendsNewBlock() {
-            if (this.keys_since_last_block >= RECOMMEND_MAX_KEYS_PER_BLOCK) {
+            if ((this.keys_since_last_block >= RECOMMEND_MAX_KEYS_PER_MICROBLOCK) ||
+                (this.bytes_since_last_block >= RECOMMEND_MAX_BYTES_PER_MICROBLOCK)) {
                 return true;
             } else {
                 return false;
@@ -478,78 +496,142 @@ namespace Bend
     class SegmentWriter
     {
         IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> enumeration;
+        IEnumerator<KeyValuePair<RecordKey, RecordUpdate>> cursor;
+        bool hasmore;
+        MemoryStream carryoverMicroblock = null; // this is the Microblock we encoded that didn't fit into the destination
         
+        // TODO: track input size, output size, number of blocks, 'wasted' space
+
         public SegmentWriter(IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> enumeration) {
             this.enumeration = enumeration;
+            this.cursor = enumeration.GetEnumerator();
+            this.hasmore = true;
+        }
+
+        public Boolean hasMoreData() {
+            return this.hasmore || (this.carryoverMicroblock != null);
+        }
+
+        public class MicroBlockStream : System.IO.MemoryStream {
+            public RecordKey block_start_key;
+            public RecordKey last_seen_key;
+            public ISegmentBlockEncoder encoder;
+            public MicroBlockStream(RecordKey first_key, ISegmentBlockEncoder enc) : base() {
+                block_start_key = first_key;
+                this.encoder = enc;
+            }
         }
 
         public void writeToStream(Stream writer) {
-            SortedSegmentIndex index = new SortedSegmentIndex();
+            SortedSegmentIndex index = new SortedSegmentIndex(); // the index for this destination block
             SegmentWriterAdvisor advisor = new SegmentWriterAdvisor();
-            int num_blocks = 0;
+            int num_microblocks = 0;
             int num_rows = 0;
+            MicroBlockStream mb_writer = null;
+            bool destination_full = false;
 
-            RecordKey block_start_key = null;
-            RecordKey last_seen_key = null;
+
+            long MIN_OUTPUT_LENGTH = 500 * 1024; // 500k min output block size for now!
+
+            if (writer.Length < MIN_OUTPUT_LENGTH) {
+                throw new Exception("SegmentWriter.writeToStream(Stream writer): handed writer with insufficient size");
+            }
+
+            //RecordKey block_start_key = null;
+            //RecordKey last_seen_key = null;
             ISegmentBlockEncoder encoder = null;
-            long startpos=0,endpos=0;        
 
-            // start with the simple case of a "single basic datablock" for the whole segment
-            IEnumerator<KeyValuePair<RecordKey, RecordUpdate>> cursor = enumeration.GetEnumerator();
+            // see if we have a carryover microblock
+            if (this.carryoverMicroblock != null) {
+                // TODO, check to see if we have space
+                long startpos = writer.Position;
+                this.carryoverMicroblock.WriteTo(writer);
+                long endpos = writer.Position;
+                index.addBlock(mb_writer.block_start_key, mb_writer.encoder, startpos, endpos);
+                this.carryoverMicroblock = null; // clear the microblock carryover
+            }
 
 
-            bool hasmore = cursor.MoveNext();
+            // Need to encode a new microblock, and see if it fits into the destination stream. 
+            // We encode microblocks by adding 64kb of keys, then asking for the total size. (the advisor computes the 64k)
+
+            this.hasmore = cursor.MoveNext();
             KeyValuePair<RecordKey, RecordUpdate> kvp;
 
-            while (hasmore) {
+            while (hasmore && !destination_full) {
                 kvp = cursor.Current;
                 if (encoder == null) {
-                    startpos = writer.Position;
                     encoder = new SegmentBlockBasicEncoder();
-                    encoder.setStream(writer);
-                    block_start_key = kvp.Key;
+                    mb_writer = new MicroBlockStream(kvp.Key, encoder);
+                    encoder.setStream(mb_writer);
+                    //block_start_key = kvp.Key;
 
 
-                    if ((num_blocks % 2) == 0) {
-                        System.Console.WriteLine("block {0} starting at row: {1}, key: {2}",
-                            num_blocks,num_rows,kvp.Key.ToString());
+                    if ((num_microblocks % 2) == 0) {
+                        System.Console.WriteLine("microblock {0} starting at row: {1}, key: {2}",
+                            num_microblocks, num_rows, kvp.Key.ToString());
                     }
-                    num_blocks++;
+                    num_microblocks++;
                 }
                 // handle this row
                 {
                     encoder.add(kvp.Key, kvp.Value);
-                    last_seen_key = kvp.Key;
+                    mb_writer.last_seen_key = kvp.Key;
                     advisor.fyiAddedRecord(kvp.Key, kvp.Value);
                     num_rows++;
                 }
 
                 // move to next row
-                hasmore = cursor.MoveNext();
+                this.hasmore = cursor.MoveNext();
 
-                if ((!hasmore) || advisor.recommendsNewBlock() ) {
-                    encoder.flush();  encoder = null; // this will trigger reinit above
-                    endpos = writer.Position;
-                    index.addBlock(block_start_key, encoder, startpos, endpos);
+                if ((!hasmore) || advisor.recommendsNewBlock()) {
                     advisor.fyiFinishedBlock();
 
-                    if (!hasmore) {
-                        System.Console.WriteLine("lastblock {0} ending at row: {1}, key: {2}",
-                            num_blocks, num_rows, kvp.Key.ToString());
+                    encoder.flush(); encoder = null; // this will trigger reinit above                    
+
+                    // we have a new microblock, now we need to decide if it will fit into the current destination
+                    // stream, along with the index afterwords...
+
+                    long space_left = writer.Length - writer.Position;
+
+                    if ((mb_writer.Length + index.maxLengthAfterMicroBlockAdded(mb_writer)) < space_left) {
+                        // yes, there is enough space to add the microblock
+                        long startpos = writer.Position;
+                        mb_writer.Position = 0;
+                        mb_writer.WriteTo(writer);
+                        long endpos = writer.Position;
+                        index.addBlock(mb_writer.block_start_key, encoder, startpos, endpos);
+                    } else {
+                        // nope, there is not enough space to add the microblock
+                        this.carryoverMicroblock = mb_writer;
+                        destination_full = true;
+                        System.Console.WriteLine("lastmicroblock {0} ending at row: {1}, key: {2}",
+                            num_microblocks, num_rows, kvp.Key.ToString());
                     }
                 }
             }
 
-            // write the index data
-            long indexstartpos = writer.Position;
-            index.writeToStream(writer);
-            long indexendpos = writer.Position;
-            int indexlength = (int)(indexendpos - indexstartpos);
 
-            // write the fixed footer   
-            byte[] indexlenbuf = BitConverter.GetBytes((int)indexlength);
-            writer.Write(indexlenbuf, 0, indexlenbuf.Length);
-            
+            // write the index data to the END of the output block
+            {
+                MemoryStream indexbytes = new MemoryStream();
+                index.writeToStream(indexbytes);
+                long indexlength = indexbytes.Length;
+                // double check that the index fits
+
+
+                writer.Position = writer.Length - (indexlength + 4);
+                indexbytes.WriteTo(writer);
+
+                // write the fixed footer
+                byte[] indexlenbuf = BitConverter.GetBytes((int)indexlength);
+                writer.Write(indexlenbuf, 0, indexlenbuf.Length);
+            }
+
+            if (this.carryoverMicroblock == null) {
+                System.Console.WriteLine("segment write finished.  xx blocks, xx bytesin, xx bytesout");
+            }
+
         }
     }
 }

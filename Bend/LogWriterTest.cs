@@ -33,7 +33,7 @@ namespace BendTests
             RootBlock root = new RootBlock();
             root.magic = RootBlock.MAGIC;
             root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
-            root.logsize = LogWriter.DEFAULT_LOG_SIZE;
+            root.logsize = (uint)LogWriter.DEFAULT_LOG_SIZE;
             root.loghead = 0;
             rootblockstream.Seek(0, SeekOrigin.Begin);
             RootBlock root2 = Bend.Util.readStruct<RootBlock>(rootblockstream);

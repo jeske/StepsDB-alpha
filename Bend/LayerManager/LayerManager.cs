@@ -208,6 +208,7 @@ namespace Bend
             pending_txns.Add(new WeakReference<Txn>(newtx));  // make sure we don't prevent collection
             return newtx;
         }
+        private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
 
         public void flushWorkingSegment() {
             // create a new working segment            
@@ -228,30 +229,31 @@ namespace Bend
                 long logWaitNumber = 0;
                 this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata, ref logWaitNumber);
             }
-                       
 
+            
 
             IRegion reader;
             {
-                Txn tx = new Txn(this);
-                // allocate new segment address from freespace
-                IRegion writer = freespacemgr.allocateNewSegment(tx, -1);
-
+                Txn tx = new Txn(this);                
+                
                 // write the checkpoint segment and flush
                 // TODO: make this happen in the background!!
                 SegmentWriter segmentWriter = new SegmentWriter(checkpointSegment.sortedWalk());
-                Stream wstream = writer.getNewAccessStream();
-                segmentWriter.writeToStream(wstream);
-                wstream.Flush();
-                wstream.Close();
+                
+                while (segmentWriter.hasMoreData()) {
+                    // allocate new segment address from freespace
+                    IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
+                    Stream wstream = writer.getNewAccessStream();
+                    segmentWriter.writeToStream(wstream);
+                    wstream.Flush();
+                    wstream.Close();
 
-                // reopen that segment for reading
-                // TODO: figure out how much data we wrote exactly, adjust the freespace, and 
-                //       'truncate' the segment, then pass that length to the reader instantiation
-                reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
-
-
-                rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
+                    // reopen the segment for reading
+                    reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
+                    
+                    rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
+                }                
+                
                 {
                     byte[] emptydata = new byte[0];
                     tx.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
@@ -318,7 +320,7 @@ namespace Bend
             {
                 Txn tx = new Txn(this);
                 // allocate new segment address from freespace
-                IRegion writer = freespacemgr.allocateNewSegment(tx, -1);
+                IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
 
                 // merge the segments into the output stream, and flush                
                 SegmentWriter segWriter = new SegmentWriter(chain);

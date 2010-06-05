@@ -69,7 +69,7 @@ namespace Bend
         int numWaiters = 0;
 
         static UInt32 LOG_MAGIC = 0x44332211;
-        public static UInt32 DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
+        public static int DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
 
         LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
@@ -110,11 +110,11 @@ namespace Bend
             // create the log and root record
             root.magic = RootBlock.MAGIC;
             root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
-            root.logsize = LogWriter.DEFAULT_LOG_SIZE;
+            root.logsize = (uint)LogWriter.DEFAULT_LOG_SIZE;
             root.loghead = 0;
             root.root_checksum = 0;
-            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0).getNewAccessStream();
-            Stream logwritestream = regionmgr.writeFreshRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getNewAccessStream();
+            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0, (long)RootBlock.MAX_ROOTBLOCK_SIZE).getNewAccessStream();
+            Stream logwritestream = regionmgr.writeFreshRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE, LogWriter.DEFAULT_LOG_SIZE).getNewAccessStream();
 
             this.logstream = logwritestream;
             this.rootblockstream = rootblockwritestream;

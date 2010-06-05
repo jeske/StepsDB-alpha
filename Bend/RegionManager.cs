@@ -22,7 +22,7 @@ namespace Bend
     {
         IRegion readRegionAddr(uint region_addr);
         IRegion readRegionAddrNonExcl(uint region_addr);
-        IRegion writeFreshRegionAddr(uint region_addr);
+        IRegion writeFreshRegionAddr(uint region_addr,long length);
         IRegion writeExistingRegionAddr(uint region_addr);
         void disposeRegionAddr(uint region_addr);
     }
@@ -83,7 +83,9 @@ namespace Bend
     // -----------------[ RegionExposedFiles ]-----------------------------------------------
 
 
-    // manage a region of exposed files
+    // manage a region of exposed files. each 'block start' makes a new filename
+    // TODO: we should really treat blocks as fixed size even in the region manager
+
     class RegionExposedFiles : IRegionManager
     {
         String dir_path;
@@ -131,9 +133,11 @@ namespace Bend
                     return reader;
                 } else if (this.mode == EFRegionMode.WRITE_NEW) {
                     FileStream writer = File.Open(filepath, FileMode.CreateNew,FileAccess.Write, FileShare.None);
+                    writer.SetLength(length);
                     return writer;
                 } else if (this.mode == EFRegionMode.READ_WRITE) {
                     FileStream writer = File.Open(filepath, FileMode.Open,FileAccess.ReadWrite, FileShare.None);
+                    writer.SetLength(length);
                     return writer;
                 } else {
                     throw new Exception("unknown EFRegionMode: " + this.mode.ToString());
@@ -155,7 +159,7 @@ namespace Bend
                 return new_stream;                                
             }
 
-            public Stream getNewBlockAccessStream2(int rel_block_start, int block_len) {
+            public Stream getBlockAccessStream(int rel_block_start, int block_len) {
                 // OLD:
                 return new OffsetStream(this.getNewAccessStream(), rel_block_start, block_len);
             }
@@ -232,7 +236,7 @@ namespace Bend
         private String makeFilepath(uint region_addr) {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String addr = enc.GetString(Lsd.numberToLsd((int)region_addr,13));
-            String filepath = dir_path + String.Format("\\addr{0}.reg", addr);
+            String filepath = dir_path + String.Format("\\addr{0}.rgm", addr);
             return filepath;
         }
         // impl ...
@@ -288,12 +292,13 @@ namespace Bend
             return new EFRegion(region_addr, length, filepath, EFRegionMode.READ_WRITE);
         }
 
-        public IRegion writeFreshRegionAddr(uint region_addr) {
+        public IRegion writeFreshRegionAddr(uint region_addr, long length) {
             String filepath = makeFilepath(region_addr);
             if (File.Exists(filepath)) {
+                System.Console.WriteLine("Exposed Region Manager, deleting: {0}", filepath);
                 this.disposeRegionAddr(region_addr);
             }
-            return new EFRegion(region_addr,-1,filepath,EFRegionMode.WRITE_NEW);
+            return new EFRegion(region_addr,length,filepath,EFRegionMode.WRITE_NEW);
         }
         public void disposeRegionAddr(uint region_addr) {
             String filepath = this.makeFilepath(region_addr);
@@ -313,6 +318,7 @@ namespace BendTests
     public class A01_RegionExposedFiles
     {
         // TODO: make a basic region test
+        long BLOCK_SIZE = 4 * 1024 * 1024;
 
         [Test]
         public void T05_Region_Concurrency() {
@@ -322,7 +328,7 @@ namespace BendTests
 
             {
                 // put some data in the region
-                IRegion region1 = rm.writeFreshRegionAddr(0);
+                IRegion region1 = rm.writeFreshRegionAddr(0, BLOCK_SIZE);
                 {
                     Stream output = region1.getNewAccessStream();
                     output.Write(data, 0, data.Length);
