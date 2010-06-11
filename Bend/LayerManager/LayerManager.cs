@@ -230,6 +230,7 @@ namespace Bend
                 this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata, ref logWaitNumber);
             }
 
+            // TODO:allocate a new generation number
             
 
             IRegion reader;
@@ -251,6 +252,7 @@ namespace Bend
                     // reopen the segment for reading
                     reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
                     
+                    // record the index pointer (geneneration and rangekey -> block address)
                     rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
                 }                
                 
