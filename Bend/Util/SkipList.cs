@@ -33,10 +33,13 @@ using System.Threading;
 
 using System.Collections.Generic;
 
+using System.Diagnostics;
+
 namespace Bend
 {
 
-
+    // http://msdn.microsoft.com/en-us/magazine/cc163974.aspx
+    [DebuggerDisplay(" SkipList- {ToString()}")]
 
     public class SkipList<K,V> : 
         IScannableDictionary<K,V>
@@ -491,28 +494,21 @@ namespace Bend
 
         /* This method prints the content of the Skip List structure. It can be useful for debugging. */
         override public string ToString() {
+            int values_included = 0;
+
             StringBuilder sb = new StringBuilder();
-            sb.Append("current number of lists: " + currentListsCount);
-            for (int i = currentListsCount; i >= 0; i--) {
-                sb.Append(Environment.NewLine);
-                Node<K,V> cursor = head[i];
-                while (cursor != null) {
-                    sb.Append("[");
-                    if (cursor.key != null)
-                        sb.Append(cursor.key.ToString());
-                    else
-                        sb.Append("N/A");
-                    sb.Append(", ");
-                    if (cursor.value != null)
-                        sb.Append(cursor.value.ToString());
-                    else
-                        sb.Append("N/A");
-                    sb.Append("] ");
-                    cursor = cursor.right;
+            foreach (KeyValuePair<K,V> kvp in this) {
+                if (values_included > 0) { sb.Append(", "); }
+                sb.Append(kvp.Key.ToString());
+                sb.Append("=>");
+                sb.Append(kvp.Value.ToString());
+                
+                values_included++;
+                if (values_included > 10) {
+                    sb.Append("...");  // only include 10 values, then elide
+                    break; 
                 }
             }
-            sb.Append(Environment.NewLine);
-            sb.Append("--------------");
             return sb.ToString();
         }
 
