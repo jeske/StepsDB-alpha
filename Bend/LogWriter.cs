@@ -53,6 +53,8 @@ namespace Bend
 
     class LogWriter : IDisposable
     {
+        bool USE_GROUP_COMMIT_THREAD = false;
+
         RootBlock root;
         Stream rootblockstream;
         Stream logstream;
@@ -74,11 +76,14 @@ namespace Bend
         LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
 
-            // setup the commitThread
             groupCommitWorkerHndl = new AutoResetEvent(false);
             groupCommitRequestorsHndl = new ManualResetEvent(false);
-            commitThread = new Thread(new ThreadStart(this._flushThread));
-            commitThread.Start();
+
+            if (USE_GROUP_COMMIT_THREAD) {
+                // setup the commitThread
+                commitThread = new Thread(new ThreadStart(this._flushThread));
+                commitThread.Start();
+            }
         }
         // special "init" of a region
         public LogWriter(InitMode mode, IRegionManager regionmgr)
@@ -211,30 +216,35 @@ namespace Bend
         }
 
         public void flushPendingCommandsThrough(long waitForLWSN) {
-            DateTime started_waiting_at = DateTime.Now;
-            if (finishedLWSN >= waitForLWSN) {
-                return;
-            }            
-            lock (this) {
-                lastWaiter = started_waiting_at;
-                if (firstWaiter < started_waiting_at) {
-                    firstWaiter = started_waiting_at;
+            if (USE_GROUP_COMMIT_THREAD) {
+                DateTime started_waiting_at = DateTime.Now;
+                if (finishedLWSN >= waitForLWSN) {
+                    return;
                 }
-                numWaiters++;
-            }
-            do {
-                if ((DateTime.Now - started_waiting_at).TotalMilliseconds > 30000) {
-                    throw new Exception("30s flush timeout exceeded");
+                lock (this) {
+                    lastWaiter = started_waiting_at;
+                    if (firstWaiter < started_waiting_at) {
+                        firstWaiter = started_waiting_at;
+                    }
+                    numWaiters++;
                 }
-                // groupCommitWorkerHndl.Set(); // wakeup the worker                
-                // groupCommitRequestorsHndl.WaitOne();
+                do {
+                    if ((DateTime.Now - started_waiting_at).TotalMilliseconds > 30000) {
+                        throw new Exception("30s flush timeout exceeded");
+                    }
+                    // groupCommitWorkerHndl.Set(); // wakeup the worker                
+                    // groupCommitRequestorsHndl.WaitOne();
 
-                WaitHandle.SignalAndWait(groupCommitWorkerHndl, groupCommitRequestorsHndl);
-                //if (this.finishedLWSN < waitForLWSN) {
-                //    System.Console.WriteLine("still waiting... {0} < {1}",
-                //        this.finishedLWSN,waitForLWSN);
-                //}
-            } while (this.finishedLWSN < waitForLWSN);
+                    WaitHandle.SignalAndWait(groupCommitWorkerHndl, groupCommitRequestorsHndl);
+                    //if (this.finishedLWSN < waitForLWSN) {
+                    //    System.Console.WriteLine("still waiting... {0} < {1}",
+                    //        this.finishedLWSN,waitForLWSN);
+                    //}
+                } while (this.finishedLWSN < waitForLWSN);
+            } else {
+                // not using the group commit thread
+                _doWritePendingCmds();
+            }
            
         }
 
@@ -323,14 +333,20 @@ namespace Bend
         }
 
         public void Dispose() {
+            System.Console.WriteLine("commitThread Dispose");
+
             if (this.commitThread != null) {
                 commitThread_should_die = true;
                 groupCommitWorkerHndl.Set();
-                if (!this.commitThread.Join(500)) {
+                if (!this.commitThread.Join(2)) {
                     System.Console.WriteLine("commitThread join Timeout");
                     this.commitThread.Abort();
+                } else {
+                    System.Console.WriteLine("commitThread rejoined");
                 }
-            }                               
+            } else {
+                System.Console.WriteLine("no committhread to dispose of");
+            }
             if (this.logstream != null) { this.logstream.Close(); this.logstream = null; }
             if (this.rootblockstream != null) { this.rootblockstream.Close(); this.rootblockstream = null; }
             
