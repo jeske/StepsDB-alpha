@@ -37,8 +37,9 @@ using System.Diagnostics;
 
 namespace Bend
 {
-
+    // For some notes about Debugger Visualizers.... 
     // http://msdn.microsoft.com/en-us/magazine/cc163974.aspx
+    // http://www.4guysfromrolla.com/articles/011806-1.aspx
     [DebuggerDisplay(" SkipList- {ToString()}")]
 
     public class SkipList<K,V> : 
