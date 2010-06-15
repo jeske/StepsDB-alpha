@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.IO;
 
 using System.Diagnostics;
 
@@ -75,7 +76,12 @@ namespace Bend
 
         public override String ToString() {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            return enc.GetString(data);
+
+            if (state == RecordDataState.FULL) {
+                return enc.GetString(data);
+            } else {
+                return String.Format("[{0}] {1}", state.ToString(), enc.GetString(data));
+            }
         }
 
         public String DebugToString()
@@ -91,7 +97,16 @@ namespace Bend
         FULL,
         NONE
     }
-    //-----------------------------------[ RecordUpdate ]------------------------------------
+
+
+
+    //------------------------------------------------------------------------------------
+
+    //-----------------------------------[ RecordUpdate ]---------------------------------
+
+    //------------------------------------------------------------------------------------
+
+
 
     public class RecordUpdate : IEquatable<RecordUpdate>
     {
@@ -191,13 +206,21 @@ namespace Bend
         }
     }
 
+
+    //------------------------------------------------------------------------------------
+
     //-----------------------------------[ RecordKey ]------------------------------------
+
+    //------------------------------------------------------------------------------------
+
 
     public class RecordKey : IComparable<RecordKey>
     {
-        // key_parts really shouldn't be public, people should be using pipes to read keys
+        // TODO: key_parts really shouldn't be public, people should be using pipes to read keys
+        // TODO: maybe key parts shouldn't be limited to strings
         public List<String> key_parts;  
         public static char DELIMITER = '/';
+        public static byte DELIMITER_B = 47;
         
         public RecordKey()
         {
@@ -282,7 +305,7 @@ namespace Bend
         // This is worth it, because hierarchial sorting allows us to do much more
         // predictable things for the higher layers.
         //
-        // TODO: deal with field types within a part (i.e. numbers, dates, etc)
+        // TODO: deal with field types within a part (i.e. numbers, dates, nested keys)
         
         public int CompareTo(RecordKey target)
         {
@@ -429,9 +452,37 @@ namespace Bend
         // -----------------------------------------------------------
         // encoding/decoding of keyparts
 
+        // TODO: handle delimiters in the key
+
+
+        static byte[] escape_list = {DELIMITER_B, 43};
+        static byte escape_char = 43;
+        SimpleEncoder kpenc = new SimpleEncoder(escape_list, escape_char);
+
+        void decode(byte[] data) {
+            key_parts.Clear();  // empty our keyparts
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+            int chpos = 0;
+            MemoryStream ms = new MemoryStream();
+            while (chpos < data.Length) {                
+                byte ch = data[chpos];
+                if (ch != DELIMITER_B) {
+                    ms.WriteByte(ch);
+                }
+                if (ch == DELIMITER_B || (chpos+1 == data.Length)) {               
+                    // handle the part
+                    byte[] decoded = kpenc.decode(ms.ToArray());
+                    String keystring = enc.GetString(decoded);
+                    key_parts.Add(keystring);
+                    ms = new MemoryStream();
+                } 
+                chpos++;
+            }
+        }
 
         // decode
-        void decode(byte[] data) {
+        void decode2(byte[] data) {
             char[] delimiters = { DELIMITER };
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String keystring = enc.GetString(data);
@@ -442,11 +493,17 @@ namespace Bend
 
         // encode
         public byte[] encode() {
-            String srep = String.Join(new String(DELIMITER,1), key_parts.ToArray());
-
+            MemoryStream ms = new MemoryStream();
+            String[] keypart_strings = key_parts.ToArray();
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            byte[] data = enc.GetBytes(srep);
-            return data;
+
+            for(int x=0;x<keypart_strings.Length;x++) {
+                if (x != 0) { ms.WriteByte(DELIMITER_B); }
+                String kp = keypart_strings[x];
+                byte[] encodedform = kpenc.encode(enc.GetBytes(kp));
+                ms.Write(encodedform,0,encodedform.Length);                
+            }
+            return ms.ToArray();
         }
     }
 

@@ -70,24 +70,24 @@ namespace Bend
         }        
 
 
-        public void mapGenerationToRegion(LayerManager.Txn tx, int gen_number, IRegion region) {
-            RecordKey key = new RecordKey();
-            key.appendParsedKey(".ROOT/GEN");
-            key.appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD));
-            key.appendParsedKey("</>");
+        public void mapGenerationToRegion(LayerManager.Txn tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
+            RecordKey key = makeGenerationKey(gen_number, start_key, end_key);
+                
             // TODO: pack the metdata record <addr>:<size>
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
             String seg_metadata = "" + region.getStartAddress();
             tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
 
         }
-        private RecordKey makeGenerationKey(int gen_number) {
+
+        private RecordKey makeGenerationKey(int gen_number, RecordKey start_key, RecordKey end_key) {
             RecordKey genkey = new RecordKey()
                 .appendParsedKey(".ROOT/GEN")
                 .appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD))
-                .appendParsedKey("</>");
-
+                .appendKeyPart(start_key.encode())
+                .appendKeyPart(end_key.encode());                
+           
             return genkey;
 
         }
@@ -101,13 +101,9 @@ namespace Bend
             //  .. touches a rangemap row automagically causes an invalidation of the segment cache            
         }
 
-        public void unmapGeneration(LayerManager.Txn tx, int gen_number) {
+        public void unmapSegment(LayerManager.Txn tx, RecordKey key, RecordData data) {
             // TODO: how do we assure that existing read operations flush and reload all segments?          
 
-            RecordKey key = new RecordKey();
-            key.appendParsedKey(".ROOT/GEN");
-            key.appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD));
-            key.appendParsedKey("</>");
             lock (disk_segment_cache) {
                 // clear the entry from the cache
                 // TODO: fix this so it works when we fix setValue...
@@ -122,27 +118,21 @@ namespace Bend
                 }
             }
             tx.setValue(key, RecordUpdate.DeletionTombstone());
-            
+
+            // we can't really do this because the file is still open
+            // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data));            
         }
-
-        public void shrinkGenerationCount() {
-            // see if we can shrink the number of generations
-
-            int highest_valid_gen = num_generations-1;
-            RecordData record;
-
-            while (highest_valid_gen >= 0 &&
-                store.getRecord(makeGenerationKey(highest_valid_gen), out record) == GetStatus.MISSING) {
-                highest_valid_gen--;
-            }
-
+       
+        public void setGenerationCountToZeroHack() {                       
+            int highest_valid_gen = 0;
             if (highest_valid_gen + 1 < num_generations) {
                 num_generations = highest_valid_gen + 1;
                 store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                     RecordUpdate.WithPayload(num_generations.ToString()));
             }
         }
-        public void newGeneration(LayerManager.Txn tx, IRegion region) {
+       
+        public int allocNewGeneration(LayerManager.Txn tx) {
             // allocate a new generation number
             int newgen = num_generations;
             num_generations++;
@@ -152,15 +142,15 @@ namespace Bend
             tx.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 RecordUpdate.WithPayload(num_generations.ToString()));
 
-            mapGenerationToRegion(tx, newgen, region);
+            return newgen;
         }
-
-        private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
+        private uint unpackRegionAddr(byte[] data) {
             // TODO:unpack the update data when we change it to "<addr>:<length>"
-            byte[] segmetadata_addr = data;
-
+            return (uint)Lsd.lsdToNumber(data);
+        }
+        private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
             // we now have a pointer to a segment addres for GEN<max>
-            uint region_addr = (uint)Lsd.lsdToNumber(segmetadata_addr);
+            uint region_addr = unpackRegionAddr(data);
 
             System.Console.WriteLine("-- open SegmentReader {0}", region_addr);
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
@@ -183,19 +173,19 @@ namespace Bend
 
         // ------------[ public segmentWalkForKey ] --------------
 
-        public RecordUpdateResult segmentWalkForKey(
+        public RecordUpdateResult segmentWalkForKey_OLD(
             RecordKey key,
             ISortedSegment curseg,
             ref RecordData record) {
 
             HashSet<int> handledGenerations = new HashSet<int>();
-            return this.INTERNAL_segmentWalkForKey(
+            return this.INTERNAL_segmentWalkForKey_OLD(
                 key, curseg, handledGenerations, num_generations, ref record);
 
 
         }
 
-        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record) {
+        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record, bool equal_ok) {
 
             SkipList<RecordKey, RecordData> handledIndexRecords = new SkipList<RecordKey,RecordData>();
             SkipList<RecordKey, RecordData> recordsBeingAssembled = new SkipList<RecordKey, RecordData>();
@@ -218,7 +208,8 @@ namespace Bend
                        num_generations),
                     handledIndexRecords,
                     num_generations,
-                    recordsBeingAssembled);
+                    recordsBeingAssembled,
+                    equal_ok);
             }
 
             // now check the assembled records list
@@ -338,7 +329,9 @@ namespace Bend
                             + kvp.Key.ToString() + " claimed to be before " + endrk.ToString() );
                         break;
                     }
-                    yield return kvp;
+                    if (kvp.Value.type == RecordUpdateTypes.FULL) {
+                        yield return kvp;
+                    }
                 }
                 
             }
@@ -352,7 +345,8 @@ namespace Bend
             RangeKey curseg_rangekey,
             IScannableDictionary<RecordKey, RecordData> handledIndexRecords,
             int maxgen,
-            IScannableDictionary<RecordKey, RecordData> recordsBeingAssembled) {
+            IScannableDictionary<RecordKey, RecordData> recordsBeingAssembled,
+            bool equal_ok) {
 
             // TODO: convert all ISortedSegments to be IScannable
             IScannable<RecordKey, RecordUpdate> curseg = (IScannable<RecordKey, RecordUpdate>)curseg_raw;
@@ -361,7 +355,7 @@ namespace Bend
             if (curseg_rangekey.directlyContainsKey(startkeytest)) {
                 KeyValuePair<RecordKey,RecordUpdate> nextrow;
                 try {
-                    nextrow = curseg.FindNext(startkeytest, false);
+                    nextrow = curseg.FindNext(startkeytest, equal_ok);
                     // we have a next record
                     RecordData partial_record;
                     if (!recordsBeingAssembled.TryGetValue(nextrow.Key, out partial_record)) {
@@ -412,7 +406,8 @@ namespace Bend
                     next_seg_rangekey,
                     handledIndexRecords,
                     maxgen - 1,
-                    recordsBeingAssembled);
+                    recordsBeingAssembled,
+                    equal_ok);
                     
             }
             // now repeat the walk of range references in this segment, this time actually descending
@@ -425,7 +420,7 @@ namespace Bend
         // This is the meaty internal function that does the "magic"
         // of the segment walk.
         
-        private RecordUpdateResult INTERNAL_segmentWalkForKey(
+        private RecordUpdateResult INTERNAL_segmentWalkForKey_OLD(
             RecordKey key,
             ISortedSegment curseg,
             HashSet<int> handledGenerations,
@@ -479,7 +474,7 @@ namespace Bend
                         SegmentReader sr = segmentReaderFromRow(rangekey,update);
 
                         // RECURSE
-                        if (INTERNAL_segmentWalkForKey(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {
+                        if (INTERNAL_segmentWalkForKey_OLD(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {
                             return RecordUpdateResult.FINAL;
                         }
                     } else if (update.type == RecordUpdateTypes.DELETION_TOMBSTONE) {

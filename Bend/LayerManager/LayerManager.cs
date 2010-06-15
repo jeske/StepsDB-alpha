@@ -210,6 +210,33 @@ namespace Bend
         }
         private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
 
+        private void _writeSegment(Txn tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records, int gen_num) {
+            // write the checkpoint segment and flush
+            // TODO: make this happen in the background!!
+            SegmentWriter segmentWriter = new SegmentWriter(records);
+
+
+            while (segmentWriter.hasMoreData()) {
+                // allocate new segment address from freespace
+                IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
+                Stream wstream = writer.getNewAccessStream();
+                SegmentWriter.WriteInfo wi = segmentWriter.writeToStream(wstream);
+                wstream.Flush();
+                wstream.Close();
+
+                // reopen the segment for reading
+                IRegion reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
+
+
+                // record the index pointer (geneneration and rangekey -> block address)
+                // rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
+                rangemapmgr.mapGenerationToRegion(tx, gen_num, wi.start_key, wi.end_key, reader);
+
+            }                
+            
+
+        }
+
         public void flushWorkingSegment() {
             // create a new working segment            
             SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
@@ -230,32 +257,16 @@ namespace Bend
                 this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata, ref logWaitNumber);
             }
 
-            // TODO:allocate a new generation number
             
-
-            IRegion reader;
+            
             {
-                Txn tx = new Txn(this);                
-                
-                // write the checkpoint segment and flush
-                // TODO: make this happen in the background!!
-                SegmentWriter segmentWriter = new SegmentWriter(checkpointSegment.sortedWalk());
-                
-                while (segmentWriter.hasMoreData()) {
-                    // allocate new segment address from freespace
-                    IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
-                    Stream wstream = writer.getNewAccessStream();
-                    segmentWriter.writeToStream(wstream);
-                    wstream.Flush();
-                    wstream.Close();
+                Txn tx = new Txn(this);
 
-                    // reopen the segment for reading
-                    reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
-                    
-                    // record the index pointer (geneneration and rangekey -> block address)
-                    rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
-                }                
-                
+                // allocate a new generation number
+                int new_generation_number = rangemapmgr.allocNewGeneration(tx);
+
+                this._writeSegment(tx, checkpointSegment.sortedWalk(), new_generation_number); 
+    
                 {
                     byte[] emptydata = new byte[0];
                     tx.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
@@ -284,104 +295,89 @@ namespace Bend
         }
 
         public void mergeAllSegments() {
-            // get a handle to all the segments we wish to merge
+
+            // (1) get a handle to all the segments we wish to merge
+            // TODO: delegate to RangemapManager to give us the segments
+
             int gen_count = rangemapmgr.genCount();
 
             if (gen_count < 1) {
                 // nothing to even reprocess
                 return;
             }
+
+            List<KeyValuePair<RecordKey, RecordData>> genpointers = new List<KeyValuePair<RecordKey, RecordData>>();
+
+            RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
+            RecordKey cur_key = start_key;
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED,found_key);
+            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+                // check that the first two keyparts match
+                if (found_key.isSubkeyOf(start_key)) {
+                    genpointers.Add(new KeyValuePair<RecordKey,RecordData>(found_key,found_record));
+                    cur_key = found_key;
+                } else {
+                    // we're done matching the generation records
+                    break;
+                }               
+            }
+
             
-            RecordKey[] sourcesegkeys = new RecordKey[gen_count];
-            RecordData[] sourcesegmeta = new RecordData[gen_count];
-            
-            IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> chain = null;
-
-            for (int i = 0; i < gen_count; i++) {
-                // TODO: delegate to RangemapManager to give us the segments, but we 
-                //       need to figure out how to handle ranges when we do it!
-                sourcesegkeys[i] = new RecordKey()
-                    .appendParsedKey(".ROOT/GEN")
-                    .appendKeyPart(Lsd.numberToLsd(i, 3))
-                    .appendParsedKey("</>");
-
-                if (this.getRecord(sourcesegkeys[i], out sourcesegmeta[i]) == GetStatus.MISSING) {
-                    throw new Exception("couldn't get segment range record for key: " + sourcesegkeys[i]);
-                }
-
+            // (2) now we iterate through the generation pointers, building the merge chain
+            IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
+            foreach (KeyValuePair<RecordKey,RecordData> kvp in genpointers) {
+                
                 IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> nextchain = 
-                    rangemapmgr.getSegmentFromMetadata(sourcesegmeta[i]).sortedWalk();
+                    rangemapmgr.getSegmentFromMetadata(kvp.Value).sortedWalk();
                 if (chain == null) {
                     chain = nextchain;
                 } else {
                     chain = SortedMergeExtension.MergeSort(nextchain,chain,true);  // merge sort keeps keys on the left
-                }
+                }                                
             }
 
-            // now perform the merge!!
+            // (3) now perform the merge!!
             {
                 Txn tx = new Txn(this);
-                // allocate new segment address from freespace
-                IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
 
-                // merge the segments into the output stream, and flush                
-                SegmentWriter segWriter = new SegmentWriter(chain);
-                {
-                    Stream wstream = writer.getNewAccessStream();
-                    segWriter.writeToStream(wstream);
-                    wstream.Flush();
-                    wstream.Close();
+
+                // allocate a new generation number
+                // int new_generation_number = rangemapmgr.allocNewGeneration(tx);
+                // FIXME: can we write this as a zero generation?
+                this._writeSegment(tx, chain, 0);
+                
+
+                // remove the old segment mappings
+                foreach (KeyValuePair<RecordKey, RecordData> kvp in genpointers) {
+                    rangemapmgr.unmapSegment(tx, kvp.Key, kvp.Value);
                 }
 
-                // reopen that segment for reading
-                // TODO: figure out how much data we wrote exactly, adjust the freespace, and 
-                //       'truncate' the segment, then pass that length to the reader instantiation
-                IRegion reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
-
-                foreach (RecordKey oldsegkey in sourcesegkeys) {
-                    this.setValue(oldsegkey, RecordUpdate.DeletionTombstone());
-                    // TODO regionmgr.disposeRegionAddr
-                }
-                for (int i = 0; i < gen_count; i++) {
-                    rangemapmgr.unmapGeneration(tx, i);
-                }
-                rangemapmgr.mapGenerationToRegion(tx, 0, reader);
+                rangemapmgr.setGenerationCountToZeroHack();     // check to see if we can shrink NUMGENERATIONS
+                
                 tx.commit();                             // commit the freespace and rangemap transaction
 
                 rangemapmgr.clearSegmentCacheHack();
                 // reader.getStream().Close();              // force close the reader
-                rangemapmgr.shrinkGenerationCount();     // check to see if we can shrink NUMGENERATIONS
+                
             }
 
         }
 
         public GetStatus getRecord(RecordKey key, out RecordData record) {
-            record = new RecordData(RecordDataState.NOT_PROVIDED, key);
-
-            // TODO: fix this so that there is a transparent merging of the in-memory workingSegments!!
-            //    currently this will miss records if we allow another thread to do a get during the
-            //    period where we're writing out a new segment (and there are multiple workingsegments in segmentlayers)
-
-            SegmentMemoryBuilder[] layers;
-            lock (this.segmentlayers) {
-                layers = this.segmentlayers.ToArray();
+            RecordKey found_key = new RecordKey();
+            record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
+            if (rangemapmgr.getNextRecord(key, ref found_key, ref record,true) == GetStatus.PRESENT) {
+                if (found_key.Equals(key)) {
+                    return GetStatus.PRESENT;
+                }
             }
-
-            foreach (SegmentMemoryBuilder layer in layers) {
-                if (rangemapmgr.segmentWalkForKey(key, layer, ref record) == RecordUpdateResult.FINAL) {
-                    if (record.State == RecordDataState.FULL) {
-                        return GetStatus.PRESENT;
-                    } else {
-                        return GetStatus.MISSING;
-                    }
-                } 
-            }
-
-            return GetStatus.MISSING;            
+            record = null;
+            return GetStatus.MISSING;
         }
 
         public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey found_key, ref RecordData found_record) {
-            return (rangemapmgr.getNextRecord(lowkey, ref found_key, ref found_record));
+            return (rangemapmgr.getNextRecord(lowkey, ref found_key, ref found_record,false));
         }
 
         public void debugDump()

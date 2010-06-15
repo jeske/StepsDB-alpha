@@ -468,7 +468,7 @@ namespace Bend
     {
         int keys_since_last_block = 0;
         int bytes_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_MICROBLOCK = 1; 
+        static int RECOMMEND_MAX_KEYS_PER_MICROBLOCK = 30; 
         static int RECOMMEND_MAX_BYTES_PER_MICROBLOCK = 64 * 1024;
 
         public SegmentWriterAdvisor() {
@@ -529,8 +529,22 @@ namespace Bend
             }
         }
 
-        public void writeToStream(Stream writer) {
+        public struct WriteInfo
+        {
+            public RecordKey start_key;
+            public RecordKey end_key;
+            public bool isPopulated() {
+                if (start_key == null || end_key == null) {
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+        }
+
+        public WriteInfo writeToStream(Stream writer) {
             SortedSegmentIndex index = new SortedSegmentIndex(); // the index for this destination block
+            WriteInfo block_wi = new WriteInfo();
             SegmentWriterAdvisor advisor = new SegmentWriterAdvisor();           
             MicroBlockStream mb_writer = null;
             bool destination_full = false;
@@ -542,8 +556,6 @@ namespace Bend
                 throw new Exception("SegmentWriter.writeToStream(Stream writer): handed writer with insufficient size");
             }
 
-            //RecordKey block_start_key = null;
-            //RecordKey last_seen_key = null;
             ISegmentBlockEncoder encoder = null;
 
             // see if we have a carryover microblock
@@ -578,12 +590,16 @@ namespace Bend
                         // yes, there is enough space to add the microblock
                         this._writeMicroBlock(writer, mb_writer, index);
                         num_microblocks_in_this_block++;
+
+                        if (block_wi.start_key == null) { block_wi.start_key = mb_writer.block_start_key; }
+                        block_wi.end_key = mb_writer.last_seen_key;
+
                     } else {
                         // nope, there is not enough space to add the microblock
                         this.carryoverMicroblock = mb_writer;
                         destination_full = true;
-                        System.Console.WriteLine("lastmicroblock {0} ending at row: {1}, key: {2}",
-                            stats.num_microblocks, stats.num_rows, mb_writer.last_seen_key);
+                        Debug.WriteLine(String.Format("lastmicroblock {0} ending at row: {1}, key: {2}",
+                            stats.num_microblocks, stats.num_rows, mb_writer.last_seen_key));
                         break;  // get out of this loop!
                     }
                 
@@ -606,8 +622,8 @@ namespace Bend
 
 
                         if ((stats.num_microblocks % 2) == 0) {
-                            System.Console.WriteLine("microblock {0} starting at row: {1}, key: {2}",
-                                stats.num_microblocks, stats.num_rows, kvp.Key.ToString());
+                            Debug.WriteLine(String.Format("microblock {0} starting at row: {1}, key: {2}",
+                                stats.num_microblocks, stats.num_rows, kvp.Key.ToString()));
                         }
                     }
 
@@ -641,9 +657,12 @@ namespace Bend
             }
 
             if (this.carryoverMicroblock == null) {
-                System.Console.WriteLine("segment write finished.  xx blocks, xx bytesin, xx bytesout");
+                System.Console.WriteLine("segment block finished.  {0} microblocks, {1} rows", 
+                    stats.num_microblocks,stats.num_rows);
             }
+            if (!block_wi.isPopulated()) { throw new Exception("block_wi write info non populated"); }
 
+            return block_wi; // return the start/end key write info
         }
 
         private void _writeMicroBlock(Stream writer, MicroBlockStream mb_writer, SortedSegmentIndex index) {

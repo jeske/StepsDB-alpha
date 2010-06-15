@@ -87,7 +87,7 @@ namespace BendTests
 
         }
         [Test]
-        public void T02_RecordSort() {
+        public void T02a_RecordKeySort() {
             String[] parts1 = { "test", "test2", "blah" };
             String[] parts2 = { "test", "test3", "blah" }; // > parts 1
             String[] parts3 = { "test", "test2a", "blah" }; // > parts 1 (testing per-segment sorting order!)
@@ -111,22 +111,45 @@ namespace BendTests
 
         }
 
+        
+        [Test]
+        public void T02b_RecordKeyNesting() {
+            String[] parts1 = { "aaaa", "bbbb" };
+            String[] parts2 = { "xxxx", "yyyy", "zzzz" };
+
+            RecordKey nestedkey = new RecordKey();
+            nestedkey.appendKeyParts(parts2);
+
+            RecordKey parentkey = new RecordKey();
+            parentkey.appendKeyPart(parts1[0]); // "aaaa"
+            parentkey.appendKeyPart(nestedkey.encode());  // (xxxx,yyyy,zzzz)
+            parentkey.appendKeyPart(parts1[1]); // "bbbb"
+
+            RecordKey decodedkey = new RecordKey(parentkey.encode());
+
+            Assert.AreEqual(decodedkey.ToString(), parentkey.ToString(), "tostring versions of keys don't match");
+            Assert.AreEqual(decodedkey.numParts(), parentkey.numParts(), "nested delimiters are changing number of keyparts");
+            
+            Assert.AreEqual(decodedkey, parentkey, "nested key encode/decode error");                       
+
+        }
+
         [Test]
         public void T03_RecordDataAssembly() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
-            Assert.AreEqual("", data.ToString());
+            Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 1");
             RecordUpdateResult result;
 
 
             result = data.applyUpdate(RecordUpdate.NoUpdate());
-            Assert.AreEqual("", data.ToString());
-            Assert.AreEqual(result, RecordUpdateResult.SUCCESS);
-            Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State);
+            Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 2");
+            Assert.AreEqual(result, RecordUpdateResult.SUCCESS, "apply result 2");
+            Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State, "apply state 2");
 
             result = data.applyUpdate(RecordUpdate.WithPayload("1"));
-            Assert.AreEqual("1", data.ToString());
-            Assert.AreEqual(result, RecordUpdateResult.FINAL);
-            Assert.AreEqual(RecordDataState.FULL, data.State);
+            Assert.AreEqual("1", data.ToString(), "apply 3");
+            Assert.AreEqual(result, RecordUpdateResult.FINAL, "apply result 3");
+            Assert.AreEqual(RecordDataState.FULL, data.State, "apply state 3");
 
             // if we already have a full update, it should be an error
             /* NOT ANYMORE
@@ -154,15 +177,16 @@ namespace BendTests
 
         }
 
+
         [Test]
         public void T04_RecordTombstones() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
-            Assert.AreEqual("", data.ToString());
+            Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 1");
 
             RecordUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());
-            Assert.AreEqual("", data.ToString()); // empty.. (TODO: consider making tombstones ToString to '-|')
-            Assert.AreEqual(RecordUpdateResult.FINAL,result);
-            Assert.AreEqual(RecordDataState.DELETED, data.State);
+            Assert.AreEqual("[DELETED] ", data.ToString(), "tomb update 1"); 
+            Assert.AreEqual(RecordUpdateResult.FINAL,result, "tomb result 1");
+            Assert.AreEqual(RecordDataState.DELETED, data.State, "tomb state 1");
 
             /* NOT ANYMORE
             bool err = false;
@@ -176,7 +200,7 @@ namespace BendTests
              */
             // data after a tombstone should be ignored
             Assert.AreEqual(RecordUpdateResult.FINAL, data.applyUpdate(RecordUpdate.WithPayload("1"))); 
-            Assert.AreEqual("", data.ToString()); // still empty...
+            Assert.AreEqual("[DELETED] ", data.ToString(), "tomb after update 2"); // still empty...
             Assert.AreEqual(RecordDataState.DELETED, data.State);
 
         }
