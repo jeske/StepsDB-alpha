@@ -1,0 +1,26 @@
+--------[ TODO ]---------
+
+- incremental merge (small step, eventually does a full merge)
+- age-out tombstones when in oldest generation (remember oldest gen #?)
+
+
+
+
+
+--------[ Bigger TODO items ]-----------
+
+
+
+*** row attributes for MVCC and locks
+(a) introduce row-attribute concept (can affect commit, row visibility, etc.)
+(b) attach MVCC attribute handler to writes, attach txn id to each row
+(c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
+
+*** First Automated Replication
+(a) 'lock' for old generations (i.e. checkpoint),
+(b) copy locked data to replica
+(c) create new 'lock' for newer data, goto (b), until we are up-to-date
+
+*** try using C# sqlite sql implementation to throw SQL on top
+
+
