@@ -133,6 +133,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="_NOTES.txt" />
+    <Content Include="_TODO.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

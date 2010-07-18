@@ -1,17 +1,4 @@
 ﻿
---------[ TODO ]---------
-
-
-
-
-
-
-
-
-
-
-
-
 --------[ Coding Habits ]---------
 
 -) Avoid non-local implementation dependence. If two codeblocks are co-dependent on eachother's 
