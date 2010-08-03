@@ -70,7 +70,7 @@ namespace Bend
         }        
 
 
-        public void mapGenerationToRegion(LayerManager.Txn tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
+        public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
             RecordKey key = makeGenerationKey(gen_number, start_key, end_key);
                 
@@ -101,7 +101,7 @@ namespace Bend
             //  .. touches a rangemap row automagically causes an invalidation of the segment cache            
         }
 
-        public void unmapSegment(LayerManager.Txn tx, RecordKey key, RecordData data) {
+        public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
             // TODO: how do we assure that existing read operations flush and reload all segments?          
 
             lock (disk_segment_cache) {
@@ -132,7 +132,7 @@ namespace Bend
             }
         }
        
-        public int allocNewGeneration(LayerManager.Txn tx) {
+        public int allocNewGeneration(LayerManager.WriteGroup tx) {
             // allocate a new generation number
             int newgen = num_generations;
             num_generations++;

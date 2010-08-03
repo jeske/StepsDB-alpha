@@ -40,11 +40,11 @@ namespace BendTests
             {
                 LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\4");
 
-                LayerManager.Txn txn = db.newTxn();
+                LayerManager.WriteGroup txn = db.newWriteGroup();
                 for (int i=0;i<keys.Length;i++) {
                     txn.setValueParsed(keys[i],values[i]);
                 }
-                txn.commit();
+                txn.finish();
 
                 // TODO: assure the freespace hasn't been affected
 
@@ -102,11 +102,11 @@ namespace BendTests
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\5");
 
-            LayerManager.Txn txn = db.newTxn();
+            LayerManager.WriteGroup txn = db.newWriteGroup();
             for (int i = 0; i < keys.Length; i++) {
                 txn.setValueParsed(keys[i], values[i]);
             }
-            txn.commit();
+            txn.finish();
             db.flushWorkingSegment();
 
             // assure that we checkpointed down to a single working segment
@@ -174,11 +174,11 @@ namespace BendTests
                 String[] keys = { "test-1", "test-2", "test-3" };
                 String[] values = { "a-first", "b-first", "c-first" };
 
-                LayerManager.Txn txn = db.newTxn();
+                LayerManager.WriteGroup txn = db.newWriteGroup();
                 for (int i = 0; i < keys.Length; i++) {
                     txn.setValueParsed(keys[i], values[i]);
                 }
-                txn.commit();
+                txn.finish();
                 db.flushWorkingSegment();
 
                 // assure the records we wrote are NOT in the working segment, but ARE in the next layer
@@ -209,11 +209,11 @@ namespace BendTests
                 String[] keys = { "test-1", "test-2", "test-3" };
                 String[] values = { "a-second", "b-second", "c-second" };
 
-                LayerManager.Txn txn = db.newTxn();
+                LayerManager.WriteGroup txn = db.newWriteGroup();
                 for (int i = 0; i < keys.Length; i++) {
                     txn.setValueParsed(keys[i], values[i]);
                 }
-                txn.commit();
+                txn.finish();
 
 
                 // assure that both the workingsegment and layermanager see the NEW VALUES
@@ -315,9 +315,9 @@ namespace BendTests
 
                     // put each new record in its OWN segment
                     for (int i = 0; i < secondkeys.Length; i++) {
-                        LayerManager.Txn txn = db.newTxn();
+                        LayerManager.WriteGroup txn = db.newWriteGroup();
                         txn.setValueParsed(secondkeys[i], secondvalues[i]);
-                        txn.commit();
+                        txn.finish();
                         db.flushWorkingSegment();
                     }
 
@@ -431,9 +431,9 @@ namespace BendTests
                 // fill the db with some data.
                 int pos = 0;
                 foreach (KeyValuePair<RecordKey,RecordUpdate> kvp in testrows) {
-                    LayerManager.Txn txn = db.newTxn();
+                    LayerManager.WriteGroup txn = db.newWriteGroup();
                     txn.setValue(kvp.Key, kvp.Value);
-                    txn.commit();
+                    txn.finish();
                     pos++;
 
                     if ((pos % RECORDS_PER_SEGMENT) == 0) {
@@ -666,12 +666,12 @@ namespace BendTests
 
         [Test]
         public void T12_LayerManager_AssureTombstones_DeleteRecords() {
-            Assert.Fail("merge process needs tombstones to kill records");
+            Assert.Fail("TODO: test to assure merge process needs tombstones to kill records");
         }
 
         [Test]
         public void T13_LayerManager_Efficient_RangeKeyScans() {
-            Assert.Fail("layermanager needs to efficiently use block pointer range references");
+            Assert.Fail("TODO: test layermanager efficiently uses block pointer range references");
         }
 
         // TEST: that our record-get will see data in ALL in-memory segments

@@ -29,7 +29,7 @@ namespace Bend
 
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
-        internal List<WeakReference<Txn>> pending_txns;
+        internal List<WeakReference<WriteGroup>> pending_txns;
         RangemapManager rangemapmgr;
         FreespaceManager freespacemgr;
 
@@ -39,7 +39,7 @@ namespace Bend
         // constructors ....
 
         public LayerManager() {
-            pending_txns = new List<WeakReference<Txn>>();
+            pending_txns = new List<WeakReference<WriteGroup>>();
 
             segmentlayers = new List<SegmentMemoryBuilder>();   // a list of segment layers, newest to oldest
             workingSegment = new SegmentMemoryBuilder();
@@ -125,20 +125,19 @@ namespace Bend
             CHECKPOINT_DROP = 2
         }
 
-        public class Txn : IDisposable
+        public class WriteGroup : IDisposable
         {
             LayerManager mylayer;
             long tsn; // transaction sequence number
             long last_logwaitnumber = 0;
-            enum TxnState
+            enum WriteGroupState
             {
                 PENDING,
                 PREPARED,
-                COMMITTED,
-                ABORTED
+                CLOSED,                
             }
-            TxnState state = TxnState.PENDING;
-            internal Txn(LayerManager _layer) {
+            WriteGroupState state = WriteGroupState.PENDING;
+            internal WriteGroup(LayerManager _layer) {
                 this.mylayer = _layer;
                 this.tsn = System.DateTime.Now.ToBinary();
                 // TODO: store the stack backtrace of who created this if we're in debug mode
@@ -174,28 +173,29 @@ namespace Bend
                 mylayer.logwriter.addCommand(cmd, cmddata, ref this.last_logwaitnumber);
             }
 
-            public void commit() {
-                // TODO: commit should be what finalizes pending writes into final writes
+            public void finish() {
+                // TODO: make a higher level TX commit that finalizes pending writes into final writes
                 //     and cleans up locks and state
 
-                // TODO: this flush concept is slighly broken. It assumes we are the only
-                //   thread adding anything to the logwriter. We should probably hand
-                //   logwriter this entire object and ask it to flush, so it could be holding
-                //   multiple valid TXs. Currently if someone else is in the middle of
-                //   adding elements to the log, some of their stuff will be flushed with this
-                //   flush, while others will go in the next flush -- BAD.
+                // TODO: this is a flush not a commmit. When other
+                // writers are concurrent, some of their stuff is also written to the
+                // log when we flush. Therefore, as soon as you write, your write is
+                // "likely to occur" whether you commit or not. We need to layer 
+                // an MVCC on top of this
+
+                if (this.state == WriteGroupState.CLOSED) {
+                    throw new Exception("flush called on closed WriteGroup"); // TODO: add LSN/info
+                }
 
                 if (this.last_logwaitnumber != 0) {
                     mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
                 }
 
-                state = TxnState.COMMITTED;
+                state = WriteGroupState.CLOSED;
             }
-            public void abort() {
-                state = TxnState.ABORTED;
-            }
+           
             public void Dispose() {
-                if (state == TxnState.PENDING) {
+                if (state == WriteGroupState.PENDING) {
                     throw new Exception("disposed Txn still pending " + this.tsn);
                 }
             }
@@ -203,14 +203,14 @@ namespace Bend
 
         // impl ....
 
-        public Txn newTxn() {
-            Txn newtx = new Txn(this);
-            pending_txns.Add(new WeakReference<Txn>(newtx));  // make sure we don't prevent collection
+        public WriteGroup newWriteGroup() {
+            WriteGroup newtx = new WriteGroup(this);
+            pending_txns.Add(new WeakReference<WriteGroup>(newtx));  // make sure we don't prevent collection
             return newtx;
         }
         private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
 
-        private void _writeSegment(Txn tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records, int gen_num) {
+        private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records, int gen_num) {
             // write the checkpoint segment and flush
             // TODO: make this happen in the background!!
             SegmentWriter segmentWriter = new SegmentWriter(records);
@@ -260,7 +260,7 @@ namespace Bend
             
             
             {
-                Txn tx = new Txn(this);
+                WriteGroup tx = new WriteGroup(this);
 
                 // allocate a new generation number
                 int new_generation_number = rangemapmgr.allocNewGeneration(tx);
@@ -271,7 +271,7 @@ namespace Bend
                     byte[] emptydata = new byte[0];
                     tx.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
                 }
-                tx.commit();                             // commit the freespace and rangemap transaction
+                tx.finish();                             // commit the freespace and rangemap transaction
 
             }
 
@@ -339,7 +339,7 @@ namespace Bend
 
             // (3) now perform the merge!!
             {
-                Txn tx = new Txn(this);
+                WriteGroup tx = new WriteGroup(this);
 
 
                 // allocate a new generation number
@@ -355,7 +355,7 @@ namespace Bend
 
                 rangemapmgr.setGenerationCountToZeroHack();     // check to see if we can shrink NUMGENERATIONS
                 
-                tx.commit();                             // commit the freespace and rangemap transaction
+                tx.finish();                             // commit the freespace and rangemap transaction
 
                 rangemapmgr.clearSegmentCacheHack();
                 // reader.getStream().Close();              // force close the reader
@@ -425,15 +425,15 @@ namespace Bend
 
         public void setValueParsed(String skey, String svalue)
         {
-            Txn implicit_txn = this.newTxn();
+            WriteGroup implicit_txn = this.newWriteGroup();
             implicit_txn.setValueParsed(skey, svalue);
-            implicit_txn.commit();            
+            implicit_txn.finish();            
         }
 
         public void setValue(RecordKey key, RecordUpdate value) {
-            Txn implicit_txn = this.newTxn();
+            WriteGroup implicit_txn = this.newWriteGroup();
             implicit_txn.setValue(key, value);
-            implicit_txn.commit();            
+            implicit_txn.finish();            
         }
 
         public void Dispose() {

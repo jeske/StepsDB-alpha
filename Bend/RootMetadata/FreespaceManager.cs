@@ -39,7 +39,7 @@ namespace Bend
 
         // right now we're going to use a "top of heap" allocation strategy with no reclamation
         // .ROOT/FREELIST/HEAD -> "top of heap"
-        public IRegion allocateNewSegment(LayerManager.Txn tx, int length) {
+        public IRegion allocateNewSegment(LayerManager.WriteGroup tx, int length) {
             int new_addr;
             // grab a chunk
 
