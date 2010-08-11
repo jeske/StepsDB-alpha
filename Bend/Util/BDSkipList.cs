@@ -42,7 +42,7 @@ namespace Bend
     // http://www.4guysfromrolla.com/articles/011806-1.aspx
     [DebuggerDisplay(" SkipList- {ToString()}")]
 
-    public class SkipList<K,V> : 
+    public class BDSkipList<K,V> : 
         IScannableDictionary<K,V>
         where K: IComparable<K> 
         // where V: IEquatable<V>
@@ -75,7 +75,7 @@ namespace Bend
 
         /* Public constructor of the class. Receives as parameters the maximum number
          * of paralel lists and the probability. */
-        public SkipList(int maxListsCount, double probability) {
+        public BDSkipList(int maxListsCount, double probability) {
             /* Store the maximum number of lists and the probability. */
             this.maxLevelHeight = maxListsCount;
             this.probability = probability;
@@ -125,7 +125,7 @@ namespace Bend
 
         /* This is another public constructor. It creates a skip list with 11 aditional lists
          * and with a probability of 0.5. */
-        public SkipList() : this(11, 0.5) { }
+        public BDSkipList() : this(11, 0.5) { }
 
         #region Add_Remove_Clear_Implementations
         // -------------------------[ Add  / Remove / Clear ]--------------------------------
@@ -629,8 +629,8 @@ namespace Bend
         // ------------ class KeysInterface --------------
         public class KeysInterface : ICollection<K>, IEnumerable<K> 
         {
-            SkipList<K,V> target;
-            internal KeysInterface(SkipList<K,V> target) {
+            BDSkipList<K,V> target;
+            internal KeysInterface(BDSkipList<K,V> target) {
                 this.target = target;
             }
             public bool IsReadOnly { get { return true; } }
@@ -740,7 +740,7 @@ namespace BendTests
         }
         [Test]
         public void T00_SkipList() {
-            SkipList<string, int> l = new SkipList<string, int>();
+            BDSkipList<string, int> l = new BDSkipList<string, int>();
             string[] keylist = { "abc", "def", "ghi" };
             int[] valuelist = { 1, 2, 3 };
 
@@ -841,7 +841,7 @@ namespace BendTests
 
             // use an iterator over an empty skiplist
             {
-                SkipList<string, int> l2 = new SkipList<string, int>();
+                BDSkipList<string, int> l2 = new BDSkipList<string, int>();
                 foreach (KeyValuePair<string, int> kvp in l2) {
                     Assert.Fail("empty list should not cause iteration");
                 }
@@ -851,7 +851,7 @@ namespace BendTests
 
         [Test]
         public void T00_Skiplist_Remove() {
-            SkipList<string, int> l = new SkipList<string, int>();
+            BDSkipList<string, int> l = new BDSkipList<string, int>();
             string[] keylist = { "abc", "def", "ghi" };
             int[] valuelist = { 1, 2, 3 };
 
@@ -872,7 +872,7 @@ namespace BendTests
 
         [Test]
         public void T01_Skiplist_ScannableDictionaryInterface() {
-            SkipList<string, int> l = new SkipList<string, int>();
+            BDSkipList<string, int> l = new BDSkipList<string, int>();
             string[] keylist = { "abc", "def", "ghi" };
             int[] valuelist = { 1, 2, 3 };
             IScannableDictionary<string, int> ld = l;
@@ -888,7 +888,7 @@ namespace BendTests
 
         [Test]
         public void T01_SkipList_Scanning() {
-            SkipList<string, int> l = new SkipList<string, int>();
+            BDSkipList<string, int> l = new BDSkipList<string, int>();
             string[] keylist = { "abc", "def", "ghi" };
             int[] valuelist = { 1, 2, 3 };
 
@@ -956,7 +956,7 @@ namespace BendTests
 
         [Test]
         public void T01_SkipList_Scanningbigger() {
-            SkipList<int, int> l = new SkipList<int, int>();
+            BDSkipList<int, int> l = new BDSkipList<int, int>();
             for (int i = 0; i < 1000; i = i + 30) {
                 l.Add(i, i);
             }
@@ -974,7 +974,7 @@ namespace BendTests
 
         public class SkipList_Threading_Tester
         {
-            SkipList<string, int> list;
+            BDSkipList<string, int> list;
             int[] datavalues;
 
             int num_additions = 0;
@@ -982,7 +982,7 @@ namespace BendTests
             int num_removals = 0;
 
             public SkipList_Threading_Tester(int num_values) {
-                list = new SkipList<string, int>();
+                list = new BDSkipList<string, int>();
                 Random rnd = new Random();
                 datavalues = new int[num_values];
                 for (int i = 0; i < num_values; i++) {

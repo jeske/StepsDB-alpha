@@ -67,7 +67,7 @@ namespace Bend
             //   and it allows next/prev, which none of them offer.
 
             // items = new SortedDictionary<RecordKey, RecordUpdate>();
-            items = new SkipList<RecordKey, RecordUpdate>();
+            items = new BDSkipList<RecordKey, RecordUpdate>();
         }
 
         public int RowCount {
@@ -176,7 +176,7 @@ namespace Bend
         public SortedSegmentIndex() {
             // TODO: switch this to use a scannable array when we read back
             //  so we can avoid wasting the space and insertion time of a skiplist...
-            blocks = new SkipList<RecordKey,_SegBlock>();
+            blocks = new BDSkipList<RecordKey,_SegBlock>();
         }
         public SortedSegmentIndex(byte[] index_data,IRegion segmentRegion) : this() {
             this.segmentRegion = segmentRegion;

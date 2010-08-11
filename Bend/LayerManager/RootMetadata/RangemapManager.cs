@@ -187,8 +187,8 @@ namespace Bend
 
         public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record, bool equal_ok) {
 
-            SkipList<RecordKey, RecordData> handledIndexRecords = new SkipList<RecordKey,RecordData>();
-            SkipList<RecordKey, RecordData> recordsBeingAssembled = new SkipList<RecordKey, RecordData>();
+            BDSkipList<RecordKey, RecordData> handledIndexRecords = new BDSkipList<RecordKey,RecordData>();
+            BDSkipList<RecordKey, RecordData> recordsBeingAssembled = new BDSkipList<RecordKey, RecordData>();
 
 
             SegmentMemoryBuilder[] layers;
