@@ -1,0 +1,44 @@
+--------[ Current TODO ]---------
+
+** incremental prioritized merge (small step, eventually does a full merge)
+(option a) 
+  for each non-leaf generation, determine total size of generation, and % in each living block
+  
+  
+(option b) - Block Metric
+Force a merge of the rangekeys.
+For each set of M parent blocks, determine number of child blocks that map into the same range 
+as the parent blocks. (If we use individual blocks, we could end up with partial output blocks)
+Insert the merge candidate into an N-entry priority queue, with higher ratios having higher priority. 
+The ideal merge is 1:1, meaning that we hope there is one merge-down record for every old record. 
+
+
+
+  
+  Q) What makes a good merge?
+   -> the size of the 'new' data is a reasonable fraction of the biggest generation being pushed into.
+     -> EX: 1 key from A-M to be merged into a full block - BAD
+     -> EX: 5MB of keys from A-M to be merged into 5MB of keys from A-M - GOOD (50% write efficiency)
+   -> the adjacency of blocks on disk (streaming read)
+   -> the percentage of live data in the block is low. (?? can we avoid this with recirculation?)
+
+
+--------[ Other big TODO items ]-----------
+
+** dbfill - write 10GB of data
+** dbchurn - write/modify test
+
+
+*** row attributes for MVCC and locks
+(a) introduce row-attribute concept (can affect commit, row visibility, etc.)
+(b) attach MVCC attribute handler to writes, attach txn id to each row
+(c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
+
+*** First Automated Replication
+(a) 'lock' for old generations (i.e. checkpoint),
+(b) copy locked data to replica
+(c) create new 'lock' for newer data, goto (b), until we are up-to-date
+
+*** try using C# sqlite sql implementation to throw SQL on top
+
+
