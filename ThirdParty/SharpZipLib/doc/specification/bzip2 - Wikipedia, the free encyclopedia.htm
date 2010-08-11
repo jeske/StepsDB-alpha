@@ -1,0 +1,393 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+				<meta name="keywords" content="Bzip2,2006,7-Zip,7z,ASCII,Algorithm,Apache Ant,Apache License,Arithmetic coding,BSD license,Base 1" />
+		<link rel="shortcut icon" href="/favicon.ico" />
+		<link rel="search" type="application/opensearchdescription+xml" href="/w/opensearch_desc.php" title="Wikipedia (English)" />
+		<link rel="copyright" href="http://www.gnu.org/copyleft/fdl.html" />
+		<title>Bzip2 - Wikipedia, the free encyclopedia</title>
+		<style type="text/css" media="screen,projection">/*<![CDATA[*/ @import "/skins-1.5/monobook/main.css?52"; /*]]>*/</style>
+		<link rel="stylesheet" type="text/css" media="print" href="/skins-1.5/common/commonPrint.css?52" />
+		<link rel="stylesheet" type="text/css" media="handheld" href="/skins-1.5/monobook/handheld.css?52" />
+		<!--[if lt IE 5.5000]><style type="text/css">@import "/skins-1.5/monobook/IE50Fixes.css?52";</style><![endif]-->
+		<!--[if IE 5.5000]><style type="text/css">@import "/skins-1.5/monobook/IE55Fixes.css?52";</style><![endif]-->
+		<!--[if IE 6]><style type="text/css">@import "/skins-1.5/monobook/IE60Fixes.css?52";</style><![endif]-->
+		<!--[if IE 7]><style type="text/css">@import "/skins-1.5/monobook/IE70Fixes.css?52";</style><![endif]-->
+		<!--[if lt IE 7]><script type="text/javascript" src="/skins-1.5/common/IEFixes.js?52"></script>
+		<meta http-equiv="imagetoolbar" content="no" /><![endif]-->
+		
+		<script type= "text/javascript">/*<![CDATA[*/
+var skin = "monobook";
+var stylepath = "/skins-1.5";
+var wgArticlePath = "/wiki/$1";
+var wgScriptPath = "/w";
+var wgServer = "http://en.wikipedia.org";
+var wgCanonicalNamespace = "";
+var wgCanonicalSpecialPageName = false;
+var wgNamespaceNumber = 0;
+var wgPageName = "Bzip2";
+var wgTitle = "Bzip2";
+var wgArticleId = "66255";
+var wgIsArticle = true;
+var wgUserName = null;
+var wgUserGroups = null;
+var wgUserLanguage = "en";
+var wgContentLanguage = "en";
+var wgBreakFrames = false;
+var wgCurRevisionId = "102478266";
+/*]]>*/</script>
+                
+		<script type="text/javascript" src="/skins-1.5/common/wikibits.js?52"><!-- wikibits js --></script>
+		<script type="text/javascript" src="/w/index.php?title=-&amp;action=raw&amp;gen=js"><!-- site js --></script>
+		<style type="text/css">/*<![CDATA[*/
+@import "/w/index.php?title=MediaWiki:Common.css&usemsgcache=yes&action=raw&ctype=text/css&smaxage=2678400";
+@import "/w/index.php?title=MediaWiki:Monobook.css&usemsgcache=yes&action=raw&ctype=text/css&smaxage=2678400";
+@import "/w/index.php?title=-&action=raw&gen=css&maxage=2678400";
+/*]]>*/</style>
+		<!-- Head Scripts -->
+		<script type="text/javascript" src="/skins-1.5/common/ajax.js?52"></script>
+	</head>
+<body  class="mediawiki ns-0 ltr page-Bzip2">
+	<div id="globalWrapper">
+		<div id="column-content">
+	<div id="content">
+		<a name="top" id="top"></a>
+		<div id="siteNotice"><script type="text/javascript" language="JavaScript">
+<!--
+document.writeln("\x3cdiv style=\"text-align:right; font-size:80%\"\x3eYour \x3cb\x3e\x3ca href=\"http://wikimediafoundation.org/wiki/Fundraising\" class=\"extiw\" title=\"wikimedia:Fundraising\"\x3econtinued donations\x3c/a\x3e\x3c/b\x3e keep Wikipedia running!\x26nbsp;\x26nbsp;\x26nbsp;\x26nbsp;\x3c/div\x3e\n");
+-->
+</script></div>		<h1 class="firstHeading">Bzip2</h1>
+		<div id="bodyContent">
+			<h3 id="siteSub">From Wikipedia, the free encyclopedia</h3>
+			<div id="contentSub"></div>
+									<div id="jump-to-nav">Jump to: <a href="#column-one">navigation</a>, <a href="#searchInput">search</a></div>			<!-- start content -->
+			<table class="infobox" style="text-align: left; width: 23em; font-size: 90%;">
+<caption><b>bzip2</b></caption>
+<tr>
+<th style="white-space: nowrap;"><a href="/wiki/Filename_extension" title="Filename extension">File extension</a>:</th>
+<td><code><tt>.bz2</tt>, <tt>.tar.bz2</tt>, <tt>.tbz2</tt>, .tb2</code></td>
+</tr>
+<tr>
+<th style="white-space: nowrap;"><a href="/wiki/MIME" title="MIME">MIME type</a>:</th>
+<td><code><tt>application/x-bzip</tt></code></td>
+</tr>
+<tr>
+<th style="white-space: nowrap;"><a href="/wiki/Type_code" title="Type code">Type code</a>:</th>
+<td><tt>Bzp2</tt></td>
+</tr>
+<tr>
+<th style="white-space: nowrap;">Developed by:</th>
+<td><a href="/wiki/Julian_Seward" title="Julian Seward">Julian Seward</a></td>
+</tr>
+<tr>
+<th style="white-space: nowrap;">Type of format:</th>
+<td><a href="/wiki/Data_compression" title="Data compression">data compression</a></td>
+</tr>
+<tr>
+<td></td>
+</tr>
+</table>
+<table class="infobox" cellspacing="5" style="width: 24em; font-size: 90%; text-align: left;">
+<caption style="font-size: 130%; font-weight: bold;">bzip2</caption>
+<tr>
+<th colspan="2" style="text-align: center;"></th>
+</tr>
+<tr>
+<th><a href="/wiki/Software_development" title="Software development">Developer</a>:</th>
+<td><a href="/wiki/Julian_Seward" title="Julian Seward">Julian Seward</a></td>
+</tr>
+<tr>
+<th><a href="/wiki/Software_release" title="Software release">Latest release</a>:</th>
+<td>1.0.4 / <a href="/wiki/December_20" title="December 20">December 20</a>, <a href="/wiki/2006" title="2006">2006</a></td>
+</tr>
+<tr>
+<th><a href="/wiki/Operating_system" title="Operating system">OS</a>:</th>
+<td><a href="/wiki/Cross-platform" title="Cross-platform">Cross-platform</a></td>
+</tr>
+<tr>
+<th>Use:</th>
+<td><a href="/wiki/Data_compression" title="Data compression">data compression</a></td>
+</tr>
+<tr>
+<th><a href="/wiki/Software_license" title="Software license">License</a>:</th>
+<td>Bzip2</td>
+</tr>
+<tr>
+<th><a href="/wiki/Website" title="Website">Website</a>:</th>
+<td><a href="http://www.bzip.org" class="external text" title="http://www.bzip.org" rel="nofollow">www.bzip.org</a></td>
+</tr>
+</table>
+<div id="RealTitleBanner">
+<dl>
+<dd><i>The correct title of this article is <b><span id="RealTitle">bzip2</span></b>. The initial letter is shown capitalized due to <a href="/wiki/Wikipedia:Naming_conventions_%28technical_restrictions%29#Lower_case_first_letter" title="Wikipedia:Naming conventions (technical restrictions)">technical restrictions</a>.</i></dd>
+</dl>
+</div>
+<p><b>bzip2</b> is a <a href="/wiki/Free_software" title="Free software">free software</a>/<a href="/wiki/Open-source_software" title="Open-source software">open source</a> <a href="/wiki/Data_compression" title="Data compression">data compression</a> <a href="/wiki/Algorithm" title="Algorithm">algorithm</a> and program developed by <a href="/wiki/Julian_Seward" title="Julian Seward">Julian Seward</a>. Seward made the first public release of bzip2, version 0.15, in July 1996. The compressor's stability and popularity grew over the next several years, and Seward released version 1.0 in late 2000.</p>
+<table id="toc" class="toc" summary="Contents">
+<tr>
+<td>
+<div id="toctitle">
+<h2>Contents</h2>
+</div>
+<ul>
+<li class="toclevel-1"><a href="#Compression_efficiency"><span class="tocnumber">1</span> <span class="toctext">Compression efficiency</span></a></li>
+<li class="toclevel-1"><a href="#Compression_stack"><span class="tocnumber">2</span> <span class="toctext">Compression stack</span></a></li>
+<li class="toclevel-1"><a href="#File_format"><span class="tocnumber">3</span> <span class="toctext">File format</span></a></li>
+<li class="toclevel-1"><a href="#Use"><span class="tocnumber">4</span> <span class="toctext">Use</span></a></li>
+<li class="toclevel-1"><a href="#Implementations"><span class="tocnumber">5</span> <span class="toctext">Implementations</span></a></li>
+<li class="toclevel-1"><a href="#See_also"><span class="tocnumber">6</span> <span class="toctext">See also</span></a></li>
+<li class="toclevel-1"><a href="#External_links"><span class="tocnumber">7</span> <span class="toctext">External links</span></a></li>
+<li class="toclevel-1"><a href="#References"><span class="tocnumber">8</span> <span class="toctext">References</span></a></li>
+</ul>
+</td>
+</tr>
+</table>
+<p><script type="text/javascript">
+//<![CDATA[
+ if (window.showTocToggle) { var tocShowText = "show"; var tocHideText = "hide"; showTocToggle(); } 
+//]]>
+</script><a name="Compression_efficiency" id="Compression_efficiency"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=1" title="Edit section: Compression efficiency">edit</a>]</span> <span class="mw-headline">Compression efficiency</span></h2>
+<p>bzip2 compresses most files more effectively than more traditional <a href="/wiki/Gzip" title="Gzip">gzip</a> or <a href="/wiki/ZIP_%28file_format%29" title="ZIP (file format)">ZIP</a> but is slower. In this manner it is fairly similar to other recent-generation compression algorithms. Unlike other formats such as <a href="/wiki/RAR" title="RAR">RAR</a> or ZIP (and similar to gzip), bzip2 is only a data compressor, not an archiver. The program itself has no facilities for multiple files, encryption or archive-splitting, in the <a href="/wiki/UNIX" title="UNIX">UNIX</a> tradition instead relying on separate external utilities such as <a href="/wiki/Tar_%28file_format%29" title="Tar (file format)">tar</a> and <a href="/wiki/GNU_Privacy_Guard" title="GNU Privacy Guard">GnuPG</a> for these tasks.</p>
+<p>In some cases, bzip2 is surpassed by <a href="/wiki/7z" title="7z">7z</a> and RAR formats in terms of absolute compression efficiency. According to the author, bzip2 gets within ten to fifteen percent of the "best" class of compression algorithms currently known (<a href="/wiki/PPM_compression_algorithm" title="PPM compression algorithm">PPM</a>), although it is roughly twice as fast at compression and six times faster at decompression.</p>
+<p>bzip2 uses the <a href="/wiki/Burrows-Wheeler_transform" title="Burrows-Wheeler transform">Burrows-Wheeler transform</a> to convert frequently recurring character sequences into strings of identical letters, and then applies a <a href="/wiki/Move-to-front_transform" title="Move-to-front transform">move-to-front transform</a> and finally <a href="/wiki/Huffman_coding" title="Huffman coding">Huffman coding</a>. In bzip2 the blocks are generally all the same size in plaintext, which can be selected by a command-line argument between 100<a href="/wiki/Kilobyte" title="Kilobyte">kB</a>–900kB. Compression blocks are delimited by a 48-bit sequence (<a href="/wiki/Magic_number_%28programming%29" title="Magic number (programming)">magic number</a>) derived from the <a href="/wiki/Binary-coded_decimal" title="Binary-coded decimal">binary-coded decimal</a> representation of <a href="/wiki/Pi" title="Pi">π</a>, <code>0x314159265359</code>, with the end-of-stream similarly delimited by a value representing <a href="/wiki/Square_root" title="Square root">sqrt</a>(<a href="/wiki/Pi" title="Pi">π</a>), <code>0x177245385090</code>.</p>
+<p>Originally, bzip2's ancestor <b>bzip</b> used <a href="/wiki/Arithmetic_coding" title="Arithmetic coding">arithmetic coding</a> after the blocksort; this was discontinued because of the <a href="/wiki/Software_patent" title="Software patent">patent</a> restriction to be replaced by the <a href="/wiki/Huffman_coding" title="Huffman coding">Huffman coding</a> currently used in bzip2.</p>
+<p><a name="Compression_stack" id="Compression_stack"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=2" title="Edit section: Compression stack">edit</a>]</span> <span class="mw-headline">Compression stack</span></h2>
+<p>Bzip2 uses several layers of compression techniques stacked on top of each other, which occur in the following order during compression and the reverse order during decompression:</p>
+<ol>
+<li><a href="/wiki/Run-length_encoding" title="Run-length encoding">Run-length encoding</a> (RLE), any sequence of four (4) duplicate symbols are adjusted so that the following symbol is replaced by a repeat length of between 0 and 255. Thus the sequence <code>"AAAAAAABBBBCCCD"</code> is replaced with <code>"AAAA\4BBBB\0CCCD"</code>. Runs of symbols are always transformed after three consecutive symbols, even if the run-length is set to zero. This transformation is particularly good at taking care of large zeroed areas of files. In the worst case, it can cause a pre-BWT expansion of 1.25 and in the best case a reduction to &lt;0.02 of original size.</li>
+<li><a href="/wiki/Burrows-Wheeler_transform" title="Burrows-Wheeler transform">Burrows-Wheeler transform</a> (BWT), this is the reversible block-sort that is at the core of bzip2. The block is entirely self contained, with input and output buffers remaining the same size—in bzip2, the operating limit for this stage is 900kB. For the block-sort, a (notional) matrix is created in which row <span class="texhtml"><i>i</i></span> contains the whole of the buffer, rotated to start from the <span class="texhtml"><i>i</i><sup><i>t</i><i>h</i></sup></span> symbol. Following rotation, the rows of the matrix are sorted into alphabetic (numerical) order. A 24-bit pointer is stored marking the <i>starting position</i> for when the block is untransformed. In practice, it is not necessary to construct the full matrix, rather the sort is performed using pointers for each position in the buffer. The output buffer is the last column of the matrix; this contains the whole buffer, but reordered so that it is likely to contain large runs of identical symbols.</li>
+<li><a href="/wiki/Move-to-front_transform" title="Move-to-front transform">Move to front</a> (MTF), again, this transform does not alter the size of the processed block. Each of the symbols in use in the document is placed in an array. When a symbol is processed, it is replaced by its subscript (offset) in the array and that symbol is shuffled to the front of the array. The effect is that long runs of identical symbols are replaced by long runs of small symbols.</li>
+<li><a href="/wiki/Run-length_encoding" title="Run-length encoding">Run-length encoding</a> (RLE), long strings of repeated symbols in the output (normally zeros by this time) are replaced by a combination of the symbol and a sequence of two special codes, <code>RUNA</code> and <code>RUNB</code>, which represent the run-length as a binary number greater than one (1). The sequence <code>0,0,0,0,1</code> would be represented as <code>0,RUNB,RUNA,1</code>; <code>RUNB</code> and <code>RUNA</code> representing the value 11 in binary, or three (3) in decimal. The run-length code is terminated by reaching another normal symbol.</li>
+<li><a href="/wiki/Huffman_coding" title="Huffman coding">Huffman coding</a>, this process replaces fixed length symbols (8-bit bytes) with variable length codes based on the frequency of use. More frequently used codes end up shorter (2-3 bits) whilst rare codes can be allocated up to 20 bits. The codes are selected carefully so that no sequence of bits can be confused for a different code. An additional code is used to mark the end of the stream: if fewer than 256 symbols are in use, then the end-of-stream will be the smallest used value, which could be as low as three (3). The code mappings are allocated as follows:
+<dl>
+<dd><code>0: RUNA<br />
+1: RUNB<br />
+2-257: byte values 0-255<br />
+258: end of stream, finish processing. (could be as low as 3).</code></dd>
+</dl>
+</li>
+<li>Multiple <a href="/wiki/Huffman_coding" title="Huffman coding">Huffman tables</a>, several identically-sized Huffman tables can be used with a block if the gain from using them is greater than the cost of including the extra table. At least two (2) and up to six (6) tables can be present, with the most appropriate table being reselected before every 50 symbols processed. This has the advantage of having very responsive Huffman dynamics without having to continuously supply new tables, as would be required in <a href="/wiki/DEFLATE" title="DEFLATE">DEFLATE</a>. Run-length encoding in the previous step is designed to take care of codes that have an inverse probability of use higher than the shortest code Huffman code in use.</li>
+<li>Unary <a href="/wiki/Base_1" title="Base 1">Base 1</a> encoding, if multiple Huffman tables are in use, the selection of each table (numbered 0..5) is done from a list by a zero-terminated bit run between one (1) and six (6) bits in length. The selection is into a <a href="/wiki/MTF" title="MTF">MTF</a> list of the tables. Using this feature results in a maximum expansion of around 1.015, but generally less. This expansion is likely to be greatly over-shadowed by the advantage of selecting more appropriate Huffman tables and the common-case of continuing to use the same Huffman table is represented as a single bit. Rather than unary encoding, effectively this is an extreme form of a Huffman tree where each code has half the probability of the previous code.</li>
+<li><a href="/wiki/Delta_encoding" title="Delta encoding">Delta encoding</a> (Δ); Huffman code bit-lengths are required to reconstruct each of the used Canonical Huffman tables. Each bit-length is stored as an encoded difference against the previous code bit-length. A zero-bit (0) means that the previous bit-length should be duplicated for the current code, whilst a one-bit (1) means that a further bit should be read and the bit-length incremented or decremented based on that value. In the common case a single bit is used per symbol per table and the worst case—going from length one (1) to length twenty (20)—would require approximately 37 bits. As a result of the earlier MTF encoding, code lengths would start at 2-3bits long (very frequently used codes) and gradually increase, meaning that the delta format is fairly efficient—requiring around 300-bits (38 bytes) per full Huffman table.</li>
+<li><a href="/wiki/Sparse" title="Sparse">Sparse</a> <a href="/wiki/Bit_array" title="Bit array">Bit array</a>, a bitmap is used to show which symbols are used inside the block and should be included in the Huffman trees. Binary data is likely to use all 256 symbols representable by a byte, whereas textual data may only use a small subset of available values, perhaps covering the <a href="/wiki/ASCII" title="ASCII">ASCII</a> range between 32 and 126. Storing 256 zero bits would be inefficient if they were mostly unused. A <i>sparse</i> method is used, the 256 symbols are divided up into 16 ranges and only if symbols are used within that block is a 16-bit array included. The presence of each of these 16 ranges is indicated by an additional 16-bit bit array at the front. The total bitmap uses between 32 and 272 bits of storage (4–34 bytes). For contrast, the <a href="/wiki/DEFLATE" title="DEFLATE">DEFLATE</a> algorithm would show the absence of a symbol by encoded the symbol as having zero bit-length; this very inefficient with the Delta-encoding used in bzip2 which is the reason for bzip2 having a separate bit array.</li>
+</ol>
+<p><a name="File_format" id="File_format"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=3" title="Edit section: File format">edit</a>]</span> <span class="mw-headline">File format</span></h2>
+<p>A <code>.bz2</code> stream consists of a 4-byte header, followed by zero or more compressed blocks, immediately followed by an end-of-stream marker containing a 32-bit CRC for the plaintext whole stream processed. The compressed blocks are bit-aligned and no padding occurs.</p>
+<pre>
+/* Paul Sladen, 2007-01-11 */
+
+.magic:16                       = 'BZ' signature/magic number
+.version:8                      = 'h' for Bzip2 ('H'uffman coding), '0' for Bzip1 (deprecated)
+.hundred_k_blocksize:8          = '1'..'9' block-size 100kB-900kB
+
+.compressed_magic:48            = 0x314159265359 (BCD (pi))
+.crc:32                         = checksum for this block
+.randomised:1                   = 0=&gt;normal, 1=&gt;randomised (deprecated)
+.origPtr:24                     = starting pointer into BWT for after untransform
+.huffman_used_map:16            = bitmap, of ranges of 16 bytes, present/not present
+.huffman_used_bitmaps:0..256    = bitmap, of symbols used, present/not present (multiples of 16)
+.huffman_groups:3               = 2..6 number of different Huffman tables in use
+.selectors_used:15              = number of times that the Huffman tables are swapped (each 50 bytes)
+*.selector_list:1..6            = zero-terminated bit runs (0..62) of MTF'ed Huffman table (*selectors_used)
+.start_huffman_length:5         = 0..20 starting bit length for Huffman deltas
+*.delta_bit_length:1..40        = 0=&gt;next symbol; 1=&gt;alter length
+                                                { 1=&gt;length--;  0=&gt;length++ } (*(symbols+2)*groups)
+.contents:2..∞                  = Huffman encoded data stream until end of block
+
+.eos_magic:48                   = 0x177245385090 (BCD sqrt(pi)
+.crc:32                         = checksum for whole stream
+.padding:0..7                   = align to whole byte
+</pre>
+<p>Note for implementors. Because of the first-stage RLE compression (see above), the maximum length of plaintext that a single 900kB bzip2 block can contain is around 46MB (45,899,235 bytes)! This staggering feat of compression can occur if the whole plaintext consists entirely of repeated values (the resulting <code>.bz2</code> file in this case is 46 bytes long).<sup id="_ref-0" class="reference"><a href="#_note-0" title="">[1]</a></sup></p>
+<p><a name="Use" id="Use"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=4" title="Edit section: Use">edit</a>]</span> <span class="mw-headline">Use</span></h2>
+<p>In <a href="/wiki/Unix" title="Unix">Unix</a>, bzip2 can be used combined with or independently of tar: <i>bzip2 file</i> to compress and <i>bzip2 -d file.bz2</i> to uncompress (the alias <i>bunzip2</i> for decompression may also be used).</p>
+<p>bzip2's command line flags are mostly the same as in <a href="/wiki/Gzip" title="Gzip">gzip</a>. So, to extract from a bzip2-compressed tar-file:</p>
+<pre>
+bzcat <i>archivefile</i>.tar.bz2 | tar -xvf -
+</pre>
+<p>To create a bzip2-compressed tar-file:</p>
+<pre>
+tar -cvf - <i>filenames</i> | bzip2 &gt; <i>archivefile</i>.tar.bz2
+</pre>
+<p><a href="/wiki/GNU" title="GNU">GNU</a> tar supports a -j flag, which allows creation of tar.bz2 files without a pipeline:</p>
+<pre>
+tar -cvjf <i>archivefile</i>.tar.bz2 <i>file-list</i>
+</pre>
+<p>Decompressing in GNU tar:</p>
+<pre>
+tar -xvjf <i>archivefile</i>.tar.bz2
+</pre>
+<p><a name="Implementations" id="Implementations"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=5" title="Edit section: Implementations">edit</a>]</span> <span class="mw-headline">Implementations</span></h2>
+<ul>
+<li><a href="http://www.bzip.org/" class="external text" title="http://www.bzip.org/" rel="nofollow">bzip2</a>: <a href="/wiki/Julian_Seward" title="Julian Seward">Julian Seward</a>'s original reference implementation available under a <a href="/wiki/BSD_license" title="BSD license">BSD license</a>.</li>
+<li><a href="/wiki/7-Zip" title="7-Zip">7-Zip</a>: written by Igor Pavlov in <a href="/wiki/C%2B%2B" title="C++">C++</a>, the 7-Zip suite contains a bzip2 encoder/decoder which is freely licensed.</li>
+<li><a href="http://www.landley.net/code/" class="external text" title="http://www.landley.net/code/" rel="nofollow">micro-bzip2</a>: a version by Rob Landley designed for reduced compiled code size and and available under the GNU <a href="/wiki/LGPL" title="LGPL">LGPL</a>.</li>
+<li><a href="http://www.kohsuke.org/bzip2/" class="external text" title="http://www.kohsuke.org/bzip2/" rel="nofollow">org.apache.tools.bzip2</a>: <a href="/wiki/Java_%28programming_language%29" title="Java (programming language)">Java</a> implementation from the <a href="/wiki/Apache_Ant" title="Apache Ant">Apache Ant</a> build system available under the <a href="/wiki/Apache_License" title="Apache License">Apache License</a>.</li>
+<li><a href="http://www-user.tu-chemnitz.de/~chsi/pbzip2.htm" class="external text" title="http://www-user.tu-chemnitz.de/~chsi/pbzip2.htm" rel="nofollow">pbzip2</a>: Parallel <a href="/wiki/Message_Passing_Interface" title="Message Passing Interface">MPI</a>-based implementation by Christian Siebert.</li>
+<li><a href="http://compression.ca/pbzip2/" class="external text" title="http://compression.ca/pbzip2/" rel="nofollow">PBZIP2</a>: Parallel <a href="/wiki/POSIX_Threads" title="POSIX Threads">pthreads</a>-based implementation in <a href="/wiki/C%2B%2B" title="C++">C++</a> by Jeff Gilchrist.</li>
+<li><a href="http://bzip2smp.sourceforge.net/" class="external text" title="http://bzip2smp.sourceforge.net/" rel="nofollow">bzip2smp</a>: a modification to <code>libbzip2</code> that has <a href="/wiki/Symmetric_multiprocessing" title="Symmetric multiprocessing">SMP</a> parallelisation <cite>"hacked in"</cite> by Konstantin Isakov.</li>
+<li><a href="http://home.student.utwente.nl/n.werensteijn/smpbzip2/" class="external text" title="http://home.student.utwente.nl/n.werensteijn/smpbzip2/" rel="nofollow">smpbzip2</a>: Another go at parallel bzip2, by Niels Werensteijn.</li>
+<li><a href="http://www.paul.sladen.org/projects/pyflate/" class="external text" title="http://www.paul.sladen.org/projects/pyflate/" rel="nofollow">pyflate</a>: a pure-<a href="/wiki/Python_%28programming_language%29" title="Python (programming language)">Python</a> stand-alone bzip2 and <a href="/wiki/DEFLATE" title="DEFLATE">DEFLATE</a> (<a href="/wiki/Gzip" title="Gzip">gzip</a>) decoder by Paul Sladen. Probably useful for research and prototyping, made available under the <a href="/wiki/BSD_license" title="BSD license">BSD</a>/<a href="/wiki/GNU_General_Public_License" title="GNU General Public License">GPL</a>/<a href="/wiki/GNU_Lesser_General_Public_License" title="GNU Lesser General Public License">LGPL</a>/<a href="/wiki/Debian_Free_Software_Guidelines" title="Debian Free Software Guidelines">DFSG</a> licenses.</li>
+</ul>
+<p><a name="See_also" id="See_also"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=6" title="Edit section: See also">edit</a>]</span> <span class="mw-headline">See also</span></h2>
+<div style="margin: 0 0 0 0.5em; border: solid #aaa 1px; background: #f9f9f9; font-size: 85%;" class="tright">
+<table style="background: transparent;" width="0">
+<tr>
+<td>
+<div style="position: relative; width: 32px; height: 28px; overflow: hidden">
+<div style="position: absolute; top: 0px; left: 0px; z-index: 2"><a href="/wiki/Image:Portal.svg" class="image" title="Portal:Free software"><img src="http://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Portal.svg/28px-Portal.svg.png" alt="Portal:Free software" width="28" height="28" longdesc="/wiki/Image:Portal.svg" /></a></div>
+</div>
+</td>
+<td><i><b><a href="/wiki/Portal:Free_software" title="Portal:Free software">Free software Portal</a></b></i></td>
+</tr>
+</table>
+</div>
+<ul>
+<li><a href="/wiki/List_of_archive_formats" title="List of archive formats">List of archive formats</a></li>
+<li><a href="/wiki/List_of_file_archivers" title="List of file archivers">List of file archivers</a></li>
+<li><a href="/wiki/Comparison_of_file_archivers" title="Comparison of file archivers">Comparison of file archivers</a></li>
+<li><a href="/wiki/List_of_Unix_programs" title="List of Unix programs">List of Unix programs</a></li>
+<li><a href="/wiki/Rzip" title="Rzip">rzip</a>, is a large-scale compression system that uses Bzip2 as a second-stage compressor following an LZ77-style dictionary stage.</li>
+</ul>
+<p><a name="External_links" id="External_links"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=7" title="Edit section: External links">edit</a>]</span> <span class="mw-headline">External links</span></h2>
+<ul>
+<li><a href="http://www.bzip.org/" class="external text" title="http://www.bzip.org/" rel="nofollow">The bzip2 and libbzip2 home page</a></li>
+<li><a href="http://gnuwin32.sourceforge.net/packages/bzip2.htm" class="external text" title="http://gnuwin32.sourceforge.net/packages/bzip2.htm" rel="nofollow">bzip2 for Windows</a></li>
+<li><a href="http://cgpgroup.com/index.asp?PgToLd=WBZIP2" class="external text" title="http://cgpgroup.com/index.asp?PgToLd=WBZIP2" rel="nofollow">Graphical bzip2 for Windows</a>(WBZip2)</li>
+<li><a href="http://persephone.cps.unizar.es/~spd/bzip2/" class="external text" title="http://persephone.cps.unizar.es/~spd/bzip2/" rel="nofollow">MacBzip2</a> (for Classic <a href="/wiki/Mac_OS" title="Mac OS">Mac OS</a>; under <a href="/wiki/Mac_OS_X" title="Mac OS X">Mac OS X</a>, the standard bzip2 is available at the command line)</li>
+<li><a href="http://bzip2smp.sourceforge.net/" class="external text" title="http://bzip2smp.sourceforge.net/" rel="nofollow">bzip2smp</a> (a <a href="/wiki/Parallel_computing" title="Parallel computing">parallel</a> implementation of bzip2 for use on multiprocessor/multicore machines)</li>
+<li><a href="http://www.mediawiki.org/wiki/Dbzip2#Feature_comparison" class="external text" title="http://www.mediawiki.org/wiki/Dbzip2#Feature_comparison" rel="nofollow">Feature comparison and benchmarks</a> for different kinds of parallel bzip2 implementations available</li>
+<li><a href="http://www.c10n.info/archives/352" class="external text" title="http://www.c10n.info/archives/352" rel="nofollow">4 Parallel bzip2 Implementations</a> at The Data Compression News Blog</li>
+</ul>
+<p><a name="References" id="References"></a></p>
+<h2><span class="editsection">[<a href="/w/index.php?title=Bzip2&amp;action=edit&amp;section=8" title="Edit section: References">edit</a>]</span> <span class="mw-headline">References</span></h2>
+<ol class="references">
+<li id="_note-0"><b><a href="#_ref-0" title="">^</a></b> <code>$ dd if=/dev/zero bs=45899235 count=1 | bzip2 -vvvv | wc -c</code>
+<p>A even smaller file of 40 bytes can be achieved by using a input containing entirely values of 251, an apparent compression ratio of 1147480:1.</p>
+</li>
+</ol>
+
+<!-- 
+Pre-expand include size: 10030 bytes
+Post-expand include size: 2792 bytes
+Template argument size: 763 bytes
+Maximum: 2048000 bytes
+-->
+
+<!-- Saved in parser cache with key enwiki:pcache:idhash:66255-0!1!0!default!!en!2 and timestamp 20070125212310 -->
+<div class="printfooter">
+Retrieved from "<a href="http://en.wikipedia.org/wiki/Bzip2">http://en.wikipedia.org/wiki/Bzip2</a>"</div>
+			<div id="catlinks"><p class='catlinks'><a href="/wiki/Special:Categories" title="Special:Categories">Categories</a>: <span dir='ltr'><a href="/wiki/Category:Lossless_compression_algorithms" title="Category:Lossless compression algorithms">Lossless compression algorithms</a></span> | <span dir='ltr'><a href="/wiki/Category:Free_data_compression_software" title="Category:Free data compression software">Free data compression software</a></span> | <span dir='ltr'><a href="/wiki/Category:Archive_formats" title="Category:Archive formats">Archive formats</a></span> | <span dir='ltr'><a href="/wiki/Category:Unix_software" title="Category:Unix software">Unix software</a></span></p></div>			<!-- end content -->
+			<div class="visualClear"></div>
+		</div>
+	</div>
+		</div>
+		<div id="column-one">
+	<div id="p-cactions" class="portlet">
+		<h5>Views</h5>
+		<div class="pBody">
+			<ul>
+					 <li id="ca-nstab-main" class="selected"><a href="/wiki/Bzip2" title="View the content page [c]" accesskey="c">Article</a></li>
+					 <li id="ca-talk"><a href="/wiki/Talk:Bzip2" title="Discussion about the content page [t]" accesskey="t">Discussion</a></li>
+					 <li id="ca-edit"><a href="/w/index.php?title=Bzip2&amp;action=edit" title="You can edit this page. Please use the preview button before saving. [e]" accesskey="e">Edit this page</a></li>
+					 <li id="ca-history"><a href="/w/index.php?title=Bzip2&amp;action=history" title="Past versions of this page. [h]" accesskey="h">History</a></li>
+				</ul>
+		</div>
+	</div>
+	<div class="portlet" id="p-personal">
+		<h5>Personal tools</h5>
+		<div class="pBody">
+			<ul>
+				<li id="pt-login"><a href="/w/index.php?title=Special:Userlogin&amp;returnto=Bzip2" title="You are encouraged to log in, it is not mandatory however. [o]" accesskey="o">Sign in / create account</a></li>
+			</ul>
+		</div>
+	</div>
+	<div class="portlet" id="p-logo">
+		<a style="background-image: url(/images/wiki-en.png);" href="/wiki/Main_Page" title="Visit the Main Page [z]" accesskey="z"></a>
+	</div>
+	<script type="text/javascript"> if (window.isMSIE55) fixalpha(); </script>
+		<div class='portlet' id='p-navigation'>
+		<h5>Navigation</h5>
+		<div class='pBody'>
+			<ul>
+				<li id="n-Main-page"><a href="/wiki/Main_Page">Main page</a></li>
+				<li id="n-portal"><a href="/wiki/Wikipedia:Community_Portal" title="About the project, what you can do, where to find things">Community portal</a></li>
+				<li id="n-Featured-content"><a href="/wiki/Wikipedia:Featured_content">Featured content</a></li>
+				<li id="n-currentevents"><a href="/wiki/Portal:Current_events" title="Find background information on current events">Current events</a></li>
+				<li id="n-recentchanges"><a href="/wiki/Special:Recentchanges" title="The list of recent changes in the wiki. [r]" accesskey="r">Recent changes</a></li>
+				<li id="n-randompage"><a href="/wiki/Special:Random" title="Load a random page [x]" accesskey="x">Random article</a></li>
+				<li id="n-help"><a href="/wiki/Help:Contents" title="The place to find out.">Help</a></li>
+				<li id="n-contact"><a href="/wiki/Wikipedia:Contact_us">Contact Wikipedia</a></li>
+				<li id="n-sitesupport"><a href="http://wikimediafoundation.org/wiki/Fundraising" title="Support us">Donations</a></li>
+			</ul>
+		</div>
+	</div>
+		<div id="p-search" class="portlet">
+		<h5><label for="searchInput">Search</label></h5>
+		<div id="searchBody" class="pBody">
+			<form action="/wiki/Special:Search" id="searchform"><div>
+				<input id="searchInput" name="search" type="text" title="Search Wikipedia [f]" accesskey="f" value="" />
+				<input type='submit' name="go" class="searchButton" id="searchGoButton"	value="Go" />&nbsp;
+				<input type='submit' name="fulltext" class="searchButton" id="mw-searchButton" value="Search" />
+			</div></form>
+		</div>
+	</div>
+	<div class="portlet" id="p-tb">
+		<h5>Toolbox</h5>
+		<div class="pBody">
+			<ul>
+				<li id="t-whatlinkshere"><a href="/wiki/Special:Whatlinkshere/Bzip2" title="List of all wiki pages that link here [j]" accesskey="j">What links here</a></li>
+				<li id="t-recentchangeslinked"><a href="/wiki/Special:Recentchangeslinked/Bzip2" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li>
+<li id="t-upload"><a href="/wiki/Special:Upload" title="Upload images or media files [u]" accesskey="u">Upload file</a></li>
+<li id="t-specialpages"><a href="/wiki/Special:Specialpages" title="List of all special pages [q]" accesskey="q">Special pages</a></li>
+				<li id="t-print"><a href="/w/index.php?title=Bzip2&amp;printable=yes">Printable version</a></li>				<li id="t-permalink"><a href="/w/index.php?title=Bzip2&amp;oldid=102478266">Permanent link</a></li><li id="t-cite"><a href="/w/index.php?title=Special:Cite&amp;page=Bzip2&amp;id=102478266">Cite this article</a></li>			</ul>
+		</div>
+	</div>
+	<div id="p-lang" class="portlet">
+		<h5>In other languages</h5>
+		<div class="pBody">
+			<ul>
+				<li class="interwiki-ca"><a href="http://ca.wikipedia.org/wiki/Bzip2">Català</a></li>
+				<li class="interwiki-cs"><a href="http://cs.wikipedia.org/wiki/Bzip2">Česky</a></li>
+				<li class="interwiki-de"><a href="http://de.wikipedia.org/wiki/Bzip2">Deutsch</a></li>
+				<li class="interwiki-es"><a href="http://es.wikipedia.org/wiki/Bzip2">Español</a></li>
+				<li class="interwiki-fr"><a href="http://fr.wikipedia.org/wiki/Bzip2">Français</a></li>
+				<li class="interwiki-ko"><a href="http://ko.wikipedia.org/wiki/Bzip2">한국어</a></li>
+				<li class="interwiki-it"><a href="http://it.wikipedia.org/wiki/Bzip2">Italiano</a></li>
+				<li class="interwiki-nl"><a href="http://nl.wikipedia.org/wiki/Bzip2">Nederlands</a></li>
+				<li class="interwiki-ja"><a href="http://ja.wikipedia.org/wiki/Bzip2">日本語</a></li>
+				<li class="interwiki-pl"><a href="http://pl.wikipedia.org/wiki/Bzip2">Polski</a></li>
+				<li class="interwiki-pt"><a href="http://pt.wikipedia.org/wiki/Bzip2">Português</a></li>
+				<li class="interwiki-ru"><a href="http://ru.wikipedia.org/wiki/Bzip2">Русский</a></li>
+				<li class="interwiki-sv"><a href="http://sv.wikipedia.org/wiki/Bzip2">Svenska</a></li>
+				<li class="interwiki-tr"><a href="http://tr.wikipedia.org/wiki/Bzip2">Türkçe</a></li>
+				<li class="interwiki-zh"><a href="http://zh.wikipedia.org/wiki/Bzip2">中文</a></li>
+			</ul>
+		</div>
+	</div>
+		</div><!-- end of the left (by default at least) column -->
+			<div class="visualClear"></div>
+			<div id="footer">
+				<div id="f-poweredbyico"><a href="http://www.mediawiki.org/"><img src="/skins-1.5/common/images/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" /></a></div>
+				<div id="f-copyrightico"><a href="http://wikimediafoundation.org/"><img src="/images/wikimedia-button.png" border="0" alt="Wikimedia Foundation"/></a></div>
+			<ul id="f-list">
+				<li id="lastmod"> This page was last modified 18:28, 22 January 2007.</li>
+				<li id="copyright">All text is available under the terms of the <a class='internal' href="/wiki/Wikipedia:Text_of_the_GNU_Free_Documentation_License" title="Wikipedia:Text of the GNU Free Documentation License">GNU Free Documentation License</a>. (See <b><a class='internal' href="/wiki/Wikipedia:Copyrights" title="Wikipedia:Copyrights">Copyrights</a></b> for details.) <br /> Wikipedia&reg; is a registered trademark of the <a href="http://www.wikimediafoundation.org">Wikimedia Foundation, Inc</a>., a US-registered <a class='internal' href="/wiki/501%28c%29#501.28c.29.283.29" title="501(c)(3)">501(c)(3)</a> <a href="http://wikimediafoundation.org/wiki/Deductibility_of_donations">tax-deductible</a> <a class='internal' href="/wiki/Non-profit_organization" title="Non-profit organization">nonprofit</a> <a href="/wiki/Charitable_organization" title="Charitable organization">charity</a>.<br /></li>
+				<li id="privacy"><a href="http://wikimediafoundation.org/wiki/Privacy_policy" title="wikimedia:Privacy policy">Privacy policy</a></li>
+				<li id="about"><a href="/wiki/Wikipedia:About" title="Wikipedia:About">About Wikipedia</a></li>
+				<li id="disclaimer"><a href="/wiki/Wikipedia:General_disclaimer" title="Wikipedia:General disclaimer">Disclaimers</a></li>
+			</ul>
+		</div>
+		
+	
+		<script type="text/javascript">if (window.runOnloadHook) runOnloadHook();</script>
+</div>
+<!-- Served by srv123 in 0.346 secs. --></body></html>
