@@ -70,9 +70,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="RootMetadata\RangemapManager2.cs" />
+    <Compile Include="LayerManager\RootMetadata\RangemapManager2.cs" />
     <Compile Include="RowPipe\Pipe.cs" />
-    <Compile Include="RecordTypesTest.cs" />
+    <Compile Include="LayerManager\Records\RecordTypesTest.cs" />
     <Compile Include="RowPipe\PipeTest.cs" />
     <Compile Include="RowPipe\Qualifiers.cs" />
     <Compile Include="RowPipe\QualifiersTest.cs" />
@@ -83,15 +83,15 @@
     <Compile Include="LogWriterTest.cs" />
     <Compile Include="LogWriter.cs" />
     <Compile Include="RegionManager.cs" />
-    <Compile Include="RootMetadata\FreespaceManager.cs" />
-    <Compile Include="RootMetadata\RangemapManager.cs" />
+    <Compile Include="LayerManager\RootMetadata\FreespaceManager.cs" />
+    <Compile Include="LayerManager\RootMetadata\RangemapManager.cs" />
     <Compile Include="Segment\SegmentBlockBasicTest.cs" />
     <Compile Include="Util\Checksum.cs" />
     <Compile Include="Util\FastScan.cs" />
     <Compile Include="Util\BinStruct.cs" />
     <Compile Include="Segment\SegmentBlockBasic.cs" />
     <Compile Include="Segment\SortedSegment.cs" />
-    <Compile Include="RecordTypes.cs" />
+    <Compile Include="LayerManager\Records\RecordTypes.cs" />
     <Compile Include="LayerManager\LayerManager.cs" />
     <Compile Include="Util\GenericWeakReference.cs" />
     <Compile Include="LayerManager\LayerManagerTest.cs" />
