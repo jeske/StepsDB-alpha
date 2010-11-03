@@ -364,6 +364,100 @@ namespace Bend
 
         }
 
+
+        public int _segmentRatioWalk(MergeRatios mr, int gen, String start_key, String end_key) {
+            int sub_segment_count = 0;
+
+            RecordKey gen_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
+
+            RecordKey search_key = new RecordKey().appendParsedKey(".ROOT/GEN");
+            search_key.appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
+            search_key.appendKeyPart(start_key);
+            RecordKey cur_key = search_key;
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+                cur_key = found_key;
+                // check to see we found a segment pointer
+                if (!found_key.isSubkeyOf(gen_key)) {
+                    break;
+                }
+                // check to see that the segment we found overlaps with the segment in question
+                //  i.e. the start key falls between start and end
+                String subsegment_start = found_key.key_parts[3];    // TODO: UGH!!! FIX THIS CRAP!!!
+                String subsegment_end = found_key.key_parts[4]; 
+
+                // if the subsegment start is greater than the end, or end is less than the start, it's not overlapping, otherwise it is
+                if ((subsegment_start.CompareTo(end_key.ToString()) > 0) || (subsegment_end.CompareTo(start_key.ToString()) < 0)) {
+                    // it's not, so we're done with this recurse
+                    break;
+                } else {
+                    // yes! it's inside the parent segment
+                    sub_segment_count++;
+                }
+
+                // recurse to find the ratio for this segment and put it into our merge ratios                
+                if (gen > 0) {
+                    int subcount = _segmentRatioWalk(mr, gen - 1, subsegment_start, subsegment_end);
+                    mr.Add(found_key, subcount);
+                 }
+            }
+            return sub_segment_count;
+        }
+
+        public class MergeRatios : Dictionary<RecordKey, int> {
+            public void DebugDump() {
+                System.Console.WriteLine("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- MergeRatios");
+                foreach(KeyValuePair<RecordKey,int> kvp in this) {
+                    System.Console.WriteLine(kvp.Key + " => " + kvp.Value);
+                }
+            }
+        };
+
+        public MergeRatios generateMergeRatios() {
+            // (1) get a handle to the topmost segment(s)
+             MergeRatios merge_ratios = new MergeRatios();
+
+            int max_gen = rangemapmgr.genCount() -1;
+            if (max_gen < 1) {
+                // nothing to process, our layout is flat already
+                return merge_ratios;
+            }
+
+            List<KeyValuePair<RecordKey, RecordData>> genpointers = new List<KeyValuePair<RecordKey, RecordData>>();
+
+            // (2) find all the highest-generation references
+
+            RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
+            start_key.appendKeyPart(Lsd.numberToLsd(max_gen, RangemapManager.GEN_LSD_PAD));
+            RecordKey cur_key = start_key;
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT)
+            {
+                // check that the first keyparts match (i.e. we're part of the most recent generation)
+                if (found_key.isSubkeyOf(start_key)) {
+                    genpointers.Add(new KeyValuePair<RecordKey, RecordData>(found_key, found_record));
+                    cur_key = found_key;
+                } else {
+                    // we're done matching the generation records
+                    break;
+                }
+            }
+
+            // (3) for each of the highest generation references, generate the ratios and recurse
+
+            foreach (KeyValuePair<RecordKey, RecordData> kvp in genpointers) {
+                String subsegment_start = kvp.Key.key_parts[3];    // TODO: UGH!!! FIX THIS CRAP!!!
+                String subsegment_end = kvp.Key.key_parts[4];
+                int subcount = _segmentRatioWalk(merge_ratios, max_gen - 1, subsegment_start, subsegment_end);
+                merge_ratios.Add(kvp.Key, subcount);
+            }
+
+            return merge_ratios;
+        }
+
+
         public GetStatus getRecord(RecordKey key, out RecordData record) {
             RecordKey found_key = new RecordKey();
             record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());

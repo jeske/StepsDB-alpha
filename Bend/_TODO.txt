@@ -1,15 +1,19 @@
 --------[ TODO ]---------
 
-*** row attributes for MVCC and locks
-(a) introduce row-attribute concept (can affect commit, row visibility, etc.)
-(b) attach MVCC attribute handler to writes, attach txn id to each row
-(c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
 
 - incremental merge (small step, eventually does a full merge)
 
 - freelist
   - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
   - 'real' freelist handling
+
+- simple text-indexer API on-top
+
+
+*** row attributes for MVCC and locks
+(a) introduce row-attribute concept (can affect commit, row visibility, etc.)
+(b) attach MVCC attribute handler to writes, attach txn id to each row
+(c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
 
 - prototype search-engine?
 
