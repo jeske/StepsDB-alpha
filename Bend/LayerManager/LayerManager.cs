@@ -365,8 +365,8 @@ namespace Bend
         }
 
 
-        public int _segmentRatioWalk(MergeRatios mr, int gen, String start_key, String end_key) {
-            int sub_segment_count = 0;
+        public List<String> _segmentRatioWalk(MergeRatios mr, int gen, String start_key, String end_key) {           
+            List<String> sub_segment_keys = new List<String>();
 
             RecordKey gen_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
 
@@ -393,23 +393,32 @@ namespace Bend
                     break;
                 } else {
                     // yes! it's inside the parent segment
-                    sub_segment_count++;
+                    sub_segment_keys.Add(found_key.ToString());
                 }
 
                 // recurse to find the ratio for this segment and put it into our merge ratios                
                 if (gen > 0) {
-                    int subcount = _segmentRatioWalk(mr, gen - 1, subsegment_start, subsegment_end);
-                    mr.Add(found_key, subcount);
+                    List<String> subsub_segkeys = _segmentRatioWalk(mr, gen - 1, subsegment_start, subsegment_end);
+                    if (subsub_segkeys.Count > 0) {
+                        mr.Add(found_key, subsub_segkeys);
+                    }
                  }
             }
-            return sub_segment_count;
+            return sub_segment_keys;
         }
 
-        public class MergeRatios : Dictionary<RecordKey, int> {
+       
+        public class MergeRatios : Dictionary<RecordKey,  List<String>> {
             public void DebugDump() {
                 System.Console.WriteLine("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- MergeRatios");
-                foreach(KeyValuePair<RecordKey,int> kvp in this) {
-                    System.Console.WriteLine(kvp.Key + " => " + kvp.Value);
+                foreach(KeyValuePair<RecordKey,List<String>> kvp in this) {
+                    System.Console.Write(kvp.Key + " => (" + kvp.Value.Count + ")");
+                    System.Console.Write("[");
+                    foreach (String segkey in kvp.Value) {
+                        System.Console.Write(segkey);
+                        System.Console.Write("  &  ");
+                    }
+                    System.Console.WriteLine("]");
                 }
             }
         };
@@ -450,8 +459,8 @@ namespace Bend
             foreach (KeyValuePair<RecordKey, RecordData> kvp in genpointers) {
                 String subsegment_start = kvp.Key.key_parts[3];    // TODO: UGH!!! FIX THIS CRAP!!!
                 String subsegment_end = kvp.Key.key_parts[4];
-                int subcount = _segmentRatioWalk(merge_ratios, max_gen - 1, subsegment_start, subsegment_end);
-                merge_ratios.Add(kvp.Key, subcount);
+                List<String> subsubseg_keys = _segmentRatioWalk(merge_ratios, max_gen - 1, subsegment_start, subsegment_end);
+                merge_ratios.Add(kvp.Key, subsubseg_keys);
             }
 
             return merge_ratios;

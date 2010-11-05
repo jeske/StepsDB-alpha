@@ -69,8 +69,13 @@ namespace Bend
             db.setValueParsed("test/6", "f");
             db.flushWorkingSegment();
             db.debugDump();
+
+            // calculate merge ratios
             LayerManager.MergeRatios mr = db.generateMergeRatios();
             mr.DebugDump();
+
+            // use the merge ratios to calculate an efficient merge
+
 
             db.Dispose();
 
