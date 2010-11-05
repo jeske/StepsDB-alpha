@@ -148,6 +148,7 @@ namespace Bend
             // TODO:unpack the update data when we change it to "<addr>:<length>"
             return (uint)Lsd.lsdToNumber(data);
         }
+
         private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
             // we now have a pointer to a segment addres for GEN<max>
             uint region_addr = unpackRegionAddr(data);
@@ -157,6 +158,38 @@ namespace Bend
             SegmentReader sr = new SegmentReader(region);
             return sr;
 
+        }
+
+
+
+        // .ROOT/GEN/000/</> -> addr:length
+
+        public class SegmentDescriptor {
+            public uint generation;
+            public String start_key;
+            public String end_key;
+
+            public SegmentDescriptor(RecordKey key) {
+                RecordKey expected_prefix = new RecordKey().appendParsedKey(".ROOT/GEN");
+                if (!key.isSubkeyOf(expected_prefix)) {
+                    throw new Exception("can't decode key as segment descriptor: " + key.ToString());
+                }
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+                generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
+                start_key = key.key_parts[3];
+                end_key = key.key_parts[4];
+            }
+
+            public override string ToString() {
+                return "SegmentDescriptor{" + generation + ":" + start_key + ":" +
+                    end_key + "}";
+            }
+
+        }
+
+        public SegmentDescriptor getSegmentDescriptorFromRecordKey(RecordKey key) {
+            return new SegmentDescriptor(key);
         }
 
         public ISortedSegment getSegmentFromMetadata(RecordData data) {

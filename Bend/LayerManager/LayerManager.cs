@@ -294,6 +294,8 @@ namespace Bend
             }
         }
 
+        
+
         public void mergeAllSegments() {
 
             // (1) get a handle to all the segments we wish to merge
@@ -365,14 +367,14 @@ namespace Bend
         }
 
 
-        public List<String> _segmentRatioWalk(MergeRatios mr, int gen, String start_key, String end_key) {           
-            List<String> sub_segment_keys = new List<String>();
+        public List<RangemapManager.SegmentDescriptor> _segmentRatioWalk(MergeRatios mr, int gen, RangemapManager.SegmentDescriptor seg) {           
+            List<RangemapManager.SegmentDescriptor> sub_segment_keys = new List<RangemapManager.SegmentDescriptor>();
 
             RecordKey gen_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
 
-            RecordKey search_key = new RecordKey().appendParsedKey(".ROOT/GEN");
-            search_key.appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
-            search_key.appendKeyPart(start_key);
+            RecordKey search_key = new RecordKey().appendParsedKey(".ROOT/GEN").
+                    appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD)).
+                    appendKeyPart(seg.start_key);
             RecordKey cur_key = search_key;
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
@@ -382,44 +384,69 @@ namespace Bend
                 if (!found_key.isSubkeyOf(gen_key)) {
                     break;
                 }
+                RangemapManager.SegmentDescriptor subsegment = rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
+
                 // check to see that the segment we found overlaps with the segment in question
                 //  i.e. the start key falls between start and end
-                String subsegment_start = found_key.key_parts[3];    // TODO: UGH!!! FIX THIS CRAP!!!
-                String subsegment_end = found_key.key_parts[4]; 
 
                 // if the subsegment start is greater than the end, or end is less than the start, it's not overlapping, otherwise it is
-                if ((subsegment_start.CompareTo(end_key.ToString()) > 0) || (subsegment_end.CompareTo(start_key.ToString()) < 0)) {
+                if ((subsegment.start_key.CompareTo(seg.end_key.ToString()) > 0) || (subsegment.end_key.CompareTo(seg.start_key.ToString()) < 0)) {
                     // it's not, so we're done with this recurse
                     break;
                 } else {
                     // yes! it's inside the parent segment
-                    sub_segment_keys.Add(found_key.ToString());
+                    sub_segment_keys.Add(subsegment);
                 }
 
                 // recurse to find the ratio for this segment and put it into our merge ratios                
                 if (gen > 0) {
-                    List<String> subsub_segkeys = _segmentRatioWalk(mr, gen - 1, subsegment_start, subsegment_end);
+                    List<RangemapManager.SegmentDescriptor> subsub_segkeys = _segmentRatioWalk(mr, gen - 1, subsegment);
                     if (subsub_segkeys.Count > 0) {
-                        mr.Add(found_key, subsub_segkeys);
+                        mr.Add(subsegment, subsub_segkeys);
                     }
                  }
             }
             return sub_segment_keys;
         }
 
-       
-        public class MergeRatios : Dictionary<RecordKey,  List<String>> {
+        public class MergeTask : List<RangemapManager.SegmentDescriptor> {
+            public String ToString() {
+                return "MergeTask{" + String.Join(",",this) + "}";
+            }
+        }
+
+        public class MergeRatios : Dictionary<RangemapManager.SegmentDescriptor,  List<RangemapManager.SegmentDescriptor>> {
             public void DebugDump() {
                 System.Console.WriteLine("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- MergeRatios");
-                foreach(KeyValuePair<RecordKey,List<String>> kvp in this) {
-                    System.Console.Write(kvp.Key + " => (" + kvp.Value.Count + ")");
-                    System.Console.Write("[");
-                    foreach (String segkey in kvp.Value) {
-                        System.Console.Write(segkey);
-                        System.Console.Write("  &  ");
-                    }
-                    System.Console.WriteLine("]");
+                foreach(KeyValuePair<RangemapManager.SegmentDescriptor,List<RangemapManager.SegmentDescriptor>> kvp in this) {
+                    System.Console.WriteLine(kvp.Key + " => (" + kvp.Value.Count + ")" +
+                        " [" + String.Join("  &  ", kvp.Value) + "]");
                 }
+            }
+
+            public MergeTask generateMergeTask() {
+                // TODO: we should find the 'best' multi-block merge task, but we
+                // are going to "cheat" and start with the best single-block merge
+
+                RangemapManager.SegmentDescriptor best_key = null;
+                // (1) find the lowest merge ratio (ideal is 1:1)
+                int min_children = int.MaxValue;
+                foreach (KeyValuePair<RangemapManager.SegmentDescriptor, List<RangemapManager.SegmentDescriptor>> kvp in this) {
+                    if (kvp.Value.Count < min_children) {
+                        min_children = kvp.Value.Count;
+                        best_key = kvp.Key;
+                    }
+                }
+
+                if (best_key != null) {
+                    MergeTask merge_segment_keys = new MergeTask();
+                    merge_segment_keys.Add(best_key);
+                    merge_segment_keys.AddRange(this[best_key]);
+                    return merge_segment_keys;
+                } else {
+                    return null;
+                }
+
             }
         };
 
@@ -457,10 +484,9 @@ namespace Bend
             // (3) for each of the highest generation references, generate the ratios and recurse
 
             foreach (KeyValuePair<RecordKey, RecordData> kvp in genpointers) {
-                String subsegment_start = kvp.Key.key_parts[3];    // TODO: UGH!!! FIX THIS CRAP!!!
-                String subsegment_end = kvp.Key.key_parts[4];
-                List<String> subsubseg_keys = _segmentRatioWalk(merge_ratios, max_gen - 1, subsegment_start, subsegment_end);
-                merge_ratios.Add(kvp.Key, subsubseg_keys);
+                RangemapManager.SegmentDescriptor segment = rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key);
+                List<RangemapManager.SegmentDescriptor> subsubseg_keys = _segmentRatioWalk(merge_ratios, max_gen - 1, segment);
+                merge_ratios.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key), subsubseg_keys);
             }
 
             return merge_ratios;

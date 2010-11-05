@@ -75,7 +75,8 @@ namespace Bend
             mr.DebugDump();
 
             // use the merge ratios to calculate an efficient merge
-
+            LayerManager.MergeTask merge_task = mr.generateMergeTask();
+            System.Console.WriteLine(merge_task.ToString());
 
             db.Dispose();
 
