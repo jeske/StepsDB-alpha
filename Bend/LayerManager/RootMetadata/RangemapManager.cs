@@ -101,6 +101,10 @@ namespace Bend
             //  .. touches a rangemap row automagically causes an invalidation of the segment cache            
         }
 
+        public void unmapSegment(LayerManager.WriteGroup tx, SegmentDescriptor segment) {
+            this.unmapSegment(tx, segment.record_key, null);
+        }
+
         public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
             // TODO: how do we assure that existing read operations flush and reload all segments?          
 
@@ -165,15 +169,18 @@ namespace Bend
         // .ROOT/GEN/000/</> -> addr:length
 
         public class SegmentDescriptor {
+            public RecordKey record_key;
             public uint generation;
             public String start_key;
             public String end_key;
 
-            public SegmentDescriptor(RecordKey key) {
+            public SegmentDescriptor(RecordKey key) {                
                 RecordKey expected_prefix = new RecordKey().appendParsedKey(".ROOT/GEN");
                 if (!key.isSubkeyOf(expected_prefix)) {
                     throw new Exception("can't decode key as segment descriptor: " + key.ToString());
                 }
+                record_key = key;
+
                 System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
                 generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
@@ -185,6 +192,16 @@ namespace Bend
                 return "SegmentDescriptor{" + generation + ":" + start_key + ":" +
                     end_key + "}";
             }
+            public ISortedSegment getSegment(RangemapManager rmm) {
+                RecordKey found_key = new RecordKey();
+                RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+                if (rmm.getNextRecord(this.record_key, ref found_key, ref found_record, true) == GetStatus.PRESENT) {
+                    if (this.record_key.Equals(found_key)) {
+                        return rmm.getSegmentFromMetadata(found_record);
+                    }
+                }
+                throw new Exception("Could not load Segment from SegmentDescriptor: " + this);
+            }
 
         }
 
@@ -193,6 +210,7 @@ namespace Bend
         }
 
         public ISortedSegment getSegmentFromMetadata(RecordData data) {
+            
             return getSegmentFromMetadataBytes(data.data);
         }
 

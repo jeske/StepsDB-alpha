@@ -71,7 +71,7 @@ namespace Bend
         int numWaiters = 0;
 
         static UInt32 LOG_MAGIC = 0x44332211;
-        public static int DEFAULT_LOG_SIZE = 8 * 1024 * 1024;
+        public static int DEFAULT_LOG_SIZE = 12 * 1024 * 1024;
 
         LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());

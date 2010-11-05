@@ -210,7 +210,7 @@ namespace Bend
         }
         private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
 
-        private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records, int gen_num) {
+        private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records, uint gen_num) {
             // write the checkpoint segment and flush
             // TODO: make this happen in the background!!
             SegmentWriter segmentWriter = new SegmentWriter(records);
@@ -230,7 +230,7 @@ namespace Bend
 
                 // record the index pointer (geneneration and rangekey -> block address)
                 // rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
-                rangemapmgr.mapGenerationToRegion(tx, gen_num, wi.start_key, wi.end_key, reader);
+                rangemapmgr.mapGenerationToRegion(tx, (int)gen_num, wi.start_key, wi.end_key, reader);
 
             }                
             
@@ -263,7 +263,7 @@ namespace Bend
                 WriteGroup tx = new WriteGroup(this);
 
                 // allocate a new generation number
-                int new_generation_number = rangemapmgr.allocNewGeneration(tx);
+                uint new_generation_number = (uint) rangemapmgr.allocNewGeneration(tx);
 
                 this._writeSegment(tx, checkpointSegment.sortedWalk(), new_generation_number); 
     
@@ -294,7 +294,80 @@ namespace Bend
             }
         }
 
-        
+        public List<RangemapManager.SegmentDescriptor> listAllSegments() {
+            List<RangemapManager.SegmentDescriptor> allsegs = new List<RangemapManager.SegmentDescriptor>();
+            
+            int gen_count = rangemapmgr.genCount();
+
+            if (gen_count < 1) {
+                // nothing to even reprocess
+                return allsegs;
+            }
+
+
+            RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
+            RecordKey cur_key = start_key;
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+                cur_key = found_key;
+                // check that the first two keyparts match
+                if (found_key.isSubkeyOf(start_key)) {
+                    // TODO: why is getNextRecord returning deleted records?!?!? Is that correct?
+                    if (found_record.State == RecordDataState.DELETED) {
+                        continue; // ignore the tombstone
+                    } else if (found_record.State != RecordDataState.FULL) {
+                        throw new Exception("can't handle incomplete segment record");
+                    } else {
+                        allsegs.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(found_key));
+                    }             
+                } else {
+                    // we're done matching the generation records
+                    break;
+                }
+            }
+            return allsegs;
+        }
+
+        public void mergeSegments(List<RangemapManager.SegmentDescriptor> segs) {
+            // probably should verify that this is a valid merge
+            uint target_generation = int.MaxValue;
+
+            // (1) iterate through the generation pointers, building the merge chain
+            IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
+            foreach (RangemapManager.SegmentDescriptor segment in segs) {
+
+                target_generation = Math.Min(target_generation, segment.generation);
+
+                IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> nextchain =
+                    segment.getSegment(rangemapmgr).sortedWalk();
+                if (chain == null) {
+                    chain = nextchain;
+                } else {
+                    chain = SortedMergeExtension.MergeSort(nextchain, chain, true);  // merge sort keeps keys on the left
+                }
+            }
+
+
+           // (2) now perform the merge!
+            {
+                WriteGroup tx = new WriteGroup(this);
+              
+                this._writeSegment(tx, chain, target_generation);
+
+                // remove the old segment mappings
+                foreach (RangemapManager.SegmentDescriptor segment in segs) {
+                    rangemapmgr.unmapSegment(tx, segment);
+                    
+                }
+
+                // check to see if we can shrink NUMGENERATIONS
+
+                tx.finish();                             // commit the freespace and rangemap transaction
+
+                rangemapmgr.clearSegmentCacheHack();                
+            }
+        }
 
         public void mergeAllSegments() {
 
@@ -315,10 +388,17 @@ namespace Bend
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED,found_key);
             while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+                cur_key = found_key;
                 // check that the first two keyparts match
                 if (found_key.isSubkeyOf(start_key)) {
-                    genpointers.Add(new KeyValuePair<RecordKey,RecordData>(found_key,found_record));
-                    cur_key = found_key;
+                    // TODO: why is getNextRecord returning deleted records?!?!? Is that correct?
+                    if (found_record.State == RecordDataState.DELETED) {
+                        continue; // ignore the tombstone
+                    } else if (found_record.State != RecordDataState.FULL) {
+                        throw new Exception("can't handle incomplete segment record");
+                    } else {
+                        genpointers.Add(new KeyValuePair<RecordKey, RecordData>(found_key, found_record));
+                    }                
                 } else {
                     // we're done matching the generation records
                     break;
@@ -329,7 +409,7 @@ namespace Bend
             // (2) now we iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
             foreach (KeyValuePair<RecordKey,RecordData> kvp in genpointers) {
-                
+
                 IEnumerable<KeyValuePair<RecordKey,RecordUpdate>> nextchain = 
                     rangemapmgr.getSegmentFromMetadata(kvp.Value).sortedWalk();
                 if (chain == null) {

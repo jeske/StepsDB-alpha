@@ -74,9 +74,18 @@ namespace Bend
             LayerManager.MergeRatios mr = db.generateMergeRatios();
             mr.DebugDump();
 
-            // use the merge ratios to calculate an efficient merge
+            // use the merge ratios to calculate a single merge
             LayerManager.MergeTask merge_task = mr.generateMergeTask();
             System.Console.WriteLine(merge_task.ToString());
+
+            System.Console.WriteLine("-------- PERFORMING A SINGLE MERGE ---------------------");
+            // do the merge
+            db.mergeSegments(merge_task); 
+            db.flushWorkingSegment();
+            db.debugDump();
+            System.Console.WriteLine("-------- SINGLE MERGE DONE ---------------------");
+
+            db.mergeAllSegments();
 
             db.Dispose();
 
