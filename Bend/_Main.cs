@@ -69,6 +69,9 @@ namespace Bend
             db.setValueParsed("test/6", "f");
             db.flushWorkingSegment();
             db.debugDump();
+            LayerManager.MergeRatios mr = db.generateMergeRatios();
+            mr.DebugDump();
+
             db.Dispose();
 
             System.Console.WriteLine("-------- NOW RESUME ---------------------------------");
@@ -90,6 +93,8 @@ namespace Bend
 
             System.Console.WriteLine("-------- NOW MERGE ---------------------------------");
             db.mergeAllSegments();
+            mr = db.generateMergeRatios();
+            mr.DebugDump();
             db.debugDump();
 
             System.Console.WriteLine("-------- NOW FINDNEXT (after merge) ---------------------------------");

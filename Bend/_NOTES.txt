@@ -1,4 +1,8 @@
-﻿
+﻿More design notes at:
+
+https://docs.google.com/Doc?docid=0AZBsc776AuokZGdndnFmZm5fNjNneDRjYzZmaw&hl=en
+
+
 --------[ Coding Habits ]---------
 
 -) Avoid non-local implementation dependence. If two codeblocks are co-dependent on eachother's 

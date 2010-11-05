@@ -25,7 +25,7 @@ namespace Bend
     {
         LayerManager store;
         int num_generations;
-        private static int GEN_LSD_PAD = 3;
+        public static int GEN_LSD_PAD = 3;
 
 
         // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
