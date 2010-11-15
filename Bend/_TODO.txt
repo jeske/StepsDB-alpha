@@ -1,10 +1,28 @@
---------[ TODO ]---------
+----
 
+----[ TODO ]---------
 
 - incremental merge (small step, eventually does a full merge)
 
+  - cleanup
+    - use SegmentDescriptor class everywhere
+
+  - make "new" merge all produce the same performance as "old" merge all with numgen-hack
+	- collapse max-generation number when possible?
+	- keep a list of "live generations"?
+	- re-order segmentdescriptors to put key first, gen last?  
+
+  - cleanup
+    - should recordKey return deleted records?
+      - check that record-find is ignoring tombstones
+    - remove old "mergeAllSegments" code
+    - proper merge unit-test
+    - drop tombstones when writing "oldest" generation
+
+
+
 - block visualizer
-  http://www.codeproject.com/KB/books/1861004990.aspx
+  - C# gdi+ article  http://www.codeproject.com/KB/books/1861004990.aspx
 
 
 - freelist
@@ -36,4 +54,6 @@
 
 
 
+----[ DONE ]---------
 
+11/3 - first incremental block merge works

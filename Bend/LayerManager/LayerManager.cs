@@ -369,6 +369,10 @@ namespace Bend
             }
         }
 
+        public void mergeAllSegments_NEW() {
+            mergeSegments(listAllSegments());
+        }
+
         public void mergeAllSegments() {
 
             // (1) get a handle to all the segments we wish to merge
