@@ -273,6 +273,11 @@ namespace Bend
             return this;
         }
 
+        public RecordKey appendKeyPart(RecordKey keydata) {
+            key_parts.Add(keydata.ToString());
+            return this;
+        }
+
 
         public int numParts() {
             return key_parts.Count;

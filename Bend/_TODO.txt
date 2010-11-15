@@ -6,8 +6,9 @@
 
   - cleanup
     - use SegmentDescriptor class everywhere
-
-  - make "new" merge all produce the same performance as "old" merge all with numgen-hack
+	
+  Q: what should be the type of keyparts? 
+  Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
 	- collapse max-generation number when possible?
 	- keep a list of "live generations"?
 	- re-order segmentdescriptors to put key first, gen last?  

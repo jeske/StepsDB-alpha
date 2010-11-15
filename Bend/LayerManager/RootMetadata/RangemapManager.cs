@@ -82,6 +82,8 @@ namespace Bend
         }
 
         private RecordKey makeGenerationKey(int gen_number, RecordKey start_key, RecordKey end_key) {
+
+
             RecordKey genkey = new RecordKey()
                 .appendParsedKey(".ROOT/GEN")
                 .appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD))
@@ -166,44 +168,6 @@ namespace Bend
 
 
 
-        // .ROOT/GEN/000/</> -> addr:length
-
-        public class SegmentDescriptor {
-            public RecordKey record_key;
-            public uint generation;
-            public String start_key;
-            public String end_key;
-
-            public SegmentDescriptor(RecordKey key) {                
-                RecordKey expected_prefix = new RecordKey().appendParsedKey(".ROOT/GEN");
-                if (!key.isSubkeyOf(expected_prefix)) {
-                    throw new Exception("can't decode key as segment descriptor: " + key.ToString());
-                }
-                record_key = key;
-
-                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-
-                generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
-                start_key = key.key_parts[3];
-                end_key = key.key_parts[4];
-            }
-
-            public override string ToString() {
-                return "SegmentDescriptor{" + generation + ":" + start_key + ":" +
-                    end_key + "}";
-            }
-            public ISortedSegment getSegment(RangemapManager rmm) {
-                RecordKey found_key = new RecordKey();
-                RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-                if (rmm.getNextRecord(this.record_key, ref found_key, ref found_record, true) == GetStatus.PRESENT) {
-                    if (this.record_key.Equals(found_key)) {
-                        return rmm.getSegmentFromMetadata(found_record);
-                    }
-                }
-                throw new Exception("Could not load Segment from SegmentDescriptor: " + this);
-            }
-
-        }
 
         public SegmentDescriptor getSegmentDescriptorFromRecordKey(RecordKey key) {
             return new SegmentDescriptor(key);
