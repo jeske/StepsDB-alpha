@@ -83,10 +83,9 @@ namespace Bend
             db.mergeSegments(merge_task); 
             db.flushWorkingSegment();
             db.debugDump();
-            System.Console.WriteLine("-------- SINGLE MERGE DONE ---------------------");
-
+            System.Console.WriteLine("-------- SINGLE MERGE DONE, merge all and close/dispose ---------------------");
             db.mergeAllSegments();
-
+            db.debugDump();
             db.Dispose();
 
             System.Console.WriteLine("-------- NOW RESUME ---------------------------------");

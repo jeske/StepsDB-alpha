@@ -5,8 +5,9 @@
 - incremental merge (small step, eventually does a full merge)
 
   - cleanup
-    - use SegmentDescriptor class everywhere
+    - use SegmentDescriptor class everywhere	
 	
+  Q: How do we assure a valid merge? (no generation inversion)
   Q: what should be the type of keyparts? 
   Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
 	- collapse max-generation number when possible?
@@ -19,7 +20,7 @@
     - remove old "mergeAllSegments" code
     - proper merge unit-test
     - drop tombstones when writing "oldest" generation
-
+	- code to check that using the min-gen for a merge output is valid
 
 
 - block visualizer
