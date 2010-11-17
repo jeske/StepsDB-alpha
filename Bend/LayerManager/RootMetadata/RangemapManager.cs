@@ -27,6 +27,8 @@ namespace Bend
         int num_generations;
         public static int GEN_LSD_PAD = 3;
 
+        public static String altdebug_pad = "                                          --";
+
 
         // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
         //   use a single FileStream. If you have multiple threads calling them, 
@@ -159,7 +161,7 @@ namespace Bend
             // we now have a pointer to a segment addres for GEN<max>
             uint region_addr = unpackRegionAddr(data);
 
-            System.Console.WriteLine("-- open SegmentReader {0}", region_addr);
+            System.Console.WriteLine(altdebug_pad + "open SegmentReader {0}", region_addr);
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
             SegmentReader sr = new SegmentReader(region);
             return sr;

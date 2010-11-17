@@ -330,8 +330,21 @@ namespace Bend
         }
 
         public void mergeSegments(List<SegmentDescriptor> segs) {
-            // probably should verify that this is a valid merge
-            uint target_generation = int.MaxValue;
+            // TODO: assure this is a valid merge
+            //
+            // We write our output in the "minimum" generation number of the merge.
+            // This is only valid if our keyranges meet certain constraints. 
+            //
+            // For example, the merge gen3(a,b) + gen2(c,d) + gen1(e,f) -> gen1(a,f) would be invalid if 
+            // there was also a gen2(a,b), because the gen3(a,b) records would "trump" them by becoming gen 1. 
+            //
+            // For the merge to be valid, the older-generation segments must be supersets of
+            // the newer generations involved in the merge. Currently this only occurs because our code 
+            // that generates the merge candidates uses a tree to propose merges. 
+            //
+            // TODO: build validation code that assures this invariant is never violated.
+
+            uint target_generation = int.MaxValue; // will contain "minimum generation of the segments"
 
             // (1) iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
@@ -369,11 +382,11 @@ namespace Bend
             }
         }
 
-        public void mergeAllSegments_NEW() {
+        public void mergeAllSegments() {
             mergeSegments(listAllSegments());
         }
 
-        public void mergeAllSegments() {
+        public void mergeAllSegments_OLD() {
 
             // (1) get a handle to all the segments we wish to merge
             // TODO: delegate to RangemapManager to give us the segments

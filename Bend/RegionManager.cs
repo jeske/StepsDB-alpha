@@ -177,7 +177,7 @@ namespace Bend
                     }
                 }
 
-                // System.Console.WriteLine("zz uncached block");
+                // System.Console.WriteLine(altdebug_pad + "zz uncached block");
                 Stream mystream = this.getThreadStream();
 
                 byte[] block = new byte[block_len];
@@ -263,7 +263,7 @@ namespace Bend
                 }
             }
 
-            System.Console.WriteLine("zz uncached region");
+            System.Console.WriteLine(RangemapManager.altdebug_pad + "zz uncached region");
             String filepath = makeFilepath(region_addr);
             if (File.Exists(filepath)) {
                 // open non-exclusive

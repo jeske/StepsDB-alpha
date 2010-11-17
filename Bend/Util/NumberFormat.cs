@@ -17,6 +17,10 @@ namespace Bend
             List<byte> builder = new List<byte>();
             int num = encodenum;
 
+            if (encodenum > Math.Pow(10, pad_to_digits)) {
+                throw new Exception("can't encode " + encodenum + "with " + pad_to_digits + " digits.");
+            }
+
             // build the LSBs
             int digit;
             while (num >= 10) {
