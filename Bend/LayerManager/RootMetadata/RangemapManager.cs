@@ -161,14 +161,15 @@ namespace Bend
             // we now have a pointer to a segment addres for GEN<max>
             uint region_addr = unpackRegionAddr(data);
 
+            if (region_addr == 0) {                
+                throw new Exception("segment bytes unpacked to zero! (" + BitConverter.ToString(data) + ")");
+            }
             System.Console.WriteLine(altdebug_pad + "open SegmentReader {0}", region_addr);
             IRegion region = store.regionmgr.readRegionAddrNonExcl(region_addr);
             SegmentReader sr = new SegmentReader(region);
             return sr;
 
         }
-
-
 
 
         public SegmentDescriptor getSegmentDescriptorFromRecordKey(RecordKey key) {

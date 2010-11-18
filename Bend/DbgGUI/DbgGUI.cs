@@ -56,8 +56,9 @@ namespace Bend {
             // now draw stuff! 
             Graphics dc = this.CreateGraphics();
             Pen BluePen = new Pen(Color.Blue, 1);            
-            Size regionsize = this.ClientSize;   
-            
+            Size regionsize = this.ClientSize;
+
+            dc.Clear(Color.White);
 
             int cur_x = 10, cur_y = 0;
             foreach (uint generation in segments_by_generation.Keys) {

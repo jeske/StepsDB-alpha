@@ -6,6 +6,7 @@
 
   - cleanup
     - use SegmentDescriptor class everywhere	
+	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
 	
   Q: How do we assure a valid merge? (no generation inversion)
   Q: what should be the type of keyparts? 

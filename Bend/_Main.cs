@@ -126,9 +126,34 @@ namespace Bend
                 }
             }
 
-            System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
-            A03_LayerManagerTests test = new A03_LayerManagerTests();
-            test.T10_LayerManager_ReadThreads();
+            //System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
+            //A03_LayerManagerTests test = new A03_LayerManagerTests();
+            //test.T10_LayerManager_ReadThreads();
+
+
+
+            System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
+
+            String value = "";
+            for (int x = 0; x < 10000; x++) { value = value + "dataablaskdjalskdja"; }
+
+            for (int x = 0; x < 100000; x++) {
+                db.setValueParsed("test/rnd/" + x, value);
+
+                if (x % 1000 == 0) {
+                    win.debugDump(db);
+                    db.flushWorkingSegment();
+                    merge_task = mr.generateMergeTask();
+                    System.Console.WriteLine(merge_task.ToString());
+                    db.mergeSegments(merge_task); 
+
+                    win.debugDump(db);
+                    System.Console.WriteLine("windump");
+
+                }
+            }
+
+            System.Console.WriteLine("** done.");
         }
     }
 }
