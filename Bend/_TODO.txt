@@ -4,9 +4,12 @@
 
 - incremental merge (small step, eventually does a full merge)
 
-  - cleanup
+  - cleanup / big test
     - use SegmentDescriptor class everywhere	
 	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
+	- make a "big test case" that shows off multiple layers of segments merging with the GUI!!! 
+
+
 	
   Q: How do we assure a valid merge? (no generation inversion)
   Q: what should be the type of keyparts? 
