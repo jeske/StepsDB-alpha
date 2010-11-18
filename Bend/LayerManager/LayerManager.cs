@@ -351,9 +351,10 @@ namespace Bend
             foreach (SegmentDescriptor segment in segs) {
 
                 target_generation = Math.Min(target_generation, segment.generation);
+                    var seg = segment.getSegment(rangemapmgr);
 
                 IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> nextchain =
-                    segment.getSegment(rangemapmgr).sortedWalk();
+                    seg.sortedWalk();
                 if (chain == null) {
                     chain = nextchain;
                 } else {
@@ -477,10 +478,17 @@ namespace Bend
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
             while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
                 cur_key = found_key;
+
+                // ignore deletion tombstones
+                if (found_record.State == RecordDataState.DELETED) {
+                    continue;
+                }
+
                 // check to see we found a segment pointer
                 if (!found_key.isSubkeyOf(gen_key)) {
                     break;
                 }
+
                 SegmentDescriptor subsegment = rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
 
                 // check to see that the segment we found overlaps with the segment in question
@@ -523,7 +531,7 @@ namespace Bend
 
             public MergeTask generateMergeTask() {
                 // TODO: we should find the 'best' multi-block merge task, but we
-                // are going to "cheat" and start with the best single-block merge
+                // are going to "cheat" and start with the best two-block merge
 
                 SegmentDescriptor best_key = null;
                 // (1) find the lowest merge ratio (ideal is 1:1)
@@ -539,6 +547,10 @@ namespace Bend
                     MergeTask merge_segment_keys = new MergeTask();
                     merge_segment_keys.Add(best_key);
                     merge_segment_keys.AddRange(this[best_key]);
+
+                    if (merge_segment_keys.Count < 2) {                        
+                        throw new Exception("empty merge task!");
+                    }
                     return merge_segment_keys;
                 } else {
                     return null;
@@ -548,19 +560,17 @@ namespace Bend
         };
 
         public MergeRatios generateMergeRatios() {
-            // (1) get a handle to the topmost segment(s)
-             MergeRatios merge_ratios = new MergeRatios();
+            MergeRatios merge_ratios = new MergeRatios();
+            List<KeyValuePair<RecordKey, RecordData>> genpointers = new List<KeyValuePair<RecordKey, RecordData>>();
 
+            // (1) figure out what the newest generation is
             int max_gen = rangemapmgr.genCount() -1;
             if (max_gen < 1) {
                 // nothing to process, our layout is flat already
                 return merge_ratios;
             }
 
-            List<KeyValuePair<RecordKey, RecordData>> genpointers = new List<KeyValuePair<RecordKey, RecordData>>();
-
-            // (2) find all the highest-generation references
-
+            // (2) find all the highest-generation SegmentDescriptors
             RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
             start_key.appendKeyPart(Lsd.numberToLsd(max_gen, RangemapManager.GEN_LSD_PAD));
             RecordKey cur_key = start_key;
@@ -583,7 +593,9 @@ namespace Bend
             foreach (KeyValuePair<RecordKey, RecordData> kvp in genpointers) {
                 SegmentDescriptor segment = rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key);
                 List<SegmentDescriptor> subsubseg_keys = _segmentRatioWalk(merge_ratios, max_gen - 1, segment);
-                merge_ratios.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key), subsubseg_keys);
+                if (subsubseg_keys.Count > 0) {
+                    merge_ratios.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key), subsubseg_keys);
+                }
             }
 
             return merge_ratios;
@@ -622,7 +634,12 @@ namespace Bend
 
             // first, print all our keys
             foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
-                Console.WriteLine(indent + kvp.Key + " : " + kvp.Value);
+                String value_str = kvp.Value.ToString();
+                if (value_str.Length < 40) {
+                    Console.WriteLine(indent + kvp.Key + " : " + value_str);
+                } else {
+                    Console.WriteLine(indent + kvp.Key + " : " + value_str.Substring(0,10) + "..[" + (value_str.Length-40) + " more bytes]");
+                }
                 
                 if (kvp.Key.isSubkeyOf(genkey)) {
                     nextSeenGenerations.Add(kvp.Key.ToString());

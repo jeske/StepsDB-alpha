@@ -40,7 +40,19 @@ namespace Bend
             window.SetDesktopLocation(700, 200);
             Application.Run(window);      
         }
-        
+
+        public static void dumpAllDbRecords(LayerManager db) {
+            RecordKey next_key = new RecordKey();
+            RecordKey fkey = null;
+            RecordData fdata = null;
+            while (db.getNextRecord(next_key, ref fkey, ref fdata) == GetStatus.PRESENT) {
+                next_key = fkey;
+
+                System.Console.WriteLine("  found: {0} -> {1}", fkey.ToString(), fdata.ToString());
+
+            }
+        }
+
 
         public static void do_bringup_test(DbgGUI win) {
 
@@ -72,6 +84,9 @@ namespace Bend
             db.flushWorkingSegment();
             db.debugDump();
             win.debugDump(db);
+
+            System.Console.WriteLine("-------- PERFORMING A SINGLE MERGE ---------------------");
+
             // calculate merge ratios
             LayerManager.MergeRatios mr = db.generateMergeRatios();
             mr.DebugDump();
@@ -79,15 +94,18 @@ namespace Bend
             // use the merge ratios to calculate a single merge
             LayerManager.MergeTask merge_task = mr.generateMergeTask();
             System.Console.WriteLine(merge_task.ToString());
-
-            System.Console.WriteLine("-------- PERFORMING A SINGLE MERGE ---------------------");
+            
             // do the merge
             db.mergeSegments(merge_task); 
             db.flushWorkingSegment();
             db.debugDump();
             win.debugDump(db);
             System.Console.WriteLine("-------- SINGLE MERGE DONE, merge all and close/dispose ---------------------");
-            db.mergeAllSegments();
+            dumpAllDbRecords(db);
+            var segs = db.listAllSegments();
+            Console.WriteLine("AllSegs: " + String.Join(",", segs));
+            db.mergeSegments(segs);
+
             db.debugDump();
             db.Dispose();
 
@@ -96,17 +114,7 @@ namespace Bend
             db.debugDump();
 
             System.Console.WriteLine("-------- NOW FINDNEXT ---------------------------------");
-            {
-                RecordKey next_key = new RecordKey();
-                RecordKey fkey = null;
-                RecordData fdata = null;
-                while (db.getNextRecord(next_key, ref fkey, ref fdata) == GetStatus.PRESENT) {
-                    next_key = fkey;
-
-                    System.Console.WriteLine("  found: {0} -> {1}", fkey.ToString(), fdata.ToString());
-
-                }
-            }
+            dumpAllDbRecords(db);
 
             System.Console.WriteLine("-------- NOW MERGE ---------------------------------");
             db.mergeAllSegments();
@@ -135,19 +143,30 @@ namespace Bend
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
             String value = "";
-            for (int x = 0; x < 10000; x++) { value = value + "dataablaskdjalskdja"; }
+            for (int x = 0; x < 1000; x++) { value = value + "dataablaskdjalskdja"; }
 
-            for (int x = 0; x < 100000; x++) {
+            for (int x = 0; x < 10000; x++) {
                 db.setValueParsed("test/rnd/" + x, value);
 
                 if (x % 1000 == 0) {
-                    win.debugDump(db);
                     db.flushWorkingSegment();
-                    merge_task = mr.generateMergeTask();
-                    System.Console.WriteLine(merge_task.ToString());
-                    db.mergeSegments(merge_task); 
+                    
+                    win.debugDump(db);                    
+                    db.debugDump();
 
-                    win.debugDump(db);
+                    for (int mx = 0; mx < 4; mx++) {
+                        mr = db.generateMergeRatios();
+                        merge_task = mr.generateMergeTask();
+                        if (merge_task == null) {
+                            System.Console.WriteLine("nothing more to merge");
+                            break;
+                        }
+                        System.Console.WriteLine(merge_task.ToString());
+                        db.mergeSegments(merge_task);
+                        win.debugDump(db);
+                    }
+
+
                     System.Console.WriteLine("windump");
 
                 }

@@ -5,6 +5,7 @@
 - incremental merge (small step, eventually does a full merge)
 
   - cleanup / big test
+    - check for log overflow
     - use SegmentDescriptor class everywhere	
 	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
 	- make a "big test case" that shows off multiple layers of segments merging with the GUI!!! 

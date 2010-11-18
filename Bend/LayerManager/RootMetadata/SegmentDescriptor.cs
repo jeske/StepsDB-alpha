@@ -57,8 +57,11 @@ namespace Bend {
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
             if (rmm.getNextRecord(this.record_key, ref found_key, ref found_record, true) == GetStatus.PRESENT) {
-                if (this.record_key.Equals(found_key)) {
+                if (this.record_key.Equals(found_key) && found_record.State == RecordDataState.FULL) {
                     return rmm.getSegmentFromMetadata(found_record);
+                }
+                if (found_record.State == RecordDataState.DELETED) {
+                    throw new Exception("Segment{" + this.ToString() + "}.getSegment() returned tombstone");
                 }
             }
             throw new Exception("Could not load Segment from SegmentDescriptor: " + this);

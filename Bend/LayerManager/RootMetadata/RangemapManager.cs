@@ -203,7 +203,13 @@ namespace Bend
 
         }
 
-        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record, bool equal_ok) {
+        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record,
+            bool equal_ok) {
+                return getNextRecord_LowLevel(lowkey, ref key, ref record, equal_ok, false);
+        }
+
+        public GetStatus getNextRecord_LowLevel(RecordKey lowkey, ref RecordKey key, ref RecordData record, 
+            bool equal_ok, bool tombstone_ok) {
 
             BDSkipList<RecordKey, RecordData> handledIndexRecords = new BDSkipList<RecordKey,RecordData>();
             BDSkipList<RecordKey, RecordData> recordsBeingAssembled = new BDSkipList<RecordKey, RecordData>();
@@ -231,11 +237,27 @@ namespace Bend
             }
 
             // now check the assembled records list
-            try {
-                KeyValuePair<RecordKey,RecordData> kvp = recordsBeingAssembled.FindNext(lowkey, true);
-                key = kvp.Key;
-                record = kvp.Value;
-                return GetStatus.PRESENT;
+            try {                
+                foreach (var kvp in recordsBeingAssembled) {
+
+                    if (kvp.Value.State == RecordDataState.FULL) {
+                        key = kvp.Key;
+                        record = kvp.Value;
+                        return GetStatus.PRESENT;
+                    } else if (kvp.Value.State == RecordDataState.DELETED) {
+                        if (tombstone_ok) {
+                            key = kvp.Key;
+                            record = kvp.Value;
+                            return GetStatus.PRESENT;
+
+                        }
+                    } else {
+                        throw new Exception("invalid record state in getNextRecord, record assembly processing: " +
+                            kvp.Value.State  + " k:" + kvp.Key + "   v:" + kvp.Value);
+                    }
+
+                }
+                return GetStatus.MISSING;
             }
             catch (KeyNotFoundException) {
                 return GetStatus.MISSING;
