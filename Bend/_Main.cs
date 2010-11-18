@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Windows.Forms;
 using NUnit.Framework;
 
 namespace Bend
@@ -14,7 +15,7 @@ namespace Bend
 
     // ---------------[ Main ]---------------------------------------------------------
 
-
+    /*  try to let the bringup test run in NUnit
     // [TestFixture]
     public class MainTest
     {
@@ -24,26 +25,27 @@ namespace Bend
         }
 
     }
+     */
 
 
-    class MainBend
+    public static class MainBend
     {
 
+        [STAThread]
         static void Main(string[] args) {
-            try {
-                do_bringup_test();
-            }
-            catch (Exception exc) {
-                System.Console.WriteLine("died to exception: " + exc.ToString());
-                Console.WriteLine("press any key...");
 
-            }
-            Console.ReadKey();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            var window = new DbgGUI();
+            window.SetDesktopLocation(700, 200);
+            Application.Run(window);      
         }
         
 
-        public static void do_bringup_test() {
-        
+        public static void do_bringup_test(DbgGUI win) {
+
+            
+
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\BENDtst\\main");
          
             db.setValueParsed("test/3","a");
@@ -69,7 +71,7 @@ namespace Bend
             db.setValueParsed("test/6", "f");
             db.flushWorkingSegment();
             db.debugDump();
-
+            win.debugDump(db);
             // calculate merge ratios
             LayerManager.MergeRatios mr = db.generateMergeRatios();
             mr.DebugDump();
@@ -83,6 +85,7 @@ namespace Bend
             db.mergeSegments(merge_task); 
             db.flushWorkingSegment();
             db.debugDump();
+            win.debugDump(db);
             System.Console.WriteLine("-------- SINGLE MERGE DONE, merge all and close/dispose ---------------------");
             db.mergeAllSegments();
             db.debugDump();
@@ -126,10 +129,6 @@ namespace Bend
             System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
             A03_LayerManagerTests test = new A03_LayerManagerTests();
             test.T10_LayerManager_ReadThreads();
-
-
-            Console.WriteLine("press any key...");            
-            // Console.ReadKey();
         }
     }
 }
