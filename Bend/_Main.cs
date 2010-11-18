@@ -150,7 +150,7 @@ namespace Bend
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
             String value = "";
-            for (int x = 0; x < 1000; x++) { value = value + "dataablaskdjalskdja"; }
+            for (int x = 0; x < 1000; x++) { value = value + "TestValueDataABC"; }
 
             for (int x = 0; x < 10000; x++) {
                 db.setValueParsed("test/rnd/" + x, value);
@@ -159,9 +159,10 @@ namespace Bend
                     db.flushWorkingSegment();
                     
                     win.debugDump(db);                    
-                    db.debugDump();
+                    // db.debugDump();
 
                     for (int mx = 0; mx < 4; mx++) {
+                        System.Console.WriteLine("merge " + mx);
                         mr = db.generateMergeRatios();
                         merge_task = mr.generateMergeTask();
                         if (merge_task == null) {
@@ -176,8 +177,32 @@ namespace Bend
 
                     System.Console.WriteLine("windump");
 
+                    foreach (var seg in db.listAllSegments()) {
+                        System.Console.WriteLine("gen{0} start{1} end{2}", seg.generation, seg.start_key, seg.end_key);
+                    }
                 }
             }
+
+
+            System.Console.WriteLine("-------- Merge a bunch more ------------------");
+
+            for (int x = 0; x < 30; x++) {
+                mr = db.generateMergeRatios();
+                merge_task = mr.generateMergeTask();
+                if (merge_task == null) {
+                    break;
+                }
+                db.mergeSegments(merge_task);
+                win.debugDump(db);
+                
+                
+            }
+
+            foreach (var seg in db.listAllSegments()) {
+                System.Console.WriteLine("gen{0} start{1} end{2}", seg.generation, seg.start_key, seg.end_key);
+            }
+            
+
 
             System.Console.WriteLine("** done.");
         }
