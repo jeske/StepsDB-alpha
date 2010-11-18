@@ -78,6 +78,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DbgGUI\DbgGUI.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="LayerManager\RootMetadata\SegmentDescriptor.cs" />
     <Compile Include="LayerManager\RootMetadata\RangemapManager2.cs" />
     <Compile Include="RowPipe\Pipe.cs" />
@@ -156,6 +159,11 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Util\ThirdParty\NUnit\" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="DbgGUI\DbgGUI.resx">
+      <DependentUpon>DbgGUI.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
