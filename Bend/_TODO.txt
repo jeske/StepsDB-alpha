@@ -20,6 +20,7 @@
 	- re-order segmentdescriptors to put key first, gen last?  
 
   - cleanup
+    - write a layertest for the deletion tombstone-shadow problem
     - should recordKey return deleted records?
       - check that record-find is ignoring tombstones
     - remove old "mergeAllSegments" code

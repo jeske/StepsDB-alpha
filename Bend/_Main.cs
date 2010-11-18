@@ -83,6 +83,10 @@ namespace Bend
             db.setValueParsed("test/6", "f");
             db.flushWorkingSegment();
             db.debugDump();
+
+            System.Console.WriteLine("-------- dump keys ---------------------");
+            dumpAllDbRecords(db);
+            System.Console.WriteLine("-------- draw graphical debug ---------------------");
             win.debugDump(db);
 
             System.Console.WriteLine("-------- PERFORMING A SINGLE MERGE ---------------------");
@@ -102,6 +106,9 @@ namespace Bend
             win.debugDump(db);
             System.Console.WriteLine("-------- SINGLE MERGE DONE, merge all and close/dispose ---------------------");
             dumpAllDbRecords(db);
+
+            dumpAllDbRecords(db);
+
             var segs = db.listAllSegments();
             Console.WriteLine("AllSegs: " + String.Join(",", segs));
             db.mergeSegments(segs);

@@ -222,14 +222,14 @@ namespace Bend
             }
             
             foreach (SegmentMemoryBuilder layer in layers) {
-
+                var segrk = RangeKey.newSegmentRangeKey(
+                                new RecordKey().appendKeyPart("<"),
+                                new RecordKey().appendKeyPart(">"),
+                                num_generations);
                 INTERNAL_segmentWalkForNextKey(
                     lowkey,
                     layer,
-                    RangeKey.newSegmentRangeKey(
-                       new RecordKey().appendKeyPart("<"),
-                       new RecordKey().appendKeyPart(">"),
-                       num_generations),
+                    segrk,
                     handledIndexRecords,
                     num_generations,
                     recordsBeingAssembled,
@@ -368,10 +368,9 @@ namespace Bend
                         System.Console.WriteLine("INTERNAL error, RangeKey scan found non-range key: " 
                             + kvp.Key.ToString() + " claimed to be before " + endrk.ToString() );
                         break;
-                    }
-                    if (kvp.Value.type == RecordUpdateTypes.FULL) {
-                        yield return kvp;
-                    }
+                    }                    
+                    yield return kvp;
+
                 }
                 
             }
@@ -393,23 +392,34 @@ namespace Bend
 
             // first look in this segment for a next-key **IF** it may contain one
             if (curseg_rangekey.directlyContainsKey(startkeytest)) {
-                KeyValuePair<RecordKey,RecordUpdate> nextrow;
-                try {
-                    nextrow = curseg.FindNext(startkeytest, equal_ok);
-                    // we have a next record
-                    RecordData partial_record;
-                    if (!recordsBeingAssembled.TryGetValue(nextrow.Key, out partial_record)) {
-                        partial_record = new RecordData(RecordDataState.NOT_PROVIDED, nextrow.Key);
-                        recordsBeingAssembled[nextrow.Key] = partial_record;
+                // we need to keep looking until we find a live record, as we need all the deletion tombstones
+                // between startkey and the next live record.
+                foreach(var kvp in curseg.scanForward(new ScanRange<RecordKey>(startkeytest, 
+                                                      new ScanRange<RecordKey>.maxKey(),
+                                                      null))) {
+
+                    if (!equal_ok) { // have ">" test vs ">="
+                        if (kvp.Key.Equals(startkeytest)) {
+                            continue; 
+                        }
                     }
-                    partial_record.applyUpdate(nextrow.Value);
-                } catch (KeyNotFoundException) {
+
+                    RecordData partial_record;
+                    if (!recordsBeingAssembled.TryGetValue(kvp.Key, out partial_record)) {
+                        partial_record = new RecordData(RecordDataState.NOT_PROVIDED, kvp.Key);
+                        recordsBeingAssembled[kvp.Key] = partial_record;
+                    }
+                    partial_record.applyUpdate(kvp.Value);
+                    if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                        // we found at least one live record, so stop adding potential records
+                        break;
+                    }
                 }
             }
 
             // find all generation range references that are relevant for this key
             // .. make a note of which ones are "current" 
-            List<KeyValuePair<RecordKey,RecordUpdate>> todo_list= new List<KeyValuePair<RecordKey,RecordUpdate>>();
+            List<KeyValuePair<RecordKey,RecordUpdate>> todo_list = new List<KeyValuePair<RecordKey,RecordUpdate>>();
             for (int i = maxgen - 1; i >= 0; i--) {
                 foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllElibibleRangeRows(curseg, startkeytest, i)) {
                     // see if it is new for our handledIndexRecords dataset
@@ -417,7 +427,7 @@ namespace Bend
                     if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
                         partial_rangedata = new RecordData(RecordDataState.NOT_PROVIDED, rangerow.Key);
                         handledIndexRecords[rangerow.Key] = partial_rangedata;
-                    }
+                    }                    
                     if ((partial_rangedata.State == RecordDataState.INCOMPLETE) ||
                         (partial_rangedata.State == RecordDataState.NOT_PROVIDED)) {
                         // we're suppilying new data for this index record
@@ -434,7 +444,11 @@ namespace Bend
 
             // now repeat the walk through our todo list:
             foreach (KeyValuePair<RecordKey,RecordUpdate> rangepointer in todo_list) {
-
+                if (rangepointer.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                    // skip deletion tombstones
+                    
+                    continue; 
+                }
                 SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
                 RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
