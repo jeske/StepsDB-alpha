@@ -74,8 +74,10 @@ namespace Bend
 
         public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
-            RecordKey key = makeGenerationKey(gen_number, start_key, end_key);
-                
+            // TODO: consider putting the address or a GUID into the key so two descriptors can't be mixed up
+            SegmentDescriptor sdesc = new SegmentDescriptor((uint)gen_number, start_key, end_key);
+            RecordKey key = sdesc.record_key;
+
             // TODO: pack the metdata record <addr>:<size>
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
             String seg_metadata = "" + region.getStartAddress();

@@ -36,7 +36,7 @@ namespace Bend {
         }
 
         public void debugDump(LayerManager db) {
-            List<SegmentDescriptor> segments = db.listAllSegments();
+            var segments = db.listAllSegments();
 
             // compute the data I need first...
 

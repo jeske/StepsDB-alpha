@@ -53,6 +53,12 @@ namespace Bend
             }
         }
 
+        public static void dumpSegmentList(LayerManager db) {
+            foreach (var seg in db.listAllSegments()) {
+                System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+            }            
+        }
+
 
         public static void do_bringup_test(DbgGUI win) {
 
@@ -103,43 +109,35 @@ namespace Bend
             db.mergeSegments(merge_task); 
             db.flushWorkingSegment();
             db.debugDump();
+            dumpSegmentList(db);
             win.debugDump(db);
             System.Console.WriteLine("-------- SINGLE MERGE DONE, merge all and close/dispose ---------------------");
-            dumpAllDbRecords(db);
 
-            dumpAllDbRecords(db);
+            
+            db.mergeAllSegments();
+            dumpSegmentList(db);
 
-            var segs = db.listAllSegments();
-            Console.WriteLine("AllSegs: " + String.Join(",", segs));
-            db.mergeSegments(segs);
+            mr = db.generateMergeRatios();
+            mr.DebugDump();
 
             db.debugDump();
             db.Dispose();
 
             System.Console.WriteLine("-------- NOW RESUME ---------------------------------");
             db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\main");
+            dumpSegmentList(db);
             db.debugDump();
 
             System.Console.WriteLine("-------- NOW FINDNEXT ---------------------------------");
             dumpAllDbRecords(db);
 
-            System.Console.WriteLine("-------- NOW MERGE ---------------------------------");
+            System.Console.WriteLine("-------- NOW MERGE ALL SEGMENTS ---------------------------------");
+            dumpSegmentList(db);
             db.mergeAllSegments();
-            mr = db.generateMergeRatios();
-            mr.DebugDump();
             db.debugDump();
 
             System.Console.WriteLine("-------- NOW FINDNEXT (after merge) ---------------------------------");
-            {
-                RecordKey next_key = new RecordKey();
-                RecordKey fkey = null;
-                RecordData fdata = null;
-                while (db.getNextRecord(next_key, ref fkey, ref fdata) == GetStatus.PRESENT) {
-                    next_key = fkey;
-
-                    System.Console.WriteLine("  found: {0} -> {1}", fkey.ToString(), fdata.ToString());
-                }
-            }
+            dumpAllDbRecords(db);
 
             //System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
             //A03_LayerManagerTests test = new A03_LayerManagerTests();
@@ -172,14 +170,13 @@ namespace Bend
                         System.Console.WriteLine(merge_task.ToString());
                         db.mergeSegments(merge_task);
                         win.debugDump(db);
+                        db.debugDump();
                     }
 
 
                     System.Console.WriteLine("windump");
 
-                    foreach (var seg in db.listAllSegments()) {
-                        System.Console.WriteLine("gen{0} start{1} end{2}", seg.generation, seg.start_key, seg.end_key);
-                    }
+                    dumpSegmentList(db);
                 }
             }
 
@@ -198,10 +195,7 @@ namespace Bend
                 
             }
 
-            foreach (var seg in db.listAllSegments()) {
-                System.Console.WriteLine("gen{0} start{1} end{2}", seg.generation, seg.start_key, seg.end_key);
-            }
-            
+            dumpSegmentList(db);
 
 
             System.Console.WriteLine("** done.");

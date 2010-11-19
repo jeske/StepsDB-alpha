@@ -294,14 +294,39 @@ namespace Bend
             }
         }
 
-        public List<SegmentDescriptor> listAllSegments() {
-            List<SegmentDescriptor> allsegs = new List<SegmentDescriptor>();
-            
+        public List<SegmentDescriptor> listSegmentsForGen(int gen) {
+            List<SegmentDescriptor> segs = new List<SegmentDescriptor>();
+
+            RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
+            RecordKey cur_key = start_key;
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+                cur_key = found_key;
+                // check that the first two keyparts match
+                if (found_key.isSubkeyOf(start_key)) {
+                    if (found_record.State == RecordDataState.DELETED) {
+                        continue; // ignore the tombstone
+                    } else if (found_record.State != RecordDataState.FULL) {
+                        throw new Exception("can't handle incomplete segment record");
+                    } else {
+                        segs.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(found_key));
+                    }
+                } else {
+                    // we're done matching the generation records
+                    break;
+                }
+            }
+            return segs;
+        }
+
+
+        public IEnumerable<SegmentDescriptor> listAllSegments() {            
             int gen_count = rangemapmgr.genCount();
 
             if (gen_count < 1) {
                 // nothing to even reprocess
-                return allsegs;
+                yield break;
             }
 
 
@@ -319,17 +344,16 @@ namespace Bend
                     } else if (found_record.State != RecordDataState.FULL) {
                         throw new Exception("can't handle incomplete segment record");
                     } else {
-                        allsegs.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(found_key));
+                        yield return rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
                     }             
                 } else {
                     // we're done matching the generation records
                     break;
                 }
-            }
-            return allsegs;
+            }           
         }
 
-        public void mergeSegments(List<SegmentDescriptor> segs) {
+        public void mergeSegments(IEnumerable<SegmentDescriptor> segs) {
             // TODO: assure this is a valid merge
             //
             // We write our output in the "minimum" generation number of the merge.
@@ -343,13 +367,14 @@ namespace Bend
             // that generates the merge candidates uses a tree to propose merges. 
             //
             // TODO: build validation code that assures this invariant is never violated.
+            int count = 0;
 
             uint target_generation = int.MaxValue; // will contain "minimum generation of the segments"
 
             // (1) iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
             foreach (SegmentDescriptor segment in segs) {
-
+                count++;
                 target_generation = Math.Min(target_generation, segment.generation);
                     var seg = segment.getSegment(rangemapmgr);
 
@@ -362,18 +387,28 @@ namespace Bend
                 }
             }
 
+            if (count == 1) {
+                System.Console.WriteLine("only one segment, nothing to merge");
+                return;
+            }
 
            // (2) now perform the merge!
             {
                 WriteGroup tx = new WriteGroup(this);
-              
-                this._writeSegment(tx, chain, target_generation);
+
+                // HACK: we delete the segment mappings first, so if we write the same mapping that we're removing, 
+                // we don't inadvertantly delete the new mapping..
 
                 // remove the old segment mappings
                 foreach (SegmentDescriptor segment in segs) {
-                    rangemapmgr.unmapSegment(tx, segment);
+                    // TODO: it's not safe to free this space yet!
+                    rangemapmgr.unmapSegment(tx, segment);  
                     
                 }
+
+                this._writeSegment(tx, chain, target_generation);
+
+                // free the space from the old segments
 
                 // check to see if we can shrink NUMGENERATIONS
 
@@ -463,6 +498,55 @@ namespace Bend
             }
 
         }
+
+
+        public List<SegmentDescriptor> _findRelevantSegs(int gen, RecordKey start_key, RecordKey end_key,int max_segs_before_abort) {
+            List<SegmentDescriptor> sub_segment_keys = new List<SegmentDescriptor>();
+            int current_seg_count = 0;
+
+            RecordKey gen_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
+            RecordKey search_key = new RecordKey().appendParsedKey(".ROOT/GEN").
+                appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD)).
+                appendKeyPart(start_key);
+
+            RecordKey cur_key = search_key;
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+                cur_key = found_key;
+
+                // ignore deletion tombstones
+                if (found_record.State == RecordDataState.DELETED) {
+                    continue;
+                }
+
+                // check to see we found a segment pointer
+                if (!found_key.isSubkeyOf(gen_key)) {
+                    break;
+                }
+                SegmentDescriptor subsegment = rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
+
+                // check to see that the segment we found overlaps with the segment in question
+                //  i.e. the start key falls between start and end
+
+                // if the subsegment start is greater than the end, or end is less than the start, it's not overlapping, otherwise it is
+                if ((subsegment.start_key.CompareTo(end_key) > 0) || (subsegment.end_key.CompareTo(start_key) < 0)) {
+                    // it's not, so we're done with this recurse
+                    break;
+                } else {
+                    // yes! it's inside the parent segment
+                    sub_segment_keys.Add(subsegment);
+                    current_seg_count++;
+                    if (current_seg_count > max_segs_before_abort) {
+                        return null;
+                    }
+                }
+            }
+            return sub_segment_keys;
+
+
+        }
+
 
 
         public List<SegmentDescriptor> _segmentRatioWalk(MergeRatios mr, int gen, SegmentDescriptor seg) {           
@@ -558,6 +642,37 @@ namespace Bend
 
             }
         };
+
+        /*
+
+        public void generateMergeTreeForSegment(MergeRatios mr, SegmentDescriptor seg) {
+            if (seg.generation < 1) {                
+                return; // at the bottom
+            }
+            int target_generation = 
+        }
+
+        public MergeRatios generateMergeRatios2() {
+            MergeRatios merge_ratios = new MergeRatios();
+
+            // (1) figure out max-gen
+            int max_gen = rangemapmgr.genCount() - 1;
+            if (max_gen < 1) {
+                // nothing to process, our layout is flat already
+                return merge_ratios;
+            }
+
+            // (2) get all segments in the max-gen
+            var segs = listSegmentsForGen(max_gen);
+
+            foreach (var seg in segs) {
+                generateMergeTreeForSegment(mr,seg);
+            }
+
+
+            return merge_ratios;
+        }
+         */
 
         public MergeRatios generateMergeRatios() {
             MergeRatios merge_ratios = new MergeRatios();
