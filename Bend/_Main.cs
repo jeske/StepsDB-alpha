@@ -149,9 +149,12 @@ namespace Bend
 
             String value = "";
             for (int x = 0; x < 1000; x++) { value = value + "TestValueDataABC"; }
+            Random rnd = new Random();
 
-            for (int x = 0; x < 10000; x++) {
-                db.setValueParsed("test/rnd/" + x, value);
+            for (int x = 1000000; x < 1000000 + 10000; x++) {
+                // db.setValueParsed("test/rnd/" + rnd.Next(), value);
+                db.setValueParsed("test/ordered/" + x, value);
+
 
                 if (x % 1000 == 0) {
                     db.flushWorkingSegment();

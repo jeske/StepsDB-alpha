@@ -42,7 +42,7 @@ namespace Bend {
             // compute the data I need first...
 
             var segments_by_generation = new Dictionary<uint,List<SegmentDescriptor>>();
-            var unique_keys = new Dictionary<RecordKey, int>();
+            var unique_keys = new BDSkipList<RecordKey, int>();
 
             foreach (SegmentDescriptor segdesc in segments) {
                 unique_keys[segdesc.start_key] = 1;
