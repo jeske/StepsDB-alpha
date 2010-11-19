@@ -142,16 +142,17 @@ namespace Bend
             //System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
             //A03_LayerManagerTests test = new A03_LayerManagerTests();
             //test.T10_LayerManager_ReadThreads();
-
+            db.Dispose();
 
 
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
+            db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\bigtest");
             String value = "";
             for (int x = 0; x < 1000; x++) { value = value + "TestValueDataABC"; }
             Random rnd = new Random();
 
-            for (int x = 1000000; x < 1000000 + 10000; x++) {
+            for (int x = 1000001; x < 1000001 + 10000; x++) {
                 db.setValueParsed("test/rnd/" + rnd.Next(), value);
                 // db.setValueParsed("test/ordered/" + x, value);
 
@@ -173,7 +174,7 @@ namespace Bend
                         System.Console.WriteLine(merge_task.ToString());
                         db.mergeSegments(merge_task);
                         win.debugDump(db);
-                        db.debugDump();
+                        // db.debugDump();
                     }
 
 
