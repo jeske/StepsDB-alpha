@@ -4,12 +4,9 @@
 
 - incremental merge (small step, eventually does a full merge)
 
-  - cleanup / big test
-    - check for log overflow
-    - use SegmentDescriptor class everywhere	
-	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
-	- make a "big test case" that shows off multiple layers of segments merging with the GUI!!! 
-
+  - write new merge ratio code
+    - it should generate all possible merge candidates
+	- prevent holes from 'blocking' merges
 
 	
   Q: How do we assure a valid merge? (no generation inversion)
@@ -19,8 +16,12 @@
 	- keep a list of "live generations"?
 	- re-order segmentdescriptors to put key first, gen last?  
 
-  - cleanup
-    - write a layertest for the deletion tombstone-shadow problem
+  - cleanup    
+    - use SegmentDescriptor class everywhere	
+	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
+	
+	- write a layertest for the deletion tombstone-shadow problem
+    - check for log overflow
     - should recordKey return deleted records?
       - check that record-find is ignoring tombstones
     - remove old "mergeAllSegments" code
@@ -65,8 +66,6 @@
 ----[ DONE ]---------
 
 
+11/18 - make a "big test case" that shows off multiple layers of segments merging with the GUI!!! 
 11/3 - first incremental block merge works
-
-
-test3
 
