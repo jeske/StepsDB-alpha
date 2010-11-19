@@ -152,8 +152,8 @@ namespace Bend
             Random rnd = new Random();
 
             for (int x = 1000000; x < 1000000 + 10000; x++) {
-                // db.setValueParsed("test/rnd/" + rnd.Next(), value);
-                db.setValueParsed("test/ordered/" + x, value);
+                db.setValueParsed("test/rnd/" + rnd.Next(), value);
+                // db.setValueParsed("test/ordered/" + x, value);
 
 
                 if (x % 1000 == 0) {
