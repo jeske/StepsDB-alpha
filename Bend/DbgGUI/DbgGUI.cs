@@ -37,12 +37,16 @@ namespace Bend {
 
         public void debugDump(LayerManager db) {
             var segments = db.listAllSegments();
+            Size regionsize = this.ClientSize;
 
             // compute the data I need first...
 
             var segments_by_generation = new Dictionary<uint,List<SegmentDescriptor>>();
+            var unique_keys = new Dictionary<RecordKey, int>();
 
             foreach (SegmentDescriptor segdesc in segments) {
+                unique_keys[segdesc.start_key] = 1;
+                unique_keys[segdesc.end_key] = 1;
                 try {
                     segments_by_generation[segdesc.generation].Add(segdesc);
                 } catch (KeyNotFoundException) {
@@ -52,28 +56,29 @@ namespace Bend {
                 }
             }
 
+            // assign y-locations to keys
+            int y_loc = 0;
+            int segment_height = regionsize.Height / unique_keys.Count;
+
+            var key_to_position_map = new Dictionary<RecordKey, int>();
+            foreach (var key in unique_keys.Keys) {
+                key_to_position_map[key] = y_loc;
+                y_loc += segment_height;
+            }
 
             // now draw stuff! 
             Graphics dc = this.CreateGraphics();
-            Pen BluePen = new Pen(Color.Blue, 1);            
-            Size regionsize = this.ClientSize;
+            Pen BluePen = new Pen(Color.Blue, 1);                        
 
             dc.Clear(Color.White);
 
             int cur_x = 10, cur_y = 0;
             foreach (uint generation in segments_by_generation.Keys) {
+                foreach (var seg in segments_by_generation[generation]) {
+                    int y_top = key_to_position_map[seg.start_key];
+                    int y_bottom = key_to_position_map[seg.end_key];
 
-                // draw the generation rect
-                int box_height = regionsize.Height - 20;
-                dc.DrawRectangle(BluePen, cur_x, 10, 50, box_height);
-
-                var listofsegs = segments_by_generation[generation];
-                int count = listofsegs.Count;
-
-                // draw the segment boundaries
-                int seg_height = box_height / count;
-                for (int x = 0; x < count; x++) {
-                    dc.DrawLine(BluePen, cur_x, 10 + seg_height * x, cur_x + 50, 10 + seg_height * x);
+                    dc.DrawRectangle(BluePen, cur_x, y_top, 50, y_bottom - y_top);
                 }
 
                 // reset for next time through the loop
