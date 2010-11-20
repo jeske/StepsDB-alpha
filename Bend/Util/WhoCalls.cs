@@ -20,11 +20,25 @@ namespace Bend {
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static string WhoCalledMe()
         {
-            StackTrace stackTrace = new StackTrace();
-            StackFrame stackFrame = stackTrace.GetFrame(1);
+            StackTrace stackTrace = new StackTrace();            
+            StackFrame stackFrame = stackTrace.GetFrame(0);
             MethodBase methodBase = stackFrame.GetMethod();
             
             return methodBase.Name;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static string StackTrace() {
+            string ss = "";
+
+            StackTrace stackTrace = new StackTrace();
+            for(int x=0;x<stackTrace.FrameCount;x++) {
+                StackFrame stackFrame = stackTrace.GetFrame(x);
+                ss = ss + stackFrame.GetMethod().Name + ":" + stackFrame.GetFileName() + ":" + stackFrame.GetFileLineNumber() + " ";            
+            }
+
+
+            return ss;
         }
 
 

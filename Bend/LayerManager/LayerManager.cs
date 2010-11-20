@@ -304,6 +304,7 @@ namespace Bend
             var segs_to_merge = new List<SegmentDescriptor>();
             segs_to_merge.AddRange(mc.source_segs);
             segs_to_merge.AddRange(mc.target_segs);
+            segs_to_merge.Reverse();
             this.mergeSegments(segs_to_merge);
         }
 
@@ -383,10 +384,16 @@ namespace Bend
             int count = 0;
 
             uint target_generation = int.MaxValue; // will contain "minimum generation of the segments"
+            int last_generation = int.MinValue;
 
             // (1) iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
             foreach (SegmentDescriptor segment in segs) {
+                if (segment.generation < last_generation) {
+                    throw new Exception("segment merge generation order invalid: " + String.Join(",", segs));
+                }
+                last_generation = (int)segment.generation;
+
                 count++;
                 target_generation = Math.Min(target_generation, segment.generation);
                     var seg = segment.getSegment(rangemapmgr);
@@ -432,7 +439,11 @@ namespace Bend
         }
 
         public void mergeAllSegments() {
-            mergeSegments(listAllSegments());
+            var allsegs = new List<SegmentDescriptor>();
+            allsegs.AddRange(listAllSegments());
+            allsegs.Sort((a, b) => a.generation.CompareTo(b.generation));
+            
+            mergeSegments(allsegs);
         }
 
         public void mergeAllSegments_OLD() {

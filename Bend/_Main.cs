@@ -152,6 +152,8 @@ namespace Bend
             db.debugDump();
             win.debugDump(db);
 
+            // stop(); // ------------------------- ((  S   T   O   P  )) ---------------------------------
+
             System.Console.WriteLine("-------- NOW FINDNEXT (after merge) ---------------------------------");
             dumpAllDbRecords(db);
 
@@ -162,7 +164,7 @@ namespace Bend
             dumpMergeCandidates(db);
             win.debugDump(db);
             db.Dispose();
-            // stop(); // ------------------------- ((  S   T   O   P  )) ---------------------------------
+            
 
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
@@ -175,10 +177,10 @@ namespace Bend
                 db.setValueParsed("test/rnd/" + rnd.Next(), value);
                 // db.setValueParsed("test/ordered/" + x, value);
 
-
                 if (x % 1000 == 0) {
                     System.Console.WriteLine("start % 1000 cycle..");
                     db.flushWorkingSegment();                    
+                    
                     win.debugDump(db);
                     dumpMergeCandidates(db);
                     

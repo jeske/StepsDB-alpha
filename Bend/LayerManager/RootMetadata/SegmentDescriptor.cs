@@ -32,6 +32,15 @@ namespace Bend {
             generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
             start_key = new RecordKey().appendParsedKey(key.key_parts[3]);
             end_key = new RecordKey().appendParsedKey(key.key_parts[4]);
+
+            {
+                var testkey = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
+                if (start_key.Equals(testkey)) {
+                    System.Console.WriteLine("%%%%%% GEN started with numgenerations ..." + this);
+                    System.Console.WriteLine(WhoCalls.StackTrace());
+                }
+            }
+
         }
 
         public int CompareTo(SegmentDescriptor target) {

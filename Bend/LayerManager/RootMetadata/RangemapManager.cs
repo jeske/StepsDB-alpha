@@ -88,6 +88,8 @@ namespace Bend
             SegmentDescriptor sdesc = new SegmentDescriptor((uint)gen_number, start_key, end_key);
             RecordKey key = sdesc.record_key;
 
+            System.Console.WriteLine("mapGenerationToRegion: " + sdesc);
+
             // TODO: pack the metdata record <addr>:<size>
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
             String seg_metadata = "" + region.getStartAddress();
@@ -95,19 +97,6 @@ namespace Bend
             
             // TODO: make this occur only when the txn commits!
             mergeManager.notify_addSegment(sdesc);
-        }
-
-        private RecordKey makeGenerationKey(int gen_number, RecordKey start_key, RecordKey end_key) {
-
-
-            RecordKey genkey = new RecordKey()
-                .appendParsedKey(".ROOT/GEN")
-                .appendKeyPart(Lsd.numberToLsd(gen_number, GEN_LSD_PAD))
-                .appendKeyPart(start_key.encode())
-                .appendKeyPart(end_key.encode());                
-           
-            return genkey;
-
         }
 
         public void clearSegmentCacheHack() {            
@@ -123,7 +112,8 @@ namespace Bend
             this.unmapSegment(tx, segment.record_key, null);
         }
 
-        public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
+        public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {            
+
             // TODO: how do we assure that existing read operations flush and reload all segments?          
             lock (disk_segment_cache) {
                 // clear the entry from the cache
@@ -144,8 +134,11 @@ namespace Bend
             SegmentDescriptor sdesc = getSegmentDescriptorFromRecordKey(key);
             mergeManager.notify_removeSegment(sdesc);
 
+            System.Console.WriteLine("unmapSegment: " + sdesc);
+
             // we can't really do this because the file is still open
-            // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data));            
+            // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data)); 
+                       
         }
        
         public void setGenerationCountToZeroHack() {                       
