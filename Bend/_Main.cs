@@ -53,6 +53,18 @@ namespace Bend
             }
         }
 
+        public static void stop() {
+            throw new Exception("stop tests");
+        }
+
+        public static void dumpMergeCandidates(LayerManager db) {
+            MergeManager_Incremental mm = db.rangemapmgr.mergeManager;
+            System.Console.WriteLine("-- dumpMergeCandidates");
+            foreach (var mc in mm.prioritizedMergeCandidates) {
+                System.Console.WriteLine("  " + mc.ToString());
+            }
+        }
+
         public static void dumpSegmentList(LayerManager db) {
             foreach (var seg in db.listAllSegments()) {
                 System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
@@ -80,7 +92,7 @@ namespace Bend
             db.flushWorkingSegment();    // this will flush and read the current segment
             Console.WriteLine("--- after flush");
             db.debugDump();
-
+            dumpMergeCandidates(db);
 
             Console.WriteLine("--- check record read");
             RecordData data;
@@ -98,49 +110,47 @@ namespace Bend
 
             System.Console.WriteLine("-------- dump keys ---------------------");
             dumpAllDbRecords(db);
+            dumpMergeCandidates(db);
             System.Console.WriteLine("-------- draw graphical debug ---------------------");
             win.debugDump(db);
 
             System.Console.WriteLine("-------- PERFORMING A SINGLE MERGE ---------------------");
 
-            // calculate merge ratios
-            LayerManager.MergeRatios mr = db.generateMergeRatios();
-            mr.DebugDump();
-
-            // use the merge ratios to calculate a single merge
-            LayerManager.MergeTask merge_task = mr.generateMergeTask();
-            System.Console.WriteLine(merge_task.ToString());
             
-            // do the merge
-            db.mergeSegments(merge_task); 
+            MergeCandidate mc;
+            mc = db.rangemapmgr.mergeManager.getBestCandidate();
+            System.Console.WriteLine("MERGE :" + mc);
+            db.performMerge(mc);
+            dumpMergeCandidates(db);
+
             db.flushWorkingSegment();
             db.debugDump();
             dumpSegmentList(db);
             win.debugDump(db);
-            System.Console.WriteLine("-------- SINGLE MERGE DONE, merge all and close/dispose ---------------------");
-
             
-            db.mergeAllSegments();
+            System.Console.WriteLine("-------- SINGLE MERGE DONE, close/dispose ---------------------");
+                                   
             dumpSegmentList(db);
-
-            mr = db.generateMergeRatios();
-            mr.DebugDump();
-
+            dumpMergeCandidates(db);
             db.debugDump();
             db.Dispose();
 
             System.Console.WriteLine("-------- NOW RESUME ---------------------------------");
             db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\main");
             dumpSegmentList(db);
+            dumpMergeCandidates(db);
+            win.debugDump(db);
             db.debugDump();
 
             System.Console.WriteLine("-------- NOW FINDNEXT ---------------------------------");
             dumpAllDbRecords(db);
+            win.debugDump(db);
 
             System.Console.WriteLine("-------- NOW MERGE ALL SEGMENTS ---------------------------------");
             dumpSegmentList(db);
             db.mergeAllSegments();
             db.debugDump();
+            win.debugDump(db);
 
             System.Console.WriteLine("-------- NOW FINDNEXT (after merge) ---------------------------------");
             dumpAllDbRecords(db);
@@ -148,8 +158,11 @@ namespace Bend
             //System.Console.WriteLine("-------- Now run Readthreads Test ---------------------------------");
             //A03_LayerManagerTests test = new A03_LayerManagerTests();
             //test.T10_LayerManager_ReadThreads();
-            db.Dispose();
 
+            dumpMergeCandidates(db);
+            win.debugDump(db);
+            db.Dispose();
+            // stop(); // ------------------------- ((  S   T   O   P  )) ---------------------------------
 
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
@@ -164,29 +177,27 @@ namespace Bend
 
 
                 if (x % 1000 == 0) {
-                    db.flushWorkingSegment();
+                    System.Console.WriteLine("start % 1000 cycle..");
+                    db.flushWorkingSegment();                    
+                    win.debugDump(db);
+                    dumpMergeCandidates(db);
                     
-                    win.debugDump(db);                    
-                    // db.debugDump();
-
                     for (int mx = 0; mx < 4; mx++) {
-                        System.Console.WriteLine("merge " + mx);
-                        mr = db.generateMergeRatios();
-                        merge_task = mr.generateMergeTask();
-                        if (merge_task == null) {
-                            System.Console.WriteLine("nothing more to merge");
+                        
+                        mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                        System.Console.WriteLine("merge " + mx + " : " + mc);
+                        if (mc == null) {
                             break;
                         }
-                        System.Console.WriteLine(merge_task.ToString());
-                        db.mergeSegments(merge_task);
-                        win.debugDump(db);
-                        // db.debugDump();
+                        db.performMerge(mc);
+                        System.Console.WriteLine("mergedone " + mx + " : " + mc);
+
+                        dumpSegmentList(db);
+                        dumpMergeCandidates(db);
+                        win.debugDump(db);                        
                     }
 
-
-                    System.Console.WriteLine("windump");
-
-                    dumpSegmentList(db);
+                    System.Console.WriteLine("merge cycle done");                    
                 }
             }
 
@@ -194,20 +205,13 @@ namespace Bend
             System.Console.WriteLine("-------- Merge a bunch more ------------------");
 
             for (int x = 0; x < 30; x++) {
-                mr = db.generateMergeRatios();
-                merge_task = mr.generateMergeTask();
-                if (merge_task == null) {
-                    break;
-                }
-                db.mergeSegments(merge_task);
-                win.debugDump(db);
+                mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                db.performMerge(mc);
                 
-                
+                win.debugDump(db);                              
             }
 
             dumpSegmentList(db);
-
-
             System.Console.WriteLine("** done.");
         }
     }

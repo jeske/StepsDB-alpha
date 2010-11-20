@@ -15,8 +15,8 @@ namespace Bend {
     public class MergeManager_Incremental {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
-        public int MAX_MERGE_SIZE = 10;
-
+        public int MAX_MERGE_SIZE = 4;
+        
         public MergeManager_Incremental() {
             segmentInfo = new BDSkipList<SegmentDescriptor, List<MergeCandidate>>();
             prioritizedMergeCandidates = new BDSkipList<MergeCandidate,int>();
@@ -32,6 +32,10 @@ namespace Bend {
         private void addMergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
             // create a merge candidate
             var mergeCandidate = new MergeCandidate(source_segs, target_segs);
+            if (prioritizedMergeCandidates.ContainsKey(mergeCandidate)) {
+                // we already know about this one...
+                return;
+            }
             
             // refernce the merge candidate from each of these segments
             foreach (var seg in source_segs) {
@@ -51,7 +55,7 @@ namespace Bend {
             // the number is small enough, add it to the prioritized candidate list
 
             var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
-            int subcount = 0;
+            int subcount = 1;
             for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {
                 var start = new SegmentDescriptor((uint)target_generation, segdesc.start_key, segdesc.start_key);
                 var end = new SegmentDescriptor((uint)target_generation, segdesc.end_key, segdesc.end_key);
@@ -59,7 +63,7 @@ namespace Bend {
 
                 foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
                     if (++subcount > MAX_MERGE_SIZE) {
-                        break; // this merge would be too big! 
+                        return; // we found too many segments, so abort 
                     }
                     targetSegments.Add(kvp.Key);
                 }
@@ -97,6 +101,10 @@ namespace Bend {
         }
 
         public void notify_removeSegment(SegmentDescriptor segdesc) {
+            if (! segmentInfo.ContainsKey(segdesc)) {
+                throw new Exception("MergeManager notify_removeSegment() for unknown segment: " + segdesc);
+            }
+
             // remove all merge candidates this segment is participating in
             foreach (var candidate in segmentInfo[segdesc]) {
                 prioritizedMergeCandidates.Remove(candidate);
@@ -106,8 +114,12 @@ namespace Bend {
         }
 
 
-        public MergeCandidate getBestCandidate() {           
-            return prioritizedMergeCandidates.FindNext(null, true).Key;
+        public MergeCandidate getBestCandidate() {
+            try {
+                return prioritizedMergeCandidates.FindNext(new ScanRange<MergeCandidate>.minKey(), true).Key;
+            } catch (KeyNotFoundException) {
+                return null;
+            }
         }
 
         public int getNumberOfCandidates() {

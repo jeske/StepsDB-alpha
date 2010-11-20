@@ -30,8 +30,8 @@ namespace Bend
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
         internal List<WeakReference<WriteGroup>> pending_txns;
-        RangemapManager rangemapmgr;
-        FreespaceManager freespacemgr;
+        public RangemapManager rangemapmgr;
+        public FreespaceManager freespacemgr;        
 
         LogWriter logwriter;
         Receiver receiver;
@@ -43,6 +43,7 @@ namespace Bend
 
             segmentlayers = new List<SegmentMemoryBuilder>();   // a list of segment layers, newest to oldest
             workingSegment = new SegmentMemoryBuilder();
+            
             segmentlayers.Add(workingSegment);
             
         }
@@ -71,8 +72,10 @@ namespace Bend
             }
 
             // once the rangemap is initialized we can actually READ data!!
-            rangemapmgr = new RangemapManager(this);   
+            rangemapmgr = new RangemapManager(this);
             freespacemgr = new FreespaceManager(this);
+
+            rangemapmgr.primeMergeManager();
         }
 
         // inner classes ...
@@ -292,6 +295,16 @@ namespace Bend
                 }
                 segmentlayers.Remove(checkpointSegment);
             }
+        }
+
+        //-------------------------------------------------------
+
+        public void performMerge(MergeCandidate mc) {
+            if (mc == null) { return; }
+            var segs_to_merge = new List<SegmentDescriptor>();
+            segs_to_merge.AddRange(mc.source_segs);
+            segs_to_merge.AddRange(mc.target_segs);
+            this.mergeSegments(segs_to_merge);
         }
 
         public List<SegmentDescriptor> listSegmentsForGen(int gen) {
@@ -547,174 +560,6 @@ namespace Bend
 
         }
 
-
-
-        public List<SegmentDescriptor> _segmentRatioWalk(MergeRatios mr, int gen, SegmentDescriptor seg) {           
-            List<SegmentDescriptor> sub_segment_keys = new List<SegmentDescriptor>();
-
-            RecordKey gen_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
-
-            RecordKey search_key = new RecordKey().appendParsedKey(".ROOT/GEN").
-                    appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD)).
-                    appendKeyPart(seg.start_key);
-            RecordKey cur_key = search_key;
-            RecordKey found_key = new RecordKey();
-            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
-                cur_key = found_key;
-
-                // ignore deletion tombstones
-                if (found_record.State == RecordDataState.DELETED) {
-                    continue;
-                }
-
-                // check to see we found a segment pointer
-                if (!found_key.isSubkeyOf(gen_key)) {
-                    break;
-                }
-
-                SegmentDescriptor subsegment = rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
-
-                // check to see that the segment we found overlaps with the segment in question
-                //  i.e. the start key falls between start and end
-
-                // if the subsegment start is greater than the end, or end is less than the start, it's not overlapping, otherwise it is
-                if ((subsegment.start_key.CompareTo(seg.end_key) > 0) || (subsegment.end_key.CompareTo(seg.start_key) < 0)) {
-                    // it's not, so we're done with this recurse
-                    break;
-                } else {
-                    // yes! it's inside the parent segment
-                    sub_segment_keys.Add(subsegment);
-                }
-
-                // recurse to find the ratio for this segment and put it into our merge ratios                
-                if (gen > 0) {
-                    List<SegmentDescriptor> subsub_segkeys = _segmentRatioWalk(mr, gen - 1, subsegment);
-                    if (subsub_segkeys.Count > 0) {
-                        mr.Add(subsegment, subsub_segkeys);
-                    }
-                 }
-            }
-            return sub_segment_keys;
-        }
-
-        public class MergeTask : List<SegmentDescriptor> {
-            public String ToString() {
-                return "MergeTask{" + String.Join(",",this) + "}";
-            }
-        }
-
-        public class MergeRatios : Dictionary<SegmentDescriptor,  List<SegmentDescriptor>> {
-            public void DebugDump() {
-                System.Console.WriteLine("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- MergeRatios");
-                foreach(KeyValuePair<SegmentDescriptor,List<SegmentDescriptor>> kvp in this) {
-                    System.Console.WriteLine(kvp.Key + " => (" + kvp.Value.Count + ")" +
-                        " [" + String.Join("  &  ", kvp.Value) + "]");
-                }
-            }
-
-            public MergeTask generateMergeTask() {
-                // TODO: we should find the 'best' multi-block merge task, but we
-                // are going to "cheat" and start with the best two-block merge
-
-                SegmentDescriptor best_key = null;
-                // (1) find the lowest merge ratio (ideal is 1:1)
-                int min_children = int.MaxValue;
-                foreach (KeyValuePair<SegmentDescriptor, List<SegmentDescriptor>> kvp in this) {
-                    if (kvp.Value.Count < min_children) {
-                        min_children = kvp.Value.Count;
-                        best_key = kvp.Key;
-                    }
-                }
-
-                if (best_key != null) {
-                    MergeTask merge_segment_keys = new MergeTask();
-                    merge_segment_keys.Add(best_key);
-                    merge_segment_keys.AddRange(this[best_key]);
-
-                    if (merge_segment_keys.Count < 2) {                        
-                        throw new Exception("empty merge task!");
-                    }
-                    return merge_segment_keys;
-                } else {
-                    return null;
-                }
-
-            }
-        };
-
-        /*
-
-        public void generateMergeTreeForSegment(MergeRatios mr, SegmentDescriptor seg) {
-            if (seg.generation < 1) {                
-                return; // at the bottom
-            }
-            int target_generation = 
-        }
-
-        public MergeRatios generateMergeRatios2() {
-            MergeRatios merge_ratios = new MergeRatios();
-
-            // (1) figure out max-gen
-            int max_gen = rangemapmgr.genCount() - 1;
-            if (max_gen < 1) {
-                // nothing to process, our layout is flat already
-                return merge_ratios;
-            }
-
-            // (2) get all segments in the max-gen
-            var segs = listSegmentsForGen(max_gen);
-
-            foreach (var seg in segs) {
-                generateMergeTreeForSegment(mr,seg);
-            }
-
-
-            return merge_ratios;
-        }
-         */
-
-        public MergeRatios generateMergeRatios() {
-            MergeRatios merge_ratios = new MergeRatios();
-            List<KeyValuePair<RecordKey, RecordData>> genpointers = new List<KeyValuePair<RecordKey, RecordData>>();
-
-            // (1) figure out what the newest generation is
-            int max_gen = rangemapmgr.genCount() -1;
-            if (max_gen < 1) {
-                // nothing to process, our layout is flat already
-                return merge_ratios;
-            }
-
-            // (2) find all the highest-generation SegmentDescriptors
-            RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
-            start_key.appendKeyPart(Lsd.numberToLsd(max_gen, RangemapManager.GEN_LSD_PAD));
-            RecordKey cur_key = start_key;
-            RecordKey found_key = new RecordKey();
-            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT)
-            {
-                // check that the first keyparts match (i.e. we're part of the most recent generation)
-                if (found_key.isSubkeyOf(start_key)) {
-                    genpointers.Add(new KeyValuePair<RecordKey, RecordData>(found_key, found_record));
-                    cur_key = found_key;
-                } else {
-                    // we're done matching the generation records
-                    break;
-                }
-            }
-
-            // (3) for each of the highest generation references, generate the ratios and recurse
-
-            foreach (KeyValuePair<RecordKey, RecordData> kvp in genpointers) {
-                SegmentDescriptor segment = rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key);
-                List<SegmentDescriptor> subsubseg_keys = _segmentRatioWalk(merge_ratios, max_gen - 1, segment);
-                if (subsubseg_keys.Count > 0) {
-                    merge_ratios.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key), subsubseg_keys);
-                }
-            }
-
-            return merge_ratios;
-        }
 
 
         public GetStatus getRecord(RecordKey key, out RecordData record) {

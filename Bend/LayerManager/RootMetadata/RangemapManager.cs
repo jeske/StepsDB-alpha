@@ -24,11 +24,12 @@ namespace Bend
     public class RangemapManager
     {
         LayerManager store;
+        public MergeManager_Incremental mergeManager;
+
         int num_generations;
         public static int GEN_LSD_PAD = 3;
 
         public static String altdebug_pad = "                                          --";
-
 
         // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
         //   use a single FileStream. If you have multiple threads calling them, 
@@ -36,18 +37,27 @@ namespace Bend
         Dictionary<RecordKey, SegmentReader> disk_segment_cache; 
 
         public RangemapManager(LayerManager store) {
-            this.store = store;
-            // get the current number of generations
-
+            this.store = store;            
             disk_segment_cache = new Dictionary<RecordKey, SegmentReader>();
 
+            // get the current number of generations
             RecordUpdate update;
             if (store.workingSegment.getRecordUpdate(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 out update) == GetStatus.MISSING) {
                 throw new Exception("RangemapManager can't init without NUMGENERATIONS");
             }
             num_generations = (int)Lsd.lsdToNumber(update.data);
+
+
+            // init the merge manager
+            mergeManager = new MergeManager_Incremental();            
         }
+        public void primeMergeManager() {
+            foreach (var segdesc in store.listAllSegments()) {
+                mergeManager.notify_addSegment(segdesc);
+            }
+        }
+
         public static void Init(LayerManager store) {
             // setup "zero" initial generations
             store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
@@ -82,7 +92,9 @@ namespace Bend
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
             String seg_metadata = "" + region.getStartAddress();
             tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
-
+            
+            // TODO: make this occur only when the txn commits!
+            mergeManager.notify_addSegment(sdesc);
         }
 
         private RecordKey makeGenerationKey(int gen_number, RecordKey start_key, RecordKey end_key) {
@@ -113,7 +125,6 @@ namespace Bend
 
         public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
             // TODO: how do we assure that existing read operations flush and reload all segments?          
-
             lock (disk_segment_cache) {
                 // clear the entry from the cache
                 // TODO: fix this so it works when we fix setValue...
@@ -128,6 +139,10 @@ namespace Bend
                 }
             }
             tx.setValue(key, RecordUpdate.DeletionTombstone());
+
+            // TODO: assure this happens only if the txn commits
+            SegmentDescriptor sdesc = getSegmentDescriptorFromRecordKey(key);
+            mergeManager.notify_removeSegment(sdesc);
 
             // we can't really do this because the file is still open
             // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data));            
