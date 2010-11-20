@@ -59,10 +59,16 @@ namespace Bend
             }            
         }
 
+        public static void do_bringup_test2(DbgGUI win) {
+
+            var testclass = new BendTests.A02_MergeManagerTests();
+            testclass.T000_TestRangeBoundaries();
+
+            System.Console.WriteLine("done");
+        }
 
         public static void do_bringup_test(DbgGUI win) {
 
-            
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\BENDtst\\main");
          
