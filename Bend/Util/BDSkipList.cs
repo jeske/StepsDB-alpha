@@ -473,17 +473,19 @@ namespace Bend
                 cursor = cursor.right;
             } else {
                 throw new Exception("Invalid head sentinel in SkipList");
-            }
+            }            
             // now iterate across the linked list
-            while (!cursor.is_sentinel) {
-                if (!cursor.is_sentinel) { // check for sentinel
-                    yield return cursor;
-                } else {
-                    if (!cursor.is_sentinel) {
-                        throw new Exception("Invalid tail sentinel in SkipList");
-                    }
+            while (!cursor.is_sentinel) {                
+                yield return cursor;
+
+                if (cursor.right == cursor) {
+                    throw new Exception("Invalid cyclic right pointer in SkipList");
                 }
                 cursor = cursor.right;
+                
+            }
+            if (this.tail[0] != cursor) {
+                throw new Exception("Invalid tail sentinel in SkipList");
             }
         }
 
@@ -858,11 +860,25 @@ namespace BendTests
             // put some data in 
             for (int i = 0; i < keylist.Length; i++) {
                 Assert.AreEqual(i, l.Count, "list size mismatch during add");
+
+                int count = 0;
+                foreach (var elem in l) {
+                    count++;
+                }
+                Assert.AreEqual(l.Count, count, "enumerator produced a different number of elements than count, during add");
+
                 l.Add(keylist[i], valuelist[i]);
             }
 
             for (int i = 0; i < keylist.Length; i++) {
                 Assert.AreEqual(keylist.Length - i, l.Count, "list size mismatch during remove");
+
+                int count = 0;
+                foreach (var elem in l) {
+                    count++;
+                }
+                Assert.AreEqual(l.Count, count, "enumerator produced a different number of elements than count, during forward remove");
+                
                 l.Remove(keylist[i]);
             }
 
@@ -873,8 +889,16 @@ namespace BendTests
                 Assert.AreEqual(i, l.Count, "list size mismatch during add");
                 l.Add(keylist[i], valuelist[i]);
             }
-            for (int i = keylist.Length-1; i >= 0; i--) {
+            for (int i = keylist.Length-1; i >= 0; i--) {                
                 Assert.AreEqual(i+1, l.Count, "list size mismatch during remove");
+
+                int count = 0;
+                foreach (var elem in l) {
+                    count++;
+                }
+                Assert.AreEqual(l.Count, count, "enumerator produced a different number of elements than count, during reverse remove");
+
+
                 l.Remove(keylist[i]);
             }
 
