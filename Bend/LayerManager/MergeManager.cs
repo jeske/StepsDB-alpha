@@ -22,12 +22,16 @@ namespace Bend {
             prioritizedMergeCandidates = new BDSkipList<MergeCandidate,int>();
         }
 
-        
-
+        public  int getMaxGeneration() {            
+            try {
+                return (int)segmentInfo.FindPrev(new ScanRange<SegmentDescriptor>.maxKey(), true).Key.generation;
+            } catch (KeyNotFoundException e) {
+                return 0;
+            }            
+        }
         private void addMergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
             // create a merge candidate
             var mergeCandidate = new MergeCandidate(source_segs, target_segs);
-
             
             // refernce the merge candidate from each of these segments
             foreach (var seg in source_segs) {
@@ -41,16 +45,16 @@ namespace Bend {
             prioritizedMergeCandidates.Add(mergeCandidate, 1);
         }
 
-        public void notify_addSegment(SegmentDescriptor segdesc) {
-            segmentInfo.Add(segdesc, new List<MergeCandidate>());
-            
+        private void _generateMergeCandidatesFor(SegmentDescriptor segdesc) {
+
             // (1) find out which segments this could merge down into and if
-            // the number is small enough, add it to the prioritized candidate list           
-            var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);            
-            int subcount = 0;                     
-            for (int target_generation = ((int)segdesc.generation-1);target_generation>=0;target_generation--) {            
-                var start = new SegmentDescriptor((uint)target_generation,segdesc.start_key,segdesc.start_key);              
-                var end = new SegmentDescriptor((uint)target_generation,segdesc.end_key,segdesc.end_key);
+            // the number is small enough, add it to the prioritized candidate list
+
+            var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
+            int subcount = 0;
+            for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {
+                var start = new SegmentDescriptor((uint)target_generation, segdesc.start_key, segdesc.start_key);
+                var end = new SegmentDescriptor((uint)target_generation, segdesc.end_key, segdesc.end_key);
                 var targetSegments = new List<SegmentDescriptor>();
 
                 foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
@@ -64,14 +68,32 @@ namespace Bend {
                     this.addMergeCandidate(sourceSegments, targetSegments);
 
                     // add the target segments to the source so we can iterate again                    
-                    sourceSegments.AddRange(targetSegments);                    
-                    
+                    sourceSegments.AddRange(targetSegments);
+
                 }
                 targetSegments = null;
             }
 
-            // (2) trigger segments above this segment to recompute their candidates
+        }
 
+        public void notify_addSegment(SegmentDescriptor segdesc) {
+            segmentInfo.Add(segdesc, new List<MergeCandidate>());
+
+            // (1) generate downstream merge-candidates
+            _generateMergeCandidatesFor(segdesc);                       
+
+            // (2) trigger segments above this segment to recompute their candidates
+            int max_generation = this.getMaxGeneration();
+            for (int source_generation = (int)segdesc.generation + 1; source_generation <= max_generation; source_generation++) {
+                var start = new SegmentDescriptor((uint)source_generation, segdesc.start_key, segdesc.start_key);
+                var end = new SegmentDescriptor((uint)source_generation, segdesc.end_key, segdesc.end_key);
+
+                foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
+                    // TODO: we should really only generate a new candidates IF it includes the new segment
+                    _generateMergeCandidatesFor(kvp.Key);
+                }
+                
+            }
         }
 
         public void notify_removeSegment(SegmentDescriptor segdesc) {

@@ -77,6 +77,8 @@ namespace BendTests {
             MergeCandidate mc;
 
             var mm = new MergeManager_Incremental();
+            mm.getMaxGeneration();
+
             var gen0abseg = new SegmentDescriptor(0, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("B"));
             var gen0dfseg = new SegmentDescriptor(0, new RecordKey().appendParsedKey("D"), new RecordKey().appendParsedKey("F"));
             var gen1acseg = new SegmentDescriptor(1, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("C"));
@@ -118,7 +120,6 @@ namespace BendTests {
             mc = mm.getBestCandidate();
             Assert.AreEqual(new SegmentDescriptor[1] { gen2azseg}, mc.source_segs);
             Assert.AreEqual(new SegmentDescriptor[2] { gen0acseg, gen0dfseg }, mc.target_segs);
-
 
         }
     }
