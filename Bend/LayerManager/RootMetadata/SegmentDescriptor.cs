@@ -14,7 +14,7 @@ namespace Bend {
 
     // .ROOT/GEN/000/</> -> addr:length
 
-    public class SegmentDescriptor {
+    public class SegmentDescriptor : IComparable<SegmentDescriptor> {
         public RecordKey record_key;
         public uint generation;
         public RecordKey start_key;
@@ -32,6 +32,28 @@ namespace Bend {
             generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
             start_key = new RecordKey().appendParsedKey(key.key_parts[3]);
             end_key = new RecordKey().appendParsedKey(key.key_parts[4]);
+        }
+
+        public int CompareTo(SegmentDescriptor target) {
+            
+            switch(this.generation.CompareTo(target.generation)) {
+                case -1: 
+                    return -1;
+                case 1:
+                    return 1;
+                case 0:
+                    switch(this.start_key.CompareTo(target.start_key)) {
+                        case -1:
+                            return -1;
+                        case 1:
+                            return 1;
+                        case 0:
+                            return this.end_key.CompareTo(target.end_key);
+                    
+                    }
+                    break;
+            }
+            throw new Exception("invalid values in SegmentDescriptor.CompareTo()");
         }
 
         public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {

@@ -81,6 +81,8 @@
     <Compile Include="DbgGUI\DbgGUI.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="LayerManager\MergeManagerTest.cs" />
+    <Compile Include="LayerManager\MergeManager.cs" />
     <Compile Include="LayerManager\RootMetadata\SegmentDescriptor.cs" />
     <Compile Include="LayerManager\RootMetadata\RangemapManager2.cs" />
     <Compile Include="RowPipe\Pipe.cs" />

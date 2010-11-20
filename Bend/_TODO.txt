@@ -7,6 +7,7 @@
   - write new merge ratio code
     - it should generate all possible merge candidates
 	- prevent holes from 'blocking' merges
+	- make SegmentDescriptor IComparable
 
 	
   Q: How do we assure a valid merge? (no generation inversion)
@@ -61,6 +62,10 @@
 
 *** try using C# sqlite sql implementation to throw SQL on top
 
+- fix update semantics so "setValue" doesn't hack the value directly into the in-memory segment. It should simply commit the change packet and handleCommand() should cause the write to occur, just as it does in recovery. (i.e. recovery is the same as update)
+- SegmentWriter needs buffered output (LogAppendWriter) - there was some problem with just dropping a buffered stream in place of the current streams
+- Singleton keyparts for less allocation + faster comparisons
+- stats tracking (qps, w_qps at 1 second interval)
 
 
 ----[ DONE ]---------
