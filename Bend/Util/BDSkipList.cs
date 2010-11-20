@@ -223,10 +223,14 @@ namespace Bend
                 }
 
                 /* Here we are on the bottom list, and we test to see if the new value to add
-                 * is not already in the skip list. If it already exists, then we just update
-                 * the value of the key. */
-                if ((!next[0].right.is_sentinel) && (next[0].right.key.Equals(key))) {
-                    next[0].right.value = value;
+                 * is not already in the skip list. If it already exists, then we throw the
+                 * proper exception. */
+                if ((!next[0].right.is_sentinel) && (next[0].right.key.CompareTo(key) == 0)) {
+
+                    // we used to just set the value
+                    // next[0].right.value = value;
+                    throw new ArgumentException("BDSkipList, Add(" + key.ToString() + "," + value.ToString() +
+                                        ") collides with (" + next[0].right.key.ToString() + "," + next[0].right.value.ToString() + ")");
                 }
 
                     /* If the number to insert is not in the list, then we flip the coin and insert
@@ -306,6 +310,10 @@ namespace Bend
                 if (target == null) {
                     // nothing to remove
                     return false;
+                }
+
+                if (target.down != null) {
+                    throw new Exception("BDSkipList internal ERROR, _findNextNode() returned node not on the bottom!");
                 }
 
                 if (keytest.CompareTo(target.key) != 0) {
@@ -479,7 +487,8 @@ namespace Bend
                 yield return cursor;
 
                 if (cursor.right == cursor) {
-                    throw new Exception("Invalid cyclic right pointer in SkipList");
+                    throw new Exception("Invalid cyclic right pointer in SkipList, node: (" +
+                        cursor.key.ToString() + "," + cursor.value.ToString() + ")");
                 }
                 cursor = cursor.right;
                 
@@ -990,6 +999,74 @@ namespace BendTests
                 Assert.AreEqual(0, pos, "scanBackward() did not return all elements it should have");
             }
 
+        }
+
+        [Test]
+        public void T02_SkipList_TestDuplicateKeys() {
+            BDSkipList<string, int> l = new BDSkipList<string, int>();
+            string[] keylist = { "abc", "def", "def" };
+            int[] valuelist = { 1, 2, 3 };
+
+            // put some data in 
+            l.Add(keylist[0], valuelist[0]);
+            l.Add(keylist[1], valuelist[1]);
+
+            {
+                int caught_exception = 0;
+                try {
+                    l.Add(keylist[2], valuelist[2]);
+
+                } catch (ArgumentException) {
+                    caught_exception = 1;
+                }
+                Assert.AreEqual(1, caught_exception, "duplicate key addition didn't trigger exception");
+            }
+
+            Assert.AreEqual(2, l.Count);
+            int count = 0;
+            foreach (var val in l) { count++; }
+            Assert.AreEqual(2, count);
+        }
+
+
+        // this is used to compare user-defined classes which have CompareTo() operators
+        // that say they are equal, but the classes are actually unique pointers
+        public class UserDefinedClass : IComparable<UserDefinedClass> {
+            String value;
+            public UserDefinedClass(String value) {
+                this.value = value;
+            }
+            public int CompareTo(UserDefinedClass target) {
+                return this.value.CompareTo(target.value);
+            }
+        }
+
+        [Test]
+        public void T02_SkipList_TestUserDefinedDuplicateKeys() {
+            BDSkipList<UserDefinedClass, int> l = new BDSkipList<UserDefinedClass, int>();
+            UserDefinedClass[] keylist = { new UserDefinedClass("test1"), new UserDefinedClass("test2"), new UserDefinedClass("test2") };
+            int[] valuelist = { 1, 2, 3 };
+
+            // put some data in 
+            l.Add(keylist[0], valuelist[0]);
+            l.Add(keylist[1], valuelist[1]);
+
+            {
+                int caught_exception = 0;
+                try {
+                    l.Add(keylist[2], valuelist[2]);
+
+                } catch (ArgumentException) {
+                    caught_exception = 1;
+                }
+                Assert.AreEqual(1, caught_exception, "duplicate key addition didn't trigger exception");
+            }
+
+
+            Assert.AreEqual(2, l.Count, "shouldn't be able to add duplicate user defined keys");
+            int count = 0;
+            foreach (var val in l) { count++; }
+            Assert.AreEqual(2, count);
         }
 
         [Test]
