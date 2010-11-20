@@ -13,35 +13,16 @@ namespace Bend {
     // TODO: make SegmentDescriptor IComparable
 
     public class MergeManager_Incremental {
-        BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
-        BDSkipList<float, MergeCandidate> prioritizedMergeCandidates;
-        private int MAX_MERGE_SIZE = 10;
+        public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
+        public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
+        public int MAX_MERGE_SIZE = 10;
 
         public MergeManager_Incremental() {
             segmentInfo = new BDSkipList<SegmentDescriptor, List<MergeCandidate>>();
-            prioritizedMergeCandidates = new BDSkipList<float, MergeCandidate>();
+            prioritizedMergeCandidates = new BDSkipList<MergeCandidate,int>();
         }
 
-        public class MergeCandidate {
-            public SegmentDescriptor[] source_segs;
-            public SegmentDescriptor[] target_segs;
-            float merge_ratio;
-
-            public MergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
-                this.source_segs = source_segs.ToArray();
-                this.target_segs = target_segs.ToArray();
-                this.merge_ratio = (float)source_segs.Count / (float)target_segs.Count;
-            }
-
-            public float score() {
-                return this.merge_ratio;
-            }
-
-            public override string ToString() {
-                return "MergeCandidate{ (" + String.Join(",", (IEnumerable<SegmentDescriptor>)source_segs) +
-                    ") -> (" + String.Join(",", (IEnumerable<SegmentDescriptor>)target_segs) + ") }";
-            }
-        }
+        
 
         private void addMergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
             // create a merge candidate
@@ -57,7 +38,7 @@ namespace Bend {
             }
 
             // add the merge candidate to our priority queue
-            prioritizedMergeCandidates.Add(mergeCandidate.score(), mergeCandidate);
+            prioritizedMergeCandidates.Add(mergeCandidate, 1);
         }
 
         public void notify_addSegment(SegmentDescriptor segdesc) {
@@ -83,8 +64,6 @@ namespace Bend {
                     this.addMergeCandidate(sourceSegments, targetSegments);
 
                     // add the target segments to the source so we can iterate again                    
-                    sourceSegments = new List<SegmentDescriptor>();
-                    sourceSegments.AddRange(sourceSegments);
                     sourceSegments.AddRange(targetSegments);                    
                     
                 }
@@ -98,20 +77,84 @@ namespace Bend {
         public void notify_removeSegment(SegmentDescriptor segdesc) {
             // remove all merge candidates this segment is participating in
             foreach (var candidate in segmentInfo[segdesc]) {
-                prioritizedMergeCandidates.Remove(new KeyValuePair<float,MergeCandidate>(candidate.score(), candidate));
+                prioritizedMergeCandidates.Remove(candidate);
             }
             segmentInfo.Remove(segdesc);
 
         }
 
 
-        public MergeCandidate getBestCandidate() {
-            return prioritizedMergeCandidates.FindNext(0f, true).Value;
+        public MergeCandidate getBestCandidate() {           
+            return prioritizedMergeCandidates.FindNext(null, true).Key;
         }
 
         public int getNumberOfCandidates() {
             return prioritizedMergeCandidates.Count;
         }
     }
+
+    // ----------------
+
+    public class MergeCandidate : IComparable<MergeCandidate> {
+        public SegmentDescriptor[] source_segs;
+        public SegmentDescriptor[] target_segs;
+        float merge_ratio;
+
+        public int CompareTo(MergeCandidate target) {
+            switch (this.merge_ratio.CompareTo(target.merge_ratio)) {
+                case -1:
+                    return -1;
+                case 1:
+                    return 1;
+            }
+            switch (this.source_segs.Length.CompareTo(target.source_segs.Length)) {
+                case -1:
+                    return -1;
+                case 1:
+                    return 1;
+            }
+            switch (this.target_segs.Length.CompareTo(target.target_segs.Length)) {
+                case -1:
+                    return -1;
+                case 1:
+                    return 1;
+            }
+            for(int x=0;x<this.source_segs.Length;x++) {
+                switch(this.source_segs[x].CompareTo(target.source_segs[x])) {
+                    case -1:
+                        return -1;
+                    case 1:
+                        return 1;                    
+                }
+            }
+            for (int x = 0; x < this.target_segs.Length; x++) {
+                switch (this.target_segs[x].CompareTo(target.target_segs[x])) {
+                    case -1:
+                        return -1;
+                    case 1:
+                        return 1;
+                }
+            }
+            return 0;
+
+        }
+
+        public MergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
+            this.source_segs = source_segs.ToArray();
+            this.target_segs = target_segs.ToArray();
+
+            this.merge_ratio = ((float)target_segs.Count / (float)source_segs.Count) / (float)(target_segs.Count + source_segs.Count);
+        }
+
+        public float score() {
+            return this.merge_ratio;
+        }
+
+        public override string ToString() {
+            return "MergeCandidate{ " + this.merge_ratio + " (" + String.Join(",", (IEnumerable<SegmentDescriptor>)source_segs) +
+                ") -> (" + String.Join(",", (IEnumerable<SegmentDescriptor>)target_segs) + ") }";
+        }
+    }
+
 
 }
