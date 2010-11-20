@@ -866,6 +866,20 @@ namespace BendTests
                 l.Remove(keylist[i]);
             }
 
+            // test removing in reverse order
+            l = new BDSkipList<string, int>();
+            // put some data in 
+            for (int i = 0; i < keylist.Length; i++) {
+                Assert.AreEqual(i, l.Count, "list size mismatch during add");
+                l.Add(keylist[i], valuelist[i]);
+            }
+            for (int i = keylist.Length-1; i >= 0; i--) {
+                Assert.AreEqual(i+1, l.Count, "list size mismatch during remove");
+                l.Remove(keylist[i]);
+            }
+
+
+
         }
 
         
