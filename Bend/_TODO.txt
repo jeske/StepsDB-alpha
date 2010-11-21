@@ -2,33 +2,47 @@
 
 ----[ TODO ]---------
 
-- working on incremental merge
-
-
-
   - fix runaway max-generation issue....  
      Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
 	   - collapse max-generation number when possible?
 	   - keep a list of "live generations"?
 
+  - fix 'unmergable' higher generation blocks (i.e. increasing order insertion)
+     - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
+	 - or, (b) allow MergeManager to recommend a 'rename' to a lower generation
+
+  - make flushWorkingSegment an automatic part of LayerManager
 
   - cleanup    
     - use SegmentDescriptor class everywhere	
+	- change generation to "int" everywhere.
 	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
-	
-	- write a layertest for the deletion tombstone-shadow problem    
-    - remove old "mergeAllSegments" code
-    - proper merge unit-test
-    - drop tombstones when writing "oldest" generation
-	
-
+	- drop tombstones when writing into generation-0 (oldest)
+	- fix "clear segment cache hack"... why does it need to be cleared?
 	- scanForward/scanBackward should really have easy to use >/< operators in addition to <=/>=
 
+	- add unit tests:
+		- write a layertest for the deletion tombstone-shadow problem        
+		- mergeSegments() unit test
+
+
 	Q: what should be the type of keyparts? 
+
     Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
        - code to check that using the min-gen for a merge output is valid?
 
-- simple text-indexer test
+
+
+- PERFORMANCE
+  - fixes:
+    - row-range consistant cache (for system metadata rows)
+	- efficient row-scan instead of repeatin getNext()
+  - tests:
+    - simple text-indexer test
+    - simulate iibench 
+       - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
+       - 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
+
 
 - raw-byterange RegionManager
   - bounds checking on log-write, circular log, log-extension capability
@@ -40,6 +54,7 @@
   - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
 
 
+--------[ Bigger TODO items ]-----------
 
 *** row attributes for MVCC and locks
 (a) introduce row-attribute concept (can affect commit, row visibility, etc.)
@@ -48,11 +63,6 @@
 
 - prototype search-engine?
 
-
-- age-out tombstones when in oldest generation (remember oldest gen #?)
-
-
---------[ Bigger TODO items ]-----------
 
 *** First Automated Replication
 (a) 'lock' for old generations (i.e. checkpoint),

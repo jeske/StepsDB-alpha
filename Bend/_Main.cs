@@ -170,14 +170,14 @@ namespace Bend
 
             db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\bigtest");
             String value = "";
-            for (int x = 0; x < 1000; x++) { value = value + "TestValueDataABC"; }
+            for (int x = 0; x < 5; x++) { value = value + "TestValueDataABC"; }
             Random rnd = new Random();
 
-            for (int x = 1000001; x < 1000001 + 10000; x++) {
-                // db.setValueParsed("test/rnd/" + rnd.Next(), value);
-                db.setValueParsed("test/ordered/" + x, value);
-
-                if (x % 1000 == 0) {
+            for (int x = 1000001; x < 1000001 + 10000000; x++) {
+                db.setValueParsed("test/rnd/" + rnd.Next(), value);
+                // db.setValueParsed("test/ordered/" + x, value);
+               
+                if (x % 100000 == 0) {
                     System.Console.WriteLine("start % 1000 cycle..");
                     db.flushWorkingSegment();                    
                     
