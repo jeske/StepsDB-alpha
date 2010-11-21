@@ -1,4 +1,4 @@
-----
+
 
 ----[ TODO ]---------
 
@@ -11,7 +11,10 @@
      - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
 	 - or, (b) allow MergeManager to recommend a 'rename' to a lower generation
 
+  - DBG-GUI: draw blocks the same height, with diagonal lines to indiciate key range alignment
+
   - make flushWorkingSegment an automatic part of LayerManager
+
 
   - cleanup    
     - use SegmentDescriptor class everywhere	
@@ -30,8 +33,6 @@
 
     Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
        - code to check that using the min-gen for a merge output is valid?
-
-
 
 - PERFORMANCE
   - fixes:
@@ -61,10 +62,7 @@
 (b) attach MVCC attribute handler to writes, attach txn id to each row
 (c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
 
-- prototype search-engine?
-
-
-*** First Automated Replication
+*** Automated Replication
 (a) 'lock' for old generations (i.e. checkpoint),
 (b) copy locked data to replica
 (c) create new 'lock' for newer data, goto (b), until we are up-to-date
@@ -76,8 +74,7 @@
 - Singleton keyparts for less allocation + faster comparisons
 - stats tracking (qps, w_qps at 1 second interval)
 
-
-----[ DONE ]---------
+------------[ DONE ]--------------------
 
 
 11/20 - added merge manager 'key histogram' merge-ratio computation as a fallback

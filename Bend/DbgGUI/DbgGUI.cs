@@ -60,7 +60,18 @@ namespace Bend {
                 }
             }
 
+            // now draw stuff! 
+            Graphics dc = this.CreateGraphics();
+            Pen BluePen = new Pen(Color.Blue, 1);                        
+
+            dc.Clear(Color.White);
+
+            
             // assign y-locations to keys
+            if (unique_keys.Count == 0) {
+                return;
+            }
+
             int y_loc = 0;
             int segment_height = regionsize.Height / unique_keys.Count;
 
@@ -70,11 +81,8 @@ namespace Bend {
                 y_loc += segment_height;
             }
 
-            // now draw stuff! 
-            Graphics dc = this.CreateGraphics();
-            Pen BluePen = new Pen(Color.Blue, 1);                        
-
-            dc.Clear(Color.White);
+            
+            
 
             int cur_x = 10, cur_y = 0;
             foreach (uint generation in segments_by_generation.Keys) {

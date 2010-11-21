@@ -168,16 +168,25 @@ namespace Bend
 
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
+            int keysize = 20000;
+            int keycount = 10000;
+            int flush_period = 1000;
+            bool random_order = true;
+
             db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\bigtest");
             String value = "";
-            for (int x = 0; x < 5; x++) { value = value + "TestValueDataABC"; }
+            String keybase = "TestValueDataABC";
+            for (int x = 0; x < keysize / keybase.Length; x++) { value = value + keybase; }
             Random rnd = new Random();
 
-            for (int x = 1000001; x < 1000001 + 10000000; x++) {
-                db.setValueParsed("test/rnd/" + rnd.Next(), value);
-                // db.setValueParsed("test/ordered/" + x, value);
+            for (int x = 10000001; x < 10000001 + keycount; x++) {
+                if (random_order) {
+                    db.setValueParsed("test/rnd/" + rnd.Next(), value);
+                } else {
+                    db.setValueParsed("test/ordered/" + x, value);
+                }
                
-                if (x % 100000 == 0) {
+                if (x % flush_period == 0) {
                     System.Console.WriteLine("start % 1000 cycle..");
                     db.flushWorkingSegment();                    
                     
@@ -208,8 +217,12 @@ namespace Bend
 
             for (int x = 0; x < 30; x++) {
                 mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                System.Console.WriteLine("merge : " + mc);
+                if (mc == null) break;
                 db.performMerge(mc);
-                
+
+                dumpSegmentList(db);
+                dumpMergeCandidates(db);
                 win.debugDump(db);                              
             }
 
