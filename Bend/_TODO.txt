@@ -2,6 +2,15 @@
 
 ----[ TODO ]---------
 
+  - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
+
+  - DBG-GUI: 
+       - move drawing to a component
+	   - draw blocks the same height, with diagonal lines to indiciate key range alignment
+	   - prevent visual 'generation skipping'  (where it skips generation-columns that have no data)
+       - visualize merges as they occur (w/progress)
+       - visualize log/workingsegment/checkpoint status
+
   - fix runaway max-generation issue....  
      Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
 	   - collapse max-generation number when possible?
@@ -11,7 +20,6 @@
      - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
 	 - or, (b) allow MergeManager to recommend a 'rename' to a lower generation
 
-  - DBG-GUI: draw blocks the same height, with diagonal lines to indiciate key range alignment
 
   - make flushWorkingSegment an automatic part of LayerManager
 
@@ -33,6 +41,12 @@
 
     Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
        - code to check that using the min-gen for a merge output is valid?
+ 
+- email indexer test -  to test "custom block handlers"
+   - given a directory of mbox files, MIME parse and index email messages, provide a query interface
+   - write a custom block handler for the index hits and efficient search intersection
+   - compare indexing and query performance with lucene/xapian
+
 
 - PERFORMANCE
   - fixes:
@@ -45,22 +59,29 @@
        - 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
 
 
-- raw-byterange RegionManager
-  - bounds checking on log-write, circular log, log-extension capability
-  - bounds checking on segment size
-  - encode segment length in SegmentInfo
-
-- freelist
-  - 'real' freelist handling
-  - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
 
 
 --------[ Bigger TODO items ]-----------
+
+*** "table management"
+  - integration of my RowPIPE prototype code, which is a generic type of "table management" to organize how multi-part keys are built
+  - change system metadata to use rowpipe
+
+*** LinearAllocationRegion implementation (so two simultaneous allocators don't interleave)
 
 *** row attributes for MVCC and locks
 (a) introduce row-attribute concept (can affect commit, row visibility, etc.)
 (b) attach MVCC attribute handler to writes, attach txn id to each row
 (c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
+
+*** freelist
+  - 'real' freelist handling
+  - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
+
+*** raw-byterange RegionManager
+  - bounds checking on log-write, circular log, log-extension capability
+  - bounds checking on segment size
+  - encode segment length in SegmentInfo
 
 *** Automated Replication
 (a) 'lock' for old generations (i.e. checkpoint),
@@ -73,6 +94,11 @@
 - SegmentWriter needs buffered output (LogAppendWriter) - there was some problem with just dropping a buffered stream in place of the current streams
 - Singleton keyparts for less allocation + faster comparisons
 - stats tracking (qps, w_qps at 1 second interval)
+
+*** I/O scheduling (so log writes and segment writes don't thrash)
+*** layer-avoidance, bloom filters
+*** distributed shard manager
+*** xml document database
 
 ------------[ DONE ]--------------------
 
