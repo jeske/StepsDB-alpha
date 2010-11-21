@@ -50,7 +50,7 @@ namespace Bend
 
 
             // init the merge manager
-            mergeManager = new MergeManager_Incremental();            
+            mergeManager = new MergeManager_Incremental(this);            
         }
         public void primeMergeManager() {
             foreach (var segdesc in store.listAllSegments()) {
@@ -69,17 +69,29 @@ namespace Bend
             return segmentReaderFromRow(segmentrow.Key, segmentrow.Value);
         }
 
+        internal SegmentReader segmentReaderFromRow(RecordKey key, RecordData data) {
+            return __segmentReaderFromData(key, data.data);
+        }
         internal SegmentReader segmentReaderFromRow(RecordKey key, RecordUpdate update) {
+            return __segmentReaderFromData(key, update.data);
+        }
+
+
+        internal SegmentReader __segmentReaderFromData(RecordKey key, byte[] data) {
             lock (disk_segment_cache) {
                 try {
                     return disk_segment_cache[key];
                 } catch (KeyNotFoundException) {
-                    SegmentReader next_seg = getSegmentFromMetadataBytes(update.data);
+                    SegmentReader next_seg = getSegmentFromMetadataBytes(data);
                     disk_segment_cache[key] = next_seg;
                     return next_seg;
                 }
             }
-        }        
+        }
+        
+
+
+
 
 
         public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {

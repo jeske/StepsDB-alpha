@@ -16,10 +16,12 @@ namespace Bend {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
         public int MAX_MERGE_SIZE = 4;
+        public RangemapManager rangemapmgr;
         
-        public MergeManager_Incremental() {
+        public MergeManager_Incremental(RangemapManager rmm) {
             segmentInfo = new BDSkipList<SegmentDescriptor, List<MergeCandidate>>();
             prioritizedMergeCandidates = new BDSkipList<MergeCandidate,int>();
+            this.rangemapmgr = rmm;
         }
 
         public  int getMaxGeneration() {            
@@ -49,13 +51,70 @@ namespace Bend {
             prioritizedMergeCandidates.Add(mergeCandidate, 1);
         }
 
+        private void _generateMergeCandidatesUsingHistogram(SegmentDescriptor segdesc) {
+            var foundTargets = new BDSkipList<SegmentDescriptor, int>();
+            if (segdesc.generation < 1) {
+                return; // nothing to do
+            }
+
+            // scan the keys of this segment, and build a merge histogram to see if
+            // the histogram details provide a better merge ratio than the keyrange
+            RecordKey found_key = new RecordKey();
+            RecordData found_data = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            if (rangemapmgr.getNextRecord(segdesc.record_key, ref found_key, ref found_data, true) == GetStatus.PRESENT) {
+
+                SegmentReader sr = rangemapmgr.segmentReaderFromRow(found_key, found_data);
+                int key_count = 0;
+                int max_target_generation = 0;
+                foreach (var row in sr.sortedWalk()) {
+                    key_count++;
+                    // find the previous generation block this key must merge into                    
+                    for (int target_generation = (int)segdesc.generation - 1; target_generation >= 0; target_generation--) {
+                        SegmentDescriptor searchdesc = new SegmentDescriptor((uint)target_generation, row.Key, row.Key);
+                        try {
+                            SegmentDescriptor foundseg = segmentInfo.FindNext(searchdesc, true).Key;
+                            if (foundseg.generation == target_generation) {
+                                // TODO: check for overlap also! 
+                                foundTargets[foundseg] = target_generation;
+                                max_target_generation = Math.Max(max_target_generation, target_generation);
+                                break;
+                            }
+                        } catch (KeyNotFoundException) {
+                        }                        
+                    }
+
+                    if (foundTargets.Count > MAX_MERGE_SIZE) {
+                        // the histogram blew up also
+                        return;
+                    }
+                }
+
+                // assemble the merge target from the max_target_generation
+                var mergeTargetSegments = new List<SegmentDescriptor>();
+                foreach (var kvp in foundTargets) {
+                    if (kvp.Value == max_target_generation) {
+                        mergeTargetSegments.Add(kvp.Key);
+                    }
+                }
+
+                System.Console.WriteLine("Histogram Merge Target ( key_count = " + key_count + 
+                         ", target_block_count = " + mergeTargetSegments.Count + ") " +
+                         segdesc.ToString() + " -> " + String.Join(",",mergeTargetSegments));
+                var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
+                this.addMergeCandidate(sourceSegments, mergeTargetSegments);
+
+            }
+
+        }
+
         private void _generateMergeCandidatesFor(SegmentDescriptor segdesc) {
 
-            // (1) find out which segments this could merge down into and if
+            // find out which segments this could merge down into and if
             // the number is small enough, add it to the prioritized candidate list
 
             var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
             int subcount = 1;
+            int merge_candidates = 0;
             for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {
                 var start = new SegmentDescriptor((uint)target_generation, segdesc.start_key, segdesc.start_key);
                 var end = new SegmentDescriptor((uint)target_generation, segdesc.end_key, segdesc.end_key);
@@ -63,13 +122,20 @@ namespace Bend {
 
                 foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
                     if (++subcount > MAX_MERGE_SIZE) {
-                        return; // we found too many segments, so abort 
+                        // we don't want to scan forever, stop here
+                        if (merge_candidates == 0) {
+                            // but if we have not generated any merge candidates, double-check the histogram
+                            _generateMergeCandidatesUsingHistogram(segdesc);
+                        }
+                        return; 
                     }
                     targetSegments.Add(kvp.Key);
                 }
+                
                 if (targetSegments.Count > 0) {
                     // add the merge candidate
                     this.addMergeCandidate(sourceSegments, targetSegments);
+                    merge_candidates++;
 
                     // add the target segments to the source so we can iterate again                    
                     sourceSegments.AddRange(targetSegments);

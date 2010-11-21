@@ -30,7 +30,7 @@ namespace BendTests {
         public void T000_BasicTests() {
             MergeCandidate mc;
 
-            var mm = new MergeManager_Incremental();
+            var mm = new MergeManager_Incremental(null);
             var gen0seg = new SegmentDescriptor(0, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("Z"));
             var gen1seg = new SegmentDescriptor(1, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("Z"));
             var gen2seg = new SegmentDescriptor(2, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("Z"));
@@ -76,7 +76,7 @@ namespace BendTests {
         public void T000_TestRangeBoundaries() {
             MergeCandidate mc;
 
-            var mm = new MergeManager_Incremental();
+            var mm = new MergeManager_Incremental(null);
             mm.MAX_MERGE_SIZE = 1000; // force 'infinite' merge sizes for our tests
             mm.getMaxGeneration();
 
