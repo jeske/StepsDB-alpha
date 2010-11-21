@@ -27,6 +27,10 @@ namespace Bend {
             this.Refresh();
         }
 
+
+        protected override void OnResize(EventArgs ev) {
+            this.Refresh();
+        }
         protected override void OnPaint(PaintEventArgs e) {
             Graphics dc = e.Graphics;
 
