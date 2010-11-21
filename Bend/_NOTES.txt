@@ -121,3 +121,6 @@ Custom Tools
 
 http://www.codeproject.com/KB/dotnet/Custom_Tool_Registration.aspx
 http://msdn.microsoft.com/en-us/library/aa301694(VS.71).aspx
+
+http://stackoverflow.com/questions/39712/visual-studio-2005-2008-how-can-you-share-force-all-developers-to-use-the-same-f
+
