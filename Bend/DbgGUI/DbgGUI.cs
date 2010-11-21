@@ -5,19 +5,15 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Threading;
 
-
-
-//   - C# gdi+ article  http://www.codeproject.com/KB/books/1861004990.aspx
-
 namespace Bend {
 
- 
     public partial class DbgGUI : Form {
-        private LayerVisualization layerVisualization1;
         
+        private LayerVisualization layerVisualization1;
+
         public DbgGUI() {
             InitializeComponent();
-            
+        
             this.Size = new System.Drawing.Size(600, 600);
             this.Location = new Point(700, 700);
             this.Show();
@@ -26,7 +22,7 @@ namespace Bend {
             newThread.Start();
         }
 
-        public void RunStuff() {                        
+        public void RunStuff() {
             try {
                 MainBend.do_bringup_test(this);
             } catch (Exception exc) {
@@ -39,10 +35,9 @@ namespace Bend {
 
         public void debugDump(LayerManager db) {
             this.layerVisualization1.refreshFromDb(db);
-
         }
-
-        private void InitializeComponent() {
+    
+       private void InitializeComponent() {
             this.layerVisualization1 = new Bend.LayerVisualization();
             this.SuspendLayout();
             // 

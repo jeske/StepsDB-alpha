@@ -8,7 +8,8 @@ using System.Threading;
 
 namespace Bend {
 
-
+    // http://social.msdn.microsoft.com/Forums/en-US/csharpide/thread/64c77755-b0c1-4447-8ac9-b5a63a681b78
+    [System.ComponentModel.DesignerCategory("code")]
     public class LayerVisualization : UserControl {        
         private List<SegmentDescriptor> segments = null;
 
