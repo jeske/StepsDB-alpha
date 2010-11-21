@@ -5,6 +5,10 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Threading;
 
+
+
+//   - C# gdi+ article  http://www.codeproject.com/KB/books/1861004990.aspx
+
 namespace Bend {
 
     public partial class DbgGUI : Form {

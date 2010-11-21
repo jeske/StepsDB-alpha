@@ -2,44 +2,43 @@
 
 ----[ TODO ]---------
 
-- incremental merge (small step, eventually does a full merge)
+- working on incremental merge
 
-  - write new merge ratio code
-    - it should generate all possible merge candidates
-	- prevent holes from 'blocking' merges
-	- make SegmentDescriptor IComparable
 
-	
-  Q: How do we assure a valid merge? (no generation inversion)
-  Q: what should be the type of keyparts? 
-  Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
-	- collapse max-generation number when possible?
-	- keep a list of "live generations"?
-	- re-order segmentdescriptors to put key first, gen last?  
+
+  - fix runaway max-generation issue....  
+     Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
+	   - collapse max-generation number when possible?
+	   - keep a list of "live generations"?
+
 
   - cleanup    
     - use SegmentDescriptor class everywhere	
 	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
 	
-	- write a layertest for the deletion tombstone-shadow problem
-    - check for log overflow
-    - should recordKey return deleted records?
-      - check that record-find is ignoring tombstones
+	- write a layertest for the deletion tombstone-shadow problem    
     - remove old "mergeAllSegments" code
     - proper merge unit-test
     - drop tombstones when writing "oldest" generation
-	- code to check that using the min-gen for a merge output is valid
+	
 
+	- scanForward/scanBackward should really have easy to use >/< operators in addition to <=/>=
 
-- block visualizer
-  - C# gdi+ article  http://www.codeproject.com/KB/books/1861004990.aspx
+	Q: what should be the type of keyparts? 
+    Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
+       - code to check that using the min-gen for a merge output is valid?
 
+- simple text-indexer test
+
+- raw-byterange RegionManager
+  - bounds checking on log-write, circular log, log-extension capability
+  - bounds checking on segment size
+  - encode segment length in SegmentInfo
 
 - freelist
-  - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
   - 'real' freelist handling
+  - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
 
-- simple text-indexer API on-top
 
 
 *** row attributes for MVCC and locks
@@ -71,6 +70,7 @@
 ----[ DONE ]---------
 
 
-11/18 - make a "big test case" that shows off multiple layers of segments merging with the GUI!!! 
+11/20 - added merge manager 'key histogram' merge-ratio computation as a fallback
+11/20 - first incremental merge manager (+prevent holes from 'blocking' merges)
+11/18 - make a "big test case" that shows off multiple layers of segments merging, with a debug visualization UI!
 11/3 - first incremental block merge works
-

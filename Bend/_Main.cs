@@ -174,8 +174,8 @@ namespace Bend
             Random rnd = new Random();
 
             for (int x = 1000001; x < 1000001 + 10000; x++) {
-                db.setValueParsed("test/rnd/" + rnd.Next(), value);
-                // db.setValueParsed("test/ordered/" + x, value);
+                // db.setValueParsed("test/rnd/" + rnd.Next(), value);
+                db.setValueParsed("test/ordered/" + x, value);
 
                 if (x % 1000 == 0) {
                     System.Console.WriteLine("start % 1000 cycle..");
