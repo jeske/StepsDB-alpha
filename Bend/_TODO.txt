@@ -12,6 +12,7 @@
        - visualize log/workingsegment/checkpoint status
 
   - fix runaway max-generation issue....  
+     Q: Can we just ditch "max generations" and rely on MergeManager to do all generation number assignment?
      Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
 	   - collapse max-generation number when possible?
 	   - keep a list of "live generations"?
@@ -22,7 +23,6 @@
 
 
   - make flushWorkingSegment an automatic part of LayerManager
-
 
   - cleanup    
     - use SegmentDescriptor class everywhere	
@@ -68,6 +68,7 @@
   - change system metadata to use rowpipe
 
 *** LinearAllocationRegion implementation (so two simultaneous allocators don't interleave)
+  - can MergeManager trigger "defragmentation" of existing blocks? (i.e. schedule a merge of 10 fragmented blocks in the same generation)
 
 *** row attributes for MVCC and locks
 (a) introduce row-attribute concept (can affect commit, row visibility, etc.)

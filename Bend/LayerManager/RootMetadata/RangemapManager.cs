@@ -52,8 +52,10 @@ namespace Bend
             // init the merge manager
             mergeManager = new MergeManager_Incremental(this);            
         }
+
         public void primeMergeManager() {
             foreach (var segdesc in store.listAllSegments()) {
+                // TODO: make sure these are in increasing generation order! 
                 mergeManager.notify_addSegment(segdesc);
             }
         }
