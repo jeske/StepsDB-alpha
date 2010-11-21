@@ -931,7 +931,7 @@ namespace BendTests
                 l.Add(keylist[i], valuelist[i]);
             }
 
-        }
+        }        
 
         [Test]
         public void T01_SkipList_Scanning() {
@@ -998,6 +998,27 @@ namespace BendTests
                 }
                 Assert.AreEqual(0, pos, "scanBackward() did not return all elements it should have");
             }
+
+        }
+
+        [Test]
+        public void T01_SkipList_TestKeysValuesProperties() {
+            BDSkipList<string, int> l = new BDSkipList<string, int>();
+            string[] keylist = { "abc", "def", "ghi" };
+            int[] valuelist = { 1, 2, 3 };
+
+            // put some data in 
+            for (int i = 0; i < keylist.Length; i++) {
+                // check list size
+                Assert.AreEqual(i, l.Count);
+                l.Add(keylist[i], valuelist[i]);
+            }
+
+            var keys_out = new List<string>();
+            keys_out.AddRange(l.Keys);
+
+            var values_out = new List<int>();
+            values_out.AddRange(l.Values);
 
         }
 
