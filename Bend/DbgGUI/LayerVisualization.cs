@@ -9,6 +9,7 @@ using System.Threading;
 namespace Bend {
 
     // http://social.msdn.microsoft.com/Forums/en-US/csharpide/thread/64c77755-b0c1-4447-8ac9-b5a63a681b78
+
     [System.ComponentModel.DesignerCategory("code")]
     public class LayerVisualization : UserControl {        
         private List<SegmentDescriptor> segments = null;
@@ -28,10 +29,16 @@ namespace Bend {
 
         protected override void OnPaint(PaintEventArgs e) {
             Graphics dc = e.Graphics;
-            
-            if (segments == null) {
-                // in the visual designer
-                dc.Clear(Color.Red);
+
+
+            // how to tell we are in design mode
+            // http://msdn.microsoft.com/en-us/magazine/cc164048.aspx
+            if (this.Site != null && this.Site.DesignMode) {
+                dc.Clear(Color.Beige);
+                return;
+            }
+
+            if (segments == null) {                
                 return;
             }            
             Size regionsize = this.ClientSize;
