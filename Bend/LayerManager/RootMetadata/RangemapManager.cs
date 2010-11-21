@@ -476,7 +476,7 @@ namespace Bend
                 SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
                 RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
-                Debug.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
+                // Debug.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
                 // RECURSE
                 INTERNAL_segmentWalkForNextKey(
                     startkeytest,
