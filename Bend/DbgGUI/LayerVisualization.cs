@@ -15,17 +15,25 @@ namespace Bend {
         private List<SegmentDescriptor> segments = null;
 
         public void refreshFromDb(LayerManager db) {            
-            segments = new List<SegmentDescriptor>();
+            var seg = new List<SegmentDescriptor>();
             // this is much faster than using listAllSegments
             foreach(var kvp in db.rangemapmgr.mergeManager.segmentInfo) {
-                segments.Add(kvp.Key);
+                seg.Add(kvp.Key);
             }
-            
+
+            segments = seg;
+
+
             // we should be doing this, but .Keys is not implemented in BDSkipList
             // segments.AddRange(db.rangemapmgr.mergeManager.segmentInfo.Keys);
             // segments.AddRange(db.listAllSegments());
             this.Invoke((MethodInvoker) delegate() {
-                this.Refresh(); 
+                try {
+                    this.Refresh();
+                } catch (Exception e) {
+                    System.Console.WriteLine("######" + e.ToString());
+                    throw e;
+                }
                 });
         }
 
@@ -73,6 +81,11 @@ namespace Bend {
             Pen GenPen = new Pen(Color.LightGreen, 1);
 
 
+            Color[] ColorArray = {
+                    Color.LightCoral, Color.LightCyan, Color.LightGoldenrodYellow, Color.LightGray, Color.LightGreen, 
+                    Color.LightPink, Color.LightSalmon, Color.LightSeaGreen, Color.LightSkyBlue, Color.LightSlateGray, 
+                    Color.LightSteelBlue, Color.LightYellow};
+            
             dc.Clear(Color.White);
 
 
@@ -89,8 +102,6 @@ namespace Bend {
                 key_to_position_map[key] = y_loc;
                 y_loc += segment_height;
             }
-
-
 
 
             int cur_x = 10;
@@ -111,7 +122,15 @@ namespace Bend {
                     int mid_y = (y_top + y_bottom) / 2;
                     int y_mid_top = mid_y - segment_height / 2;
 
+                    
+                    // color the inside of the box.
+                    var h1 = seg.start_key.ToString().GetHashCode();
+                    var h2 = seg.end_key.ToString().GetHashCode();
+                    var offset = Math.Abs(h1 + h2) % (ColorArray.Length);
+                    var fill = new SolidBrush(ColorArray[offset]);
+                    dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
                     dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
+
                     // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);
                     if (generation != 0 && (y_bottom != y_top + segment_height)) {
                         dc.DrawLine(GrayPen, cur_x, y_mid_top, cur_x - 10, y_top);
