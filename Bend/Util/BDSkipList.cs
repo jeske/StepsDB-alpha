@@ -656,7 +656,8 @@ namespace Bend
                 return (node != null);
             }
             public void CopyTo(K[] keys, int start_index) {
-                throw new Exception("TODO: KeysInterface<K>.CopyTo(..)");
+                // TODO: implement this!
+                throw new Exception("NOT IMPLEMENTED: BDSkipList.KeysInterface.CopyTo()");
             }
 
 
