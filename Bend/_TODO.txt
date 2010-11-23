@@ -3,9 +3,9 @@
 ----[ TODO ]---------
 
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
+  - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
 
-  - DBG-GUI: 
-       - move drawing to a component
+  - DBG-GUI:        
 	   - draw blocks the same height, with diagonal lines to indiciate key range alignment
 	   - prevent visual 'generation skipping'  (where it skips generation-columns that have no data)
        - visualize merges as they occur (w/progress)
@@ -100,6 +100,11 @@
 *** layer-avoidance, bloom filters
 *** distributed shard manager
 *** xml document database
+*** Network Interface
+
+*** Interactive C# Shell mode?
+   - http://tirania.org/blog/archive/2008/Sep-08.html
+
 
 ------------[ DONE ]--------------------
 
