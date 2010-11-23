@@ -582,12 +582,12 @@ namespace Bend
                 yield break; // no keys
             }
             while (true) {                
-                if ((highestKeyTest.CompareTo(found_key) >= 0) &&
-                    (lowestKeyTest.CompareTo(found_key) <= 0) && 
-                    (scanner == null) || 
-                    scanner.MatchTo(found_key)) {
-                    cursor = new KeyValuePair<RecordKey,RecordData>(found_key, found_record);
-                    yield return cursor;
+                // System.Console.WriteLine("highkeytest = " + highestKeyTest + " found_key " + found_key + " result: " + highestKeyTest.CompareTo(found_key));
+                if ((highestKeyTest.CompareTo(found_key) <= 0)) {
+                    if ((scanner == null) || scanner.MatchTo(found_key)) {
+                        cursor = new KeyValuePair<RecordKey, RecordData>(found_key, found_record);
+                        yield return cursor;
+                    }
                 } else {
                     yield break;
                 }
