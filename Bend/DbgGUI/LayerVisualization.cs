@@ -68,6 +68,7 @@ namespace Bend {
 
             // now draw stuff!             
             Pen BluePen = new Pen(Color.Blue, 1);
+            Pen GrayPen = new Pen(Color.Gray, 1);
 
             dc.Clear(Color.White);
 
@@ -94,14 +95,24 @@ namespace Bend {
                 foreach (var seg in segments_by_generation[generation]) {
                     int y_top = key_to_position_map[seg.start_key];
                     int y_bottom = key_to_position_map[seg.end_key];
+                    int mid_y = (y_top + y_bottom) / 2;
+                    int y_mid_top = mid_y - segment_height / 2;
 
-                    dc.DrawRectangle(BluePen, cur_x, y_top, 50, y_bottom - y_top);
+                    dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
+                   // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);
+                    if (generation != 0 && (y_bottom != y_top+segment_height)) {
+                        dc.DrawLine(GrayPen, cur_x, y_mid_top, cur_x - 10, y_top);
+                        dc.DrawLine(GrayPen, cur_x, y_mid_top + segment_height, cur_x - 10, y_bottom);
+
+                     //   dc.DrawLine(BluePen, cur_x, y_top + segment_height, cur_x - 10, y_bottom);
+                     //   dc.DrawLine(BluePen, cur_x, y_top, cur_x - 10, y_top);
+                    }
                 }
 
                 // reset for next time through the loop
                 cur_x = cur_x + 60;
             }
-                        
+                      
             
 
         }
