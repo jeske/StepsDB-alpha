@@ -36,7 +36,6 @@ namespace Bend {
         protected override void OnPaint(PaintEventArgs e) {
             Graphics dc = e.Graphics;
 
-
             // how to tell we are in design mode
             // http://msdn.microsoft.com/en-us/magazine/cc164048.aspx
             if (this.Site != null && this.Site.DesignMode) {
@@ -53,6 +52,7 @@ namespace Bend {
 
             var segments_by_generation = new Dictionary<uint, List<SegmentDescriptor>>();
             var unique_keys = new BDSkipList<RecordKey, int>();
+            uint max_gen = 0;
 
             foreach (SegmentDescriptor segdesc in segments) {
                 unique_keys[segdesc.start_key] = 1;
@@ -63,12 +63,15 @@ namespace Bend {
                     var listofsegs = new List<SegmentDescriptor>();
                     listofsegs.Add(segdesc);
                     segments_by_generation[segdesc.generation] = listofsegs;
+                    max_gen = segdesc.generation > max_gen ? segdesc.generation : max_gen;
                 }
             }
 
             // now draw stuff!             
             Pen BluePen = new Pen(Color.Blue, 1);
-            Pen GrayPen = new Pen(Color.Gray, 1);
+            Pen GrayPen = new Pen(Color.LightGray, 1);
+            Pen GenPen = new Pen(Color.LightGreen, 1);
+
 
             dc.Clear(Color.White);
 
@@ -90,8 +93,18 @@ namespace Bend {
 
 
 
-            int cur_x = 10, cur_y = 0;
-            foreach (uint generation in segments_by_generation.Keys) {
+            int cur_x = 10;
+            for (uint generation = 0; generation < max_gen; generation++ ) {
+                bool emptygen = !segments_by_generation.ContainsKey(generation);
+                // generation vertical lines
+                
+                dc.DrawLine(GenPen, cur_x-10, 0, cur_x-10, regionsize.Height);                
+
+                if (emptygen) {
+                    cur_x += 10;
+                    continue;
+                }
+
                 foreach (var seg in segments_by_generation[generation]) {
                     int y_top = key_to_position_map[seg.start_key];
                     int y_bottom = key_to_position_map[seg.end_key];
@@ -99,18 +112,18 @@ namespace Bend {
                     int y_mid_top = mid_y - segment_height / 2;
 
                     dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
-                   // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);
-                    if (generation != 0 && (y_bottom != y_top+segment_height)) {
+                    // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);
+                    if (generation != 0 && (y_bottom != y_top + segment_height)) {
                         dc.DrawLine(GrayPen, cur_x, y_mid_top, cur_x - 10, y_top);
                         dc.DrawLine(GrayPen, cur_x, y_mid_top + segment_height, cur_x - 10, y_bottom);
 
-                     //   dc.DrawLine(BluePen, cur_x, y_top + segment_height, cur_x - 10, y_bottom);
-                     //   dc.DrawLine(BluePen, cur_x, y_top, cur_x - 10, y_top);
+                        //   dc.DrawLine(BluePen, cur_x, y_top + segment_height, cur_x - 10, y_bottom);
+                        //   dc.DrawLine(BluePen, cur_x, y_top, cur_x - 10, y_top);
                     }
                 }
 
                 // reset for next time through the loop
-                cur_x = cur_x + 60;
+                cur_x += 70;
             }
                       
             

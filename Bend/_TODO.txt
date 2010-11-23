@@ -9,11 +9,10 @@
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
   - check that we never try to write something bigger than a microblock
 
-  - DBG-GUI:        
-	   - draw blocks the same height, with diagonal lines to indiciate key range alignment
-	   - prevent visual 'generation skipping'  (where it skips generation-columns that have no data)
-       - visualize merges as they occur (w/progress)
+  - DBG-GUI:       
+	   - visualize merges as they occur (w/progress)
        - visualize log/workingsegment/checkpoint status
+	   - color blocks based on has of key range (tomn)
 
 - email indexer test -  to test "custom block handlers"
    - given a directory of mbox files, MIME parse and index email messages, provide a query interface
@@ -111,7 +110,8 @@
 
 
 ------------[ DONE ]--------------------
-
+11/23 - prevent visual 'generation skipping'  (where it skips generation-columns that have no data) (tomn)
+11/23 - draw blocks the same height, with diagonal lines to indiciate key range alignment (tomn)
 11/23 - write scanForward for the database (stand in until we write a real scanForward sorted-walk)
 11/20 - added merge manager 'key histogram' merge-ratio computation as a fallback
 11/20 - first incremental merge manager (+prevent holes from 'blocking' merges)
