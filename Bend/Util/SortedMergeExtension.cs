@@ -97,6 +97,7 @@ namespace BendTests {
                     Assert.AreEqual(verify_output[i], kvp.Key, "non-uniq saw: " + kvp.Value);
                     i++;
                 }
+                Assert.AreEqual(verify_output.Length, i);
             }
 
             // test unique merge
@@ -106,6 +107,7 @@ namespace BendTests {
                     Assert.AreEqual(verify_output_uniq[i], kvp.Key, "uniq saw: " + kvp.Value);
                     i++;
                 }
+                Assert.AreEqual(verify_output_uniq.Length, i);
             }
 
 
