@@ -398,8 +398,8 @@ namespace Bend
                 target_generation = Math.Min(target_generation, segment.generation);
                     var seg = segment.getSegment(rangemapmgr);
 
-                IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> nextchain =
-                    seg.sortedWalk();
+                var nextchain = seg.sortedWalk();
+
                 if (chain == null) {
                     chain = nextchain;
                 } else {
