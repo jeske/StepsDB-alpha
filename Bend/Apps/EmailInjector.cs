@@ -13,7 +13,15 @@ using anmar.SharpMimeTools;
 namespace Bend {
 
     public class EmailInjector {
-        public static string UnixReadLine(FileStream stream) {
+        LayerManager db;
+        DbgGUI gui;
+
+        public EmailInjector(LayerManager db, DbgGUI gui) {
+            this.db = db;
+            this.gui = gui;
+        }
+
+        public static string UnixReadLine(Stream stream) {
             string line = "";
             while (stream.Position < stream.Length - 1) {
 
@@ -27,11 +35,17 @@ namespace Bend {
             return "";
         }
 
-        public static void parse_msg(string msgtxt) {
+        public void parse_msg(string docid, string msgtxt) {
+            if (msgtxt.Length > 4 * 1024) {
+                msgtxt = msgtxt.Substring(0, 4 * 1024 - 1);
+            }
+            db.setValueParsed(".zdata/doc/" + docid, msgtxt);
+            gui.debugDump(db);
+
             SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
             System.Console.WriteLine("Subject: " + msg.Subject);
 
-            System.Console.WriteLine(msg.Body);
+            // System.Console.WriteLine(msg.Body);
             foreach (SharpAttachment msgpart in msg.Attachments) {
                 if (msgpart.MimeTopLevelMediaType == MimeTopLevelMediaType.text &&
                     msgpart.MimeMediaSubType == "plain") {
@@ -40,19 +54,19 @@ namespace Bend {
             }                    
         }
 
-        public static void parse_email_messages() {
+        public void parse_email_messages() {
             string basepath = @"c:\EmailTest\Data";
 
             // http://www.csharp-examples.net/get-files-from-directory/
             string[] filePaths = Directory.GetFiles(basepath);
 
-            int count = 0;
-
+            int count = 1;
 
             foreach (var fn in filePaths) {
                 String fullpath = Path.Combine(basepath, fn);
                 System.Console.WriteLine(fullpath);
-                FileStream reader = File.Open(fullpath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                FileStream r = File.Open(fullpath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                BufferedStream reader = new BufferedStream(r);
                 // http://msdn.microsoft.com/en-us/library/system.io.streamreader.readline.aspx
 
                 List<string> lines = new List<string>();
@@ -65,11 +79,17 @@ namespace Bend {
                             count++;
 
                             System.Console.WriteLine("count: " + count);
-                            if (count > 10) {
-                                return;
+                            if (count % 1000 == 0) {                                
+                                db.flushWorkingSegment();
+                                gui.debugDump(db);
+                                var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                                db.performMerge(mc);
+                                gui.debugDump(db);
+                                // return;
                             }
 
-                            parse_msg(msg);
+                            string docid = fullpath + ":" + count;
+                            parse_msg(docid,msg);
                         }
                         lines = new List<string>();
                     } else {
