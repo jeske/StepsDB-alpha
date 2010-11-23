@@ -39,7 +39,7 @@ namespace Bend {
             if (msgtxt.Length > 4 * 1024) {
                 msgtxt = msgtxt.Substring(0, 4 * 1024 - 1);
             }
-            db.setValueParsed(".zdata/doc/" + docid, msgtxt);
+            // db.setValueParsed(".zdata/doc/" + docid, msgtxt);
             gui.debugDump(db);
 
             SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);

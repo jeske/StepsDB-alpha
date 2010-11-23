@@ -4,12 +4,21 @@
 
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
+  - check that we never try to write something bigger than a microblock
 
   - DBG-GUI:        
 	   - draw blocks the same height, with diagonal lines to indiciate key range alignment
 	   - prevent visual 'generation skipping'  (where it skips generation-columns that have no data)
        - visualize merges as they occur (w/progress)
        - visualize log/workingsegment/checkpoint status
+
+- email indexer test -  to test "custom block handlers"
+   - given a directory of mbox files, MIME parse and index email messages, provide a query interface
+   - write a custom block handler for the index hits and efficient search intersection
+   - compare indexing and query performance with lucene/xapian
+   - Q: how does it store "large" document blobs?
+
+
 
   - fix runaway max-generation issue....  
      Q: Can we just ditch "max generations" and rely on MergeManager to do all generation number assignment?
@@ -41,11 +50,6 @@
 
     Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
        - code to check that using the min-gen for a merge output is valid?
- 
-- email indexer test -  to test "custom block handlers"
-   - given a directory of mbox files, MIME parse and index email messages, provide a query interface
-   - write a custom block handler for the index hits and efficient search intersection
-   - compare indexing and query performance with lucene/xapian
 
 
 - PERFORMANCE
@@ -57,9 +61,6 @@
     - simulate iibench 
        - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
        - 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
-
-
-
 
 --------[ Bigger TODO items ]-----------
 
