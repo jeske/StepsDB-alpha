@@ -3,7 +3,7 @@
 ----[ TODO ]---------
 
   - write sorted-intersect extension
-  - write scanForward for the database
+  
 
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
@@ -112,7 +112,7 @@
 
 ------------[ DONE ]--------------------
 
-
+11/23 - write scanForward for the database (stand in until we write a real scanForward sorted-walk)
 11/20 - added merge manager 'key histogram' merge-ratio computation as a fallback
 11/20 - first incremental merge manager (+prevent holes from 'blocking' merges)
 11/18 - make a "big test case" that shows off multiple layers of segments merging, with a debug visualization UI!
