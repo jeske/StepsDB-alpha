@@ -2,6 +2,9 @@
 
 ----[ TODO ]---------
 
+  - write sorted-intersect extension
+  - write scanForward for the database
+
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
   - check that we never try to write something bigger than a microblock
@@ -18,7 +21,7 @@
    - compare indexing and query performance with lucene/xapian
    - Q: how does it store "large" document blobs?
 
-
+- write scanForward() version of segment walk!!
 
   - fix runaway max-generation issue....  
      Q: Can we just ditch "max generations" and rely on MergeManager to do all generation number assignment?

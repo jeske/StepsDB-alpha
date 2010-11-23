@@ -560,6 +560,50 @@ namespace Bend
         }
 
 
+        public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
+            IComparable<RecordKey> lowestKeyTest = null;
+            IComparable<RecordKey> highestKeyTest = null;
+            if (scanner != null) {
+                lowestKeyTest = scanner.genLowestKeyTest();
+                highestKeyTest = scanner.genHighestKeyTest();
+            } else {
+                lowestKeyTest = new ScanRange<RecordKey>.minKey();
+                highestKeyTest = new ScanRange<RecordKey>.maxKey();
+            }
+
+            KeyValuePair<RecordKey, RecordData> cursor;            
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
+
+            IComparable<RecordKey> cursor_key = lowestKeyTest;
+
+            // get the first key
+            if (rangemapmgr.getNextRecord(cursor_key, ref found_key, ref found_record, true) == GetStatus.MISSING) {
+                yield break; // no keys
+            }
+            while (true) {                
+                if ((highestKeyTest.CompareTo(found_key) >= 0) &&
+                    (lowestKeyTest.CompareTo(found_key) <= 0) && 
+                    (scanner == null) || 
+                    scanner.MatchTo(found_key)) {
+                    cursor = new KeyValuePair<RecordKey,RecordData>(found_key, found_record);
+                    yield return cursor;
+                } else {
+                    yield break;
+                }
+
+                cursor_key = found_key;
+                found_key = new RecordKey();
+                found_record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
+
+                if (rangemapmgr.getNextRecord(cursor_key, ref found_key, ref found_record, false) == GetStatus.MISSING) {
+                    yield break; // no keys
+                }
+            }
+
+        }
+
+
         public void setValueParsed(String skey, String svalue)
         {
             WriteGroup implicit_txn = this.newWriteGroup();

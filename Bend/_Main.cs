@@ -42,6 +42,12 @@ namespace Bend
         }
 
         public static void dumpAllDbRecords(LayerManager db) {
+            foreach (var kv in db.scanForward(null)) {
+                System.Console.WriteLine("  nfound: {0} -> {1}",kv.Key,kv.Value);
+            }
+        }
+
+        public static void dumpAllDbRecords_old(LayerManager db) {
             RecordKey next_key = new RecordKey();
             RecordKey fkey = null;
             RecordData fdata = null;
@@ -71,7 +77,13 @@ namespace Bend
             }            
         }
 
-        public static void do_bringup_test2(DbgGUI win) {
+        public static void do_bringup_test4(DbgGUI win) {
+            var db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
+            var eminj = new EmailInjector(db, win);
+            eminj.parse_email_messages();
+            System.Console.WriteLine("done");
+        }
+        public static void do_bringup_test3(DbgGUI win) {
 
             var testclass = new BendTests.A02_MergeManagerTests();
             testclass.T000_TestRangeBoundaries();

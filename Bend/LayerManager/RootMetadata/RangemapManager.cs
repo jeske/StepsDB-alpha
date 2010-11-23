@@ -227,12 +227,12 @@ namespace Bend
 
         }
 
-        public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey key, ref RecordData record,
+        public GetStatus getNextRecord(IComparable<RecordKey> lowkey, ref RecordKey key, ref RecordData record,
             bool equal_ok) {
                 return getNextRecord_LowLevel(lowkey, ref key, ref record, equal_ok, false);
         }
 
-        public GetStatus getNextRecord_LowLevel(RecordKey lowkey, ref RecordKey key, ref RecordData record, 
+        public GetStatus getNextRecord_LowLevel(IComparable<RecordKey> lowkey, ref RecordKey key, ref RecordData record, 
             bool equal_ok, bool tombstone_ok) {
 
             BDSkipList<RecordKey, RecordData> handledIndexRecords = new BDSkipList<RecordKey,RecordData>();
@@ -353,11 +353,11 @@ namespace Bend
                     return false;
                 }
             }
-            
-            public bool directlyContainsKey(RecordKey testkey) {
+
+            public bool directlyContainsKey(IComparable<RecordKey> testkey) {
                 return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
-                if ((this.lowkey.CompareTo(testkey) <= 0) &&
-                    (this.highkey.CompareTo(testkey) >= 0)) {
+                if ((testkey.CompareTo(this.lowkey) >= 0) &&
+                    (testkey.CompareTo(this.highkey) <= 0)) {
                     return true;
                 } else {
                     return false;
@@ -378,7 +378,7 @@ namespace Bend
             
             public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllElibibleRangeRows(
                 IScannable<RecordKey, RecordUpdate> in_segment,
-                RecordKey for_key,
+                IComparable<RecordKey> for_key,
                 int for_generation) {
                 // TODO: fix this prefix hack
                 RecordKey startrk = new RecordKey()
@@ -403,7 +403,7 @@ namespace Bend
         }
         
         private void INTERNAL_segmentWalkForNextKey(
-            RecordKey startkeytest,
+            IComparable<RecordKey> startkeytest,
             ISortedSegment curseg_raw,
             RangeKey curseg_rangekey,
             IScannableDictionary<RecordKey, RecordData> handledIndexRecords,
