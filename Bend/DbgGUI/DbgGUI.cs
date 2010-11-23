@@ -33,8 +33,8 @@ namespace Bend {
             //            Console.ReadKey();
         }
 
-        public void debugDump(LayerManager db) {
-            this.layerVisualization1.refreshFromDb(db);
+        public void debugDump(LayerManager db, MergeCandidate mc = null) {
+            this.layerVisualization1.refreshFromDb(db, mc);
         }
     
        private void InitializeComponent() {

@@ -13,8 +13,9 @@ namespace Bend {
     [System.ComponentModel.DesignerCategory("code")]
     public class LayerVisualization : UserControl {        
         private List<SegmentDescriptor> segments = null;
+        private MergeCandidate lastmerge = null;
 
-        public void refreshFromDb(LayerManager db) {            
+        public void refreshFromDb(LayerManager db, MergeCandidate mc = null) {            
             var seg = new List<SegmentDescriptor>();
             // this is much faster than using listAllSegments
             foreach(var kvp in db.rangemapmgr.mergeManager.segmentInfo) {
@@ -22,7 +23,7 @@ namespace Bend {
             }
 
             segments = seg;
-
+            this.lastmerge = mc;
 
             // we should be doing this, but .Keys is not implemented in BDSkipList
             // segments.AddRange(db.rangemapmgr.mergeManager.segmentInfo.Keys);
@@ -103,6 +104,15 @@ namespace Bend {
                 y_loc += segment_height;
             }
 
+            var segs_in_merge = new HashSet<string>();
+            if (lastmerge != null) {
+                foreach (var seg in lastmerge.source_segs) {
+                    segs_in_merge.Add(seg.ToString());
+                }
+                foreach (var seg in lastmerge.target_segs) {
+                    segs_in_merge.Add(seg.ToString());
+                }
+            }
 
             int cur_x = 10;
             for (uint generation = 0; generation < max_gen; generation++ ) {
@@ -127,8 +137,18 @@ namespace Bend {
                     var h1 = seg.start_key.ToString().GetHashCode();
                     var h2 = seg.end_key.ToString().GetHashCode();
                     var offset = Math.Abs(h1 + h2) % (ColorArray.Length);
+
                     var fill = new SolidBrush(ColorArray[offset]);
                     dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
+
+
+
+                    if (lastmerge != null) {
+                        if (segs_in_merge.Contains(seg.ToString())) {
+                           dc.FillRectangle(new SolidBrush(Color.Black), cur_x, y_mid_top, 5, segment_height);
+                        }
+                    }
+
                     dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
 
                     // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);

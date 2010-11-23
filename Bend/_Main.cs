@@ -212,6 +212,7 @@ namespace Bend
                         if (mc == null) {
                             break;
                         }
+                        win.debugDump(db, mc);
                         db.performMerge(mc);
                         System.Console.WriteLine("mergedone " + mx + " : " + mc);
 
@@ -235,7 +236,7 @@ namespace Bend
 
                 dumpSegmentList(db);
                 dumpMergeCandidates(db);
-                win.debugDump(db);                              
+                win.debugDump(db, mc);                              
             }
 
             dumpSegmentList(db);

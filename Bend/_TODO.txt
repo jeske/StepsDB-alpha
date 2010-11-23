@@ -9,8 +9,7 @@
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
   - check that we never try to write something bigger than a microblock
 
-  - DBG-GUI:       
-	   - visualize merges as they occur (w/progress)
+  - DBG-GUI:
        - visualize log/workingsegment/checkpoint status
 	   
 
@@ -110,6 +109,7 @@
 
 
 ------------[ DONE ]--------------------
+11/23 - visualize merges as they occur (w/progress)
 11/23 - color blocks based on has of key range (tomn)
 11/23 - prevent visual 'generation skipping'  (where it skips generation-columns that have no data) (tomn)
 11/23 - draw blocks the same height, with diagonal lines to indiciate key range alignment (tomn)
