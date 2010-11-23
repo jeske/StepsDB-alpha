@@ -5,6 +5,8 @@ using System.Collections.Generic;
 
 using anmar.SharpMimeTools;
 
+using System.Text.RegularExpressions; // used to split body msg into words
+
 // TODO: put this in a different namespace from Bend, in a separate build target
 
 // http://stackoverflow.com/questions/903711/reading-an-mbox-file-in-c
@@ -45,13 +47,71 @@ namespace Bend {
             SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
             System.Console.WriteLine("Subject: " + msg.Subject);
 
-            // System.Console.WriteLine(msg.Body);
-            foreach (SharpAttachment msgpart in msg.Attachments) {
-                if (msgpart.MimeTopLevelMediaType == MimeTopLevelMediaType.text &&
-                    msgpart.MimeMediaSubType == "plain") {
-                    System.Console.WriteLine("Attachment: " + msgpart.Size);
+            index_document(docid, msg.Body);
+
+            //foreach (SharpAttachment msgpart in msg.Attachments) {
+            //    if (msgpart.MimeTopLevelMediaType == MimeTopLevelMediaType.text &&
+            //        msgpart.MimeMediaSubType == "plain") {
+            //        System.Console.WriteLine("Attachment: " + msgpart.Size);
+            //   }
+            //}                    
+        }
+
+
+        public void index_document(string docid, string txtbody) {
+            //System.Console.WriteLine(msg.Body);
+            int count = 0;
+           
+            foreach (var srcword in Regex.Split(txtbody, @"\W+")) {
+                // System.Console.Write(word + "/");
+                if (srcword.Length == 0) { continue; }
+
+                // clean up word.
+                var word = srcword.ToLower();
+                // remove 's , do stimming, ignore non-words.
+
+                // create a key and insert into the db
+                // TODO: docid may have / on UNIX .
+                var key = new RecordKey().appendParsedKey(".zdata/index/" + word + "/" + docid + "/" + count); 
+                
+                // System.Console.WriteLine(key);
+                this.db.setValue(key, RecordUpdate.WithPayload(""));
+                count++;
+            }
+
+        }
+
+        public class EndPrefixMatch : IComparable<RecordKey> {
+            RecordKey key;
+            public EndPrefixMatch(RecordKey k) {
+                this.key = k;
+            }
+            public int CompareTo(RecordKey target) {
+                if (target.isSubkeyOf(key)) {
+                    return -1;
+                } else {
+                    return 1;
                 }
-            }                    
+            }
+            public override string ToString() {
+                return "EndPrefixMatch{" + key.ToString() + "}";
+            }
+        }
+
+        public void find_email_test() {
+            string[] words_to_find = { "you", "about"};
+
+            System.Console.WriteLine("### In email test");
+            foreach (var word in words_to_find) {
+                var start = new RecordKey().appendParsedKey(".zdata/index/" + word);
+                var end = new EndPrefixMatch(new RecordKey().appendParsedKey(".zdata/index/" + word));
+
+                foreach (var hit in db.scanForward(new ScanRange<RecordKey> (start, end, null))) {
+                    System.Console.WriteLine(hit);
+                }
+
+            }
+
         }
 
         public void parse_email_messages() {
@@ -90,6 +150,10 @@ namespace Bend {
 
                             string docid = fullpath + ":" + count;
                             parse_msg(docid,msg);
+                            if (count > 10) {
+                                db.debugDump();
+                                return;
+                            }
                         }
                         lines = new List<string>();
                     } else {
@@ -98,8 +162,15 @@ namespace Bend {
                     
                     
                 }
+                
             }
         }
+
+        public void DoEmailTest() {
+            parse_email_messages();
+            find_email_test();
+        }
+
     }
 }
 

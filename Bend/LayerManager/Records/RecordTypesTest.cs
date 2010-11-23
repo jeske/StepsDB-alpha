@@ -227,6 +227,21 @@ namespace BendTests
             Assert.AreEqual(RecordUpdateTypes.DELETION_TOMBSTONE,decoded_update.type);
         }
 
+        [Test]
+        public void T09_RecordKeyIsSubkeyOf() {
+            RecordKey a = new RecordKey().appendParsedKey(".zdata/index/you");
+            RecordKey b = new RecordKey().appendParsedKey(".zdata/index/you").appendKeyPart(new byte[0]);
+
+            RecordKey g = new RecordKey().appendParsedKey(".zdata/index/you/doc1/word1");
+            RecordKey f = new RecordKey().appendParsedKey(".zdata/index/your/doc1/word1");
+
+            Assert.AreEqual(true, g.isSubkeyOf(a));
+            // Assert.AreEqual(true, g.isSubkeyOf(b));
+
+            Assert.AreEqual(false, f.isSubkeyOf(a));
+            // Assert.AreEqual(false, f.isSubkeyOf(b));
+            
+        }
     }
 
 

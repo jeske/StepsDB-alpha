@@ -409,7 +409,7 @@ namespace Bend
         }
 
         public bool isSubkeyOf(RecordKey potential_parent_key) {
-            // we are a subkey of the other key if they are shorter or equal length,
+            // we are a subkey of the other key we are longer AND 
             // and all their parts match our parts
 
             if (potential_parent_key.key_parts.Count > this.key_parts.Count) {
