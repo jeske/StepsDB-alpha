@@ -24,7 +24,9 @@ namespace Bend {
             // we should be doing this, but .Keys is not implemented in BDSkipList
             // segments.AddRange(db.rangemapmgr.mergeManager.segmentInfo.Keys);
             // segments.AddRange(db.listAllSegments());
-            this.Refresh();
+            this.Invoke((MethodInvoker) delegate() {
+                this.Refresh(); 
+                });
         }
 
 
