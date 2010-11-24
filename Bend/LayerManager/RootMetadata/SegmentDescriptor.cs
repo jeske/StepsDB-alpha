@@ -121,7 +121,7 @@ namespace BendTests {
 
     public partial class A02_SegmentDescriptorTests {
         [Test]
-        public void T02_DescriptorSortComparisons() {
+        public void T01_SegmentDescriptorBasic() {
             var a = new SegmentDescriptor(0,new RecordKey().appendParsedKey("AAAA"),new RecordKey().appendParsedKey("ZZZZ"));
             var f = new SegmentDescriptor(1,new RecordKey().appendParsedKey("AAAA"),new RecordKey().appendParsedKey("ZZZZ"));
 
@@ -153,7 +153,31 @@ namespace BendTests {
             Assert.AreEqual(false, b2.keyrangeOverlapsWith(b4));
         }
 
+        [Test]
+        public void T02_DescriptorOverlapTests() {
+            // BUG how did these overlappipng blocks ever get created?!?!? 
+            // gen2 start(test/rnd/1988483319) end(test/rnd/254306374)
+            // gen2 start(test/rnd/254612715)  end(test/rnd/678413856)
+            // gen2 start(test/rnd/272911872)  end(test/rnd/464592052)
 
+            var b1 = new SegmentDescriptor(0,
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd/1988483319")),
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd/254306374")));
+
+            var b2 = new SegmentDescriptor(0,
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd/254612715")),
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd/678413856")));
+
+            var b3 = new SegmentDescriptor(0,
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd/1988483319")),
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd/464592052")));
+
+            Assert.AreEqual(true, b1.keyrangeOverlapsWith(b2));
+            Assert.AreEqual(true, b1.keyrangeOverlapsWith(b3));
+            Assert.AreEqual(true, b2.keyrangeOverlapsWith(b3));
+
+        }
+            
     }
 
 }

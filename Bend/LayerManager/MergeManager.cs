@@ -74,9 +74,11 @@ namespace Bend {
                         try {
                             SegmentDescriptor foundseg = segmentInfo.FindNext(searchdesc, true).Key;
                             if (foundseg.generation == target_generation) {
-                                // TODO: check for overlap also! 
-                                foundTargets[foundseg] = target_generation;
-                                max_target_generation = Math.Max(max_target_generation, target_generation);
+                                // check for overlap
+                                if (foundseg.keyrangeOverlapsWith(segdesc)) {
+                                    foundTargets[foundseg] = target_generation;
+                                    max_target_generation = Math.Max(max_target_generation, target_generation);
+                                }
                                 break;
                             }
                         } catch (KeyNotFoundException) {
