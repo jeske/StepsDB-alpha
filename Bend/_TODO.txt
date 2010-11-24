@@ -64,8 +64,12 @@
     Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
        - code to check that using the min-gen for a merge output is valid?
 
+* TESTING
+  - build synthetic tester... random row addition/deletion, where it turns on expensive
+    "strong checking" of every segment operation, and database contents. Let it run
+	for days to generate "failure data". 
 
-- PERFORMANCE
+* PERFORMANCE
   - fixes:
     - row-range consistant cache (for system metadata rows)
 	- efficient row-scan instead of repeatin getNext()
