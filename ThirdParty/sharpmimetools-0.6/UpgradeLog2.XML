@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="SharpMimeTools">
+</Property><Property Name="Solution File" Value="C:\Users\David\CODING\Bend\ThirdParty\sharpmimetools-0.6\SharpMimeTools.sln">
+</Property><Property Name="Date" Value="Monday, November 22, 2010">
+</Property><Property Name="Time" Value="22:36 PM">
+</Property><Property Name="Log Number" Value="2">
+</Property></Properties><Event ErrorLevel="0" Project="SharpMimeTools" Source="SharpMimeTools.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="SharpMimeTools" Source="SharpMimeTools.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="SharpMimeTools.sln" Description="The solution file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="" Source="SharpMimeTools.sln" Description="No Conversion Required">
+</Event></UpgradeLog>

@@ -1,0 +1,10 @@
+C:\Users\David\CODING\Bend\ThirdParty\ClassLibrary1\obj\Release\ResolveAssemblyReference.cache
+C:\Users\David\CODING\Bend\ThirdParty\ClassLibrary1\bin\Release\SharpMimeTools.dll
+C:\Users\David\CODING\Bend\ThirdParty\ClassLibrary1\bin\Release\SharpMimeTools.pdb
+C:\Users\David\CODING\Bend\ThirdParty\ClassLibrary1\obj\Release\SharpMimeTools.dll
+C:\Users\David\CODING\Bend\ThirdParty\ClassLibrary1\obj\Release\SharpMimeTools.pdb
+C:\Users\David\CODING\Bend\ThirdParty\SharpMimeTools\bin\Release\SharpMimeTools.dll
+C:\Users\David\CODING\Bend\ThirdParty\SharpMimeTools\bin\Release\SharpMimeTools.pdb
+C:\Users\David\CODING\Bend\ThirdParty\SharpMimeTools\obj\Release\ResolveAssemblyReference.cache
+C:\Users\David\CODING\Bend\ThirdParty\SharpMimeTools\obj\Release\SharpMimeTools.dll
+C:\Users\David\CODING\Bend\ThirdParty\SharpMimeTools\obj\Release\SharpMimeTools.pdb

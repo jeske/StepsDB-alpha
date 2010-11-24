@@ -1,0 +1,447 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <ProjectType>Local</ProjectType>
+    <ProductVersion>8.0.30319</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{7AB36CCF-5FFD-4780-A54E-A102ECA028B5}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ApplicationIcon />
+    <AssemblyKeyContainerName />
+    <AssemblyName>LumiSoft.Net</AssemblyName>
+    <AssemblyOriginatorKeyFile />
+    <DefaultClientScript>JScript</DefaultClientScript>
+    <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
+    <DefaultTargetSchema>IE50</DefaultTargetSchema>
+    <DelaySign>false</DelaySign>
+    <OutputType>Library</OutputType>
+    <RootNamespace>LumiSoft.Net</RootNamespace>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
+    <StartupObject />
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <OldToolsVersion>0.0</OldToolsVersion>
+    <UpgradeBackupLocation />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile />
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>LumiSoft.Net.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn />
+    <Optimize>false</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile />
+    <DefineConstants>TRACE</DefineConstants>
+    <DocumentationFile>LumiSoft.Net.xml</DocumentationFile>
+    <DebugSymbols>false</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn />
+    <Optimize>true</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>none</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System">
+      <Name>System</Name>
+    </Reference>
+    <Reference Include="System.Data">
+      <Name>System.Data</Name>
+    </Reference>
+    <Reference Include="System.Windows.Forms">
+      <Name>System.Windows.Forms</Name>
+    </Reference>
+    <Reference Include="System.Xml">
+      <Name>System.XML</Name>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AUTH\AuthHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AUTH\HMACMD5.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AUTH\SaslAuthTypes.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="BufferedSocket.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\A_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\CNAME_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\DnsCache.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\DnsRecordBase.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\DnsServerResponse.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\Dns_Client.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\enums.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\HINFO_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\MX_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\NS_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\PTR_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\QTYPE.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\RCODE.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\SOA_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Dns\Client\TXT_Record.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FTP\Client\FTP_Client.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FTP\Server\AuthUser_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FTP\Server\FileSysEntry_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FTP\Server\FTP_Server.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="FTP\Server\FTP_Session.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ICMP\Icmp.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Client\IMAP_Client.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Client\IMAP_FetchItem.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\IMAP_ACL_Flags.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\IMAP_MessageFlags.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\AuthUser_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\Folder_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_eArgs_DELETEACL.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_eArgs_GETACL.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_eArgs_GetUserACL.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_eArgs_SETACL.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Flags_SetType.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Folder.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Folders.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Message.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Messages.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Server.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Session.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\IMAP_Utils.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\Message_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\SharedRootFolders_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\_FetchHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IMAP\Server\_SearchHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\Address.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\AddressList.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\ContentDisposition_enum.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\ContentTransferEncoding_enum.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\GroupAddress.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\HeaderField.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\HeaderFieldCollection.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\HeaderFieldParameter.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\HeaderFieldParameterCollection.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\MailboxAddress.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\MailboxAddressCollection.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\MediaType_enum.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\Mime.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\MimeEntity.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\MimeEntityCollection.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\MimeUtils.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\obsolete\Attachment.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\obsolete\Attachments.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\obsolete\eAddress.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\obsolete\MimeConstructor.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\obsolete\MimeEntry.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\obsolete\MimeParser.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Mime\ParametizedHeaderField.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Net_Core.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Client\POP3_Client.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Client\POP3_MessageInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Client\POP3_MessagesInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\AuthUser_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\GetMessagesInfo_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\POP3_Message.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\POP3_Messages.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\POP3_Message_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\POP3_Server.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="POP3\Server\POP3_Session.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ReadException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\commonDelegates.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\Error_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\ISocketServerSession.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\Log_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\SocketLogEntry.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\SocketLogEntryType.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\SocketLogger.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\SocketServer.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ServersCore\ValidateIP_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\_FixedStack.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ServersCore\_ParamParser.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\BodyType.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Client\PartOfMessage_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Client\SendJob_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Client\SmtpClientEx.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Client\SMTP_Client.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Client\SMTP_Error.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\AuthUser_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\SMTP_Server.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\SMTP_Session.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\StoreMessage_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\ValidateMailboxSize_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\ValidateRecipient_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\ValidateSender_EventArgs.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SMTP\Server\_SMTP_Cmd_Validator.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="StreamLineReader.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="StringReader.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TextUtils.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="_SocketState.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <EmbeddedResource Include="FTP\Server\FTP_Server.resx">
+      <DependentUpon>FTP_Server.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="IMAP\Server\IMAP_Server.resx">
+      <DependentUpon>IMAP_Server.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ServersCore\SocketServer.resx">
+      <DependentUpon>SocketServer.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="AUTH\AuthType.cs">
+      <SubType>Code</SubType>
+    </None>
+    <None Include="FTP\Server\readme.txt" />
+    <None Include="ServersCore\SocketServerSession.cs">
+      <SubType>Code</SubType>
+    </None>
+    <None Include="_junk\SocketHelper.cs">
+      <SubType>Code</SubType>
+    </None>
+    <None Include="_junk\_LogWriter.cs">
+      <SubType>Code</SubType>
+    </None>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent />
+    <PostBuildEvent />
+  </PropertyGroup>
+</Project>

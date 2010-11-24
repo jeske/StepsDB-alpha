@@ -1,0 +1,77 @@
+<html dir="LTR">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=Windows-1252" />
+    <meta name="vs_targetSchema" content="http://schemas.microsoft.com/intellisense/ie5" />
+    <title>SharpDecodeOptions Enumeration</title>
+    <xml>
+    </xml>
+    <link rel="stylesheet" type="text/css" href="MSDN.css" />
+  </head>
+  <body id="bodyID" class="dtBODY">
+    <div id="nsbanner">
+      <div id="bannerrow1">
+        <table class="bannerparthead" cellspacing="0">
+          <tr id="hdr">
+            <td class="runninghead">SharpMimeTools Documented Class Library</td>
+            <td class="product">
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div id="TitleRow">
+        <h1 class="dtH1">SharpDecodeOptions Enumeration</h1>
+      </div>
+    </div>
+    <div id="nstext">
+      <p class="topicstatus">[This is preliminary documentation and subject to change.]</p>
+      <p> Options used while decoding the message's content. </p>
+      <p>This enumeration has a <a href="ms-help://MS.NETFrameworkSDKv1.1/cpref/html/frlrfSystemFlagsAttributeClassTopic.htm">
+						FlagsAttribute</a>
+						attribute that allows a bitwise combination of its member values.</p>
+      <div class="syntax">
+        <div>public enum SharpDecodeOptions</div>
+      </div>
+      <h4 class="dtH4">Members</h4>
+      <div class="tablediv">
+        <table class="dtTABLE" cellspacing="0">
+          <tr valign="top">
+            <th width="40%">Member Name</th>
+            <th width="40%">Description</th>
+            <th width="20%">Value</th>
+          </tr>
+<tr valign="top"><td><b>None</b></td><td> None of the above. </td><td>0</td></tr>
+<tr valign="top"><td><b>AllowAttachments</b></td><td> Allow attachments. </td><td>1</td></tr>
+<tr valign="top"><td><b>AllowHtml</b></td><td> Allow html body parts. If there is no alternative part to the html one, the body part will be ignored </td><td>2</td></tr>
+<tr valign="top"><td><b>NamedAnchors</b></td><td> Add a named anchor to the html body before each body part that has a <b>Content-ID</b> header. The anchor will be named as <b>Message-ID</b>_<b>Content-ID</b>
+            </td><td>4</td></tr>
+<tr valign="top"><td><b>DecodeTnef</b></td><td> Decode ms-tnef content </td><td>8</td></tr>
+<tr valign="top"><td><b>UuDecode</b></td><td> Decode uuencoded content </td><td>16</td></tr>
+<tr valign="top"><td><b>CreateFolder</b></td><td> If folder where attachemts are saved does not exist, create it. </td><td>32</td></tr>
+<tr valign="top"><td><b>Default</b></td><td> Default options (<b>AllowAttachments</b> and <b>AllowHtml</b>) </td><td>3</td></tr></table>
+      </div>
+      <h4 class="dtH4">Requirements</h4>
+      <p>
+        <b>Namespace: </b>
+        <a href="anmar.SharpMimeTools.html">anmar.SharpMimeTools</a>
+      </p>
+      <p>
+        <b>Assembly: </b>SharpMimeTools (in SharpMimeTools.dll)
+					</p>
+      <h4 class="dtH4">See Also</h4>
+      <p>
+        <a href="anmar.SharpMimeTools.html">anmar.SharpMimeTools Namespace</a>
+      </p>
+      <hr />
+      <div id="footer">
+        <p>
+          <a href="mailto:anmar%20at%20anmar.eu.org?subject=SharpMimeTools%20Documented%20Class%20Library%20Documentation%20Feedback:%20SharpDecodeOptions%20Enumeration">Send comments on this topic.</a>
+        </p>
+        <p>
+          <a href="http://anmar.eu.org/projects/sharpmimetools/">Copyright (C) 2003-2006 Angel Marin. All Rights Reserved.</a>
+        </p>
+        <p>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

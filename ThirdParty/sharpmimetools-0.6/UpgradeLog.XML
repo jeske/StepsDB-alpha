@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="SharpMimeTools">
+</Property><Property Name="Solution File" Value="C:\Users\David\CODING\Bend\ThirdParty\sharpmimetools-0.6\SharpMimeTools.sln">
+</Property><Property Name="Date" Value="Monday, November 22, 2010">
+</Property><Property Name="Time" Value="22:35 PM">
+</Property></Properties><Event ErrorLevel="0" Project="SharpMimeTools" Source="SharpMimeTools.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="SharpMimeTools" Source="SharpMimeTools.csproj" Description="Converted">
+</Event><Event ErrorLevel="2" Project="SharpMimeTools" Source="SharpMimeTools.csproj" Description="Unable to read the project file 'SharpMimeTools.csproj'. &#xA;C:\Users\David\CODING\Bend\ThirdParty\sharpmimetools-0.6\SharpMimeTools.csproj(90,3): The imported project &quot;C:\SharpDevelop.Build.CSharp.targets&quot; was not found. Confirm that the path in the &lt;Import&gt; declaration is correct, and that the file exists on disk.">
+</Event><Event ErrorLevel="0" Project="" Source="SharpMimeTools.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="SharpMimeTools.sln" Description="Converted">
+</Event></UpgradeLog>

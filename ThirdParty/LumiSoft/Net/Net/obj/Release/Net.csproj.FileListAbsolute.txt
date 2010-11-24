@@ -1,0 +1,9 @@
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\bin\Release\LumiSoft.Net.dll
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\bin\Release\LumiSoft.Net.xml
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\ResolveAssemblyReference.cache
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\LumiSoft.Net.FTP.Server.FTP_Server.resources
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\LumiSoft.Net.IMAP.Server.IMAP_Server.resources
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\LumiSoft.Net.SocketServer.resources
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\GenerateResource.read.1.tlog
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\GenerateResource.write.1.tlog
+C:\Users\David\CODING\Bend\ThirdParty\LumiSoft\Net\Net\obj\Release\LumiSoft.Net.dll

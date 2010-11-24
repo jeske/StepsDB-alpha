@@ -1,0 +1,25 @@
+
+
+Responsible Person (RP) records for a domain (RFC 1183) 
+Lookup Andrew File System Database (AFSDB) records (RFC 1183) 
+Lookup Public Switched Data Networks (X25) records (RFC 1183) 
+Lookup Service Location (SRV) records (RFC 2052) 
+Lookup Integrated Services Digital Network (ISDN) records (RFC 1183) 
+Lookup Key Exchanger (KX) records (RFC 2230) 
+Lookup Location Information (LOC) records (RFC 1876) 
+Lookup Naming Authority Pointer (NAPTR) records (RFC3403) 
+Lookup OSI-style NSAP records in the DNS (RFC 1706) 
+Lookup Pointer to NSAP (NSAPPTR) records (RFC 1348) 
+Lookup Next Domain (NXT) records (RFC 2065) 
+The ability to map X.400/RFC822 mail mapping (PX) information (RFC 2163) 
+The ability to lookup intermediate host that routes packets (RT) to a destination host (RFC 1183) 
+Lookup authentication Signature (SIG) records (RFC 2931) 
+Lookup Public Key (KEY) associated with a DNS (RFC 2535) 
+Lookup Lists of Address Prefixes (APL) records (RFC 3123) 
+Lookup Geographical Position (GPOS) records (RFC 1712) 
+Lookup Certificate (CERT) records (RFC 2538) 
+The ability to map ATM address (ATMA) to name (RFC 1183) 
+Lookup Transaction Signature (TSIG) records for authentication (RFC 2930) 
+Lookup Secret Key Transaction Authentication (TKEY) records for DNS (RFC 2845) 
+Lookup all records for a given domain (RFC 1035). 
+

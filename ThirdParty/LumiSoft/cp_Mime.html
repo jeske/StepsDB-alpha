@@ -1,0 +1,157 @@
+<!--------------------------------------------------------------------------->  
+<!--                           INTRODUCTION                                
+
+ The Code Project article submission template (HTML version)
+
+Using this template will help us post your article sooner. To use, just 
+follow the 3 easy steps below:
+ 
+     1. Fill in the article description details
+     2. Add links to your images and downloads
+     3. Include the main article text
+
+That's all there is to it! All formatting will be done by our submission
+scripts and style sheets. 
+
+-->  
+<!--------------------------------------------------------------------------->  
+<!--                        IGNORE THIS SECTION                            -->
+<html>
+<head>
+<title>The Code Project</title>
+<Style>
+BODY, P, TD { font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt }
+h2, h3, h4, h5 { color: #ff9900; font-weight: bold; }
+H2 { font-size: 13pt; }
+H3 { font-size: 12pt; }
+H4 { font-size: 10pt; color: black; }
+PRE { BACKGROUND-COLOR: #FBEDBB; FONT-FAMILY: "Courier New", Courier, mono; WHITE-SPACE: pre; }
+CODE { COLOR: #990000; FONT-FAMILY: "Courier New", Courier, mono; }
+</style>
+<link rel="stylesheet" type=text/css href="http://www.codeproject.com/styles/global.css">
+</head>
+<body bgcolor="#FFFFFF" color=#000000>
+<!--------------------------------------------------------------------------->  
+
+
+<!-------------------------------     STEP 1      --------------------------->
+<!--  Fill in the details (CodeProject will reformat this section for you) -->
+
+<pre>Title:       Advanced Mime parser/creator/editor
+Author:      Ivar Lumi 
+Email:       ivar_cp@lumisoft.ee
+Environment: C#
+Keywords:    C#,Email,Mime
+Level:       Intermediate&quot;
+Description: Advanced Mime parser/creator/editor
+Section      Miscellaneous
+SubSection   General</pre>
+
+<ul class=download>
+<li><a href="LumiSoft.Net.zip">Download source - 2.5 MB</a></li>
+</ul>
+
+<p>&nbsp;</p>
+
+
+<!-------------------------------     STEP 3      --------------------------->
+<!--  Add the article text. Please use simple formatting (<h2>, <p> etc)   --> 
+
+<h2>Introduction</h2>
+
+<p><span id="SampleInfoControl_LabelDescription">This component provides 
+advanced mime editor. You can use it for parsing email message,changing messages 
+and for creating new email messages.Supports complex messages creation with 
+nested mime entities. For more info see help file LumiSoft.Net.Mime namespace.</span><pre class="code">Message examples:
+
+<b>Simple message:</b>
+
+//--- Beginning of message
+From: sender@domain.com
+To: recipient@domain.com
+Subject: Message subject.
+Content-Type: text/plain
+
+Message body text. Bla blaa
+blaa,blaa.
+//--- End of message
+
+
+In simple message MainEntity is whole message.
+
+<b>Message with attachments:</b>
+
+//--- Beginning of message
+From: sender@domain.com
+To: recipient@domain.com
+Subject: Message subject.
+Content-Type: multipart/mixed; boundary=&quot;multipart_mixed&quot;
+
+--multipart_mixed    /* text entity */
+Content-Type: text/plain
+
+Message body text. Bla blaa
+blaa,blaa.    
+--multipart_mixed    /* attachment entity */
+Content-Type: application/octet-stream
+
+attachment_data
+--multipart_mixed--
+//--- End of message
+
+MainEntity is multipart_mixed entity and text and attachment entities are child entities of MainEntity.
+</pre>
+
+<p>&nbsp;<h2>Using the code</h2>
+
+<pre class="code">// Parsing example:
+Mime m = Mime.Parse(&quot;message.eml&quot;);
+// Do your stuff with mime
+</pre>
+<pre class="code">// Creating a new simple message
+Mime m = new Mime();
+MimeEntity mainEntity = m.MainEntity;
+// Force to create From: header field
+mainEntity.From = new AddressList();
+mainEntity.From.Add(new MailboxAddress(&quot;dispaly name&quot;,&quot;user@domain.com&quot;));
+// Force to create To: header field
+mainEntity.To = new AddressList();
+mainEntity.To.Add(new MailboxAddress(&quot;dispaly name&quot;,&quot;user@domain.com&quot;));
+mainEntity.Subject = &quot;subject&quot;;
+mainEntity.ContentType = MediaType_enum.Text_plain;
+mainEntity.ContentTransferEncoding = ContentTransferEncoding_enum.QuotedPrintable;
+mainEntity.DataText = &quot;Message body text.&quot;;
+
+m.ToFile(&quot;message.eml&quot;);
+</pre>
+<pre class="code">// Creating message with text and attachments
+Mime m = new Mime();
+MimeEntity mainEntity = m.MainEntity;
+// Force to create From: header field
+mainEntity.From = new AddressList();
+mainEntity.From.Add(new MailboxAddress(&quot;dispaly name&quot;,&quot;user@domain.com&quot;));
+// Force to create To: header field
+mainEntity.To = new AddressList();
+mainEntity.To.Add(new MailboxAddress(&quot;dispaly name&quot;,&quot;user@domain.com&quot;));
+mainEntity.Subject = &quot;subject&quot;;
+mainEntity.ContentType = MediaType_enum.Multipart_mixed;
+
+MimeEntity textEntity = mainEntity.ChildEntities.Add();
+textEntity.ContentType = MediaType_enum.Text_plain;
+textEntity.ContentTransferEncoding = ContentTransferEncoding_enum.QuotedPrintable;
+textEntity.DataText = &quot;Message body text.&quot;;
+
+MimeEntity attachmentEntity = mainEntity.ChildEntities.Add();
+attachmentEntity.ContentType = MediaType_enum.Application_octet_stream;
+attachmentEntity.ContentDisposition = ContentDisposition_enum.Attachment;
+attachmentEntity.ContentTransferEncoding = ContentTransferEncoding_enum.Base64;
+attachmentEntity.ContentDisposition_FileName = &quot;yourfile.xxx&quot;;
+attachmentEntity.DataFromFile(&quot;yourfile.xxx&quot;);
+// or
+attachmentEntity.Data = your_attachment_data;
+</pre>
+
+
+<!-------------------------------    That's it!   --------------------------->
+</body>
+</html>
