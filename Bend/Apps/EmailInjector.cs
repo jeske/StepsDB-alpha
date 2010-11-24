@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 
 using anmar.SharpMimeTools;
+using LumiSoft.Net.Mime;
 
 using System.Text.RegularExpressions; // used to split body msg into words
 
@@ -44,10 +45,20 @@ namespace Bend {
             // db.setValueParsed(".zdata/doc/" + docid, msgtxt);
             gui.debugDump(db);
 
-            SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
-            System.Console.WriteLine("Subject: " + msg.Subject);
 
-            index_document(docid, msg.Body);
+            if (true) {
+                // sharptools
+                SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
+                System.Console.WriteLine("Subject: " + msg.Subject);
+
+                index_document(docid, msg.Body);
+            } else {
+                // LumiSoft                
+                Mime msg = LumiSoft.Net.Mime.Mime.Parse(System.Text.Encoding.Default.GetBytes(msgtxt));
+                System.Console.WriteLine("Subject: " + msg.MainEntity.Subject);
+                index_document(docid, msg.MainEntity.DataText);
+
+            }
 
             //foreach (SharpAttachment msgpart in msg.Attachments) {
             //    if (msgpart.MimeTopLevelMediaType == MimeTopLevelMediaType.text &&
@@ -97,6 +108,7 @@ namespace Bend {
                 return "EndPrefixMatch{" + key.ToString() + "}";
             }
         }
+
 
         public void find_email_test() {
             string[] words_to_find = { "you", "about"};

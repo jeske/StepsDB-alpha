@@ -388,6 +388,7 @@ namespace Bend
 
             // (1) iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
+
             foreach (SegmentDescriptor segment in segs) {
                 if (segment.generation < last_generation) {
                     throw new Exception("segment merge generation order invalid: " + String.Join(",", segs));
