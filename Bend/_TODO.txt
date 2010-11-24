@@ -85,8 +85,9 @@
 --------[ Bigger TODO items ]-----------
 
 *** "table management"
-  - integration of my RowPIPE prototype code, which is a generic type of "table management" to organize how multi-part keys are built
-  - change system metadata to use rowpipe
+  - ? integration of my RowPIPE prototype code, which is a generic type of "table management" to organize how multi-part keys are built
+  - ? change system metadata to use rowpipe
+  - ? bootstrap case of 'metadata to type/explain system metadata'
 
 *** LinearAllocationRegion implementation (so two simultaneous allocators don't interleave)
   - can MergeManager trigger "defragmentation" of existing blocks? (i.e. schedule a merge of 10 fragmented blocks in the same generation)
