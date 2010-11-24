@@ -116,9 +116,27 @@ namespace Bend {
             int subcount = 1;
             int merge_candidates = 0;
             for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {
-                var start = new SegmentDescriptor((uint)target_generation, segdesc.start_key, segdesc.start_key);
-                var end = new SegmentDescriptor((uint)target_generation, segdesc.end_key, segdesc.end_key);
+
+                // TODO: FIX THIS! It's not valid, because the generation could start BEFORE us but end after our start! 
+                var start = new SegmentDescriptor((uint)target_generation, segdesc.start_key, new RecordKey());
+
+                // TODO: fix this end-range scan
+                var end = new SegmentDescriptor((uint)target_generation, segdesc.end_key, new RecordKey());
                 var targetSegments = new List<SegmentDescriptor>();
+
+                // first get the record before the startkey, and see if we are inside it...
+                try {
+                    var kvp = segmentInfo.FindPrev(start, true);
+                    
+                    if (kvp.Key.generation == target_generation) {
+                        // if overlap
+                        if (kvp.Key.keyrangeOverlapsWith(segdesc)) {
+                            targetSegments.Add(kvp.Key);
+                            subcount++;
+                        }                        
+                    }
+                } catch (KeyNotFoundException) {
+                }
 
                 foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
                     if (++subcount > MAX_MERGE_SIZE) {

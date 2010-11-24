@@ -65,9 +65,15 @@ namespace Bend {
             throw new Exception("invalid values in SegmentDescriptor.CompareTo()");
         }
 
-        public bool checkKeyrangeOverlap(SegmentDescriptor target) {
+        public bool keyrangeOverlapsWith(SegmentDescriptor target) {
             // ignore generation
-            throw new Exception("TODO: NOT YET IMPLEMENTED");
+            if (this.start_key.CompareTo(target.end_key) > 0) {
+                return false;
+            }
+            if (this.end_key.CompareTo(target.start_key) < 0) {
+                return false;
+            }
+            return true;
         }
 
         public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {
@@ -130,12 +136,24 @@ namespace BendTests {
             var b3 = new SegmentDescriptor(0,
                                 new RecordKey().appendParsedKey("test/rnd/328202073"),
                                 new RecordKey().appendParsedKey("test/rnd/996219212"));
+            var b4 = new SegmentDescriptor(0,
+                                new RecordKey().appendParsedKey("test/rnd/728202073"),
+                                new RecordKey().appendParsedKey("test/rnd/996219212"));
+
 
 
             Assert.AreEqual(-1, b1.CompareTo(b2));
             Assert.AreEqual(-1, b2.CompareTo(b3));
 
+
+            // test overlap computation
+            Assert.AreEqual(true, a.keyrangeOverlapsWith(f));
+            Assert.AreEqual(true, b1.keyrangeOverlapsWith(b2));
+            Assert.AreEqual(true, b3.keyrangeOverlapsWith(b2));
+            Assert.AreEqual(false, b2.keyrangeOverlapsWith(b4));
         }
+
+
     }
 
 }

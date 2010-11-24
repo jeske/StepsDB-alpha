@@ -3,10 +3,11 @@
 ----[ TODO ]---------
 
   - write sorted-intersect extension
-
-  DEBUG LAYERS:    
-	- why are layers overlapping in the debug UI?
-    
+  
+  - DEBUG: block-range overlap bug!  
+    - sometimes blocks in the same generation have ranges that overlap, but this should NEVER happen
+  	- create some more "safety checks" such as assuring an invalid generation is never created.. 
+	- "correctness proof by induction"
 
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
@@ -115,6 +116,7 @@
 
 
 ------------[ DONE ]--------------------
+11/24 - fixed merge bug that was causing invalid overlapping blocks (jeske)
 11/23 - visualize merges as they occur (w/progress)
 11/23 - color blocks based on has of key range (tomn)
 11/23 - prevent visual 'generation skipping'  (where it skips generation-columns that have no data) (tomn)
