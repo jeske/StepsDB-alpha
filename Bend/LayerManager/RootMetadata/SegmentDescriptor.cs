@@ -65,6 +65,11 @@ namespace Bend {
             throw new Exception("invalid values in SegmentDescriptor.CompareTo()");
         }
 
+        public bool checkKeyrangeOverlap(SegmentDescriptor target) {
+            // ignore generation
+            throw new Exception("TODO: NOT YET IMPLEMENTED");
+        }
+
         public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {
 
             RecordKey genkey = new RecordKey()
@@ -98,6 +103,39 @@ namespace Bend {
             throw new Exception("Could not load Segment from SegmentDescriptor: " + this);
         }
 
+    }
+
+}
+
+
+namespace BendTests {
+    using Bend;
+
+    using NUnit.Framework;
+
+    public partial class A02_SegmentDescriptorTests {
+        [Test]
+        public void T02_DescriptorSortComparisons() {
+            var a = new SegmentDescriptor(0,new RecordKey().appendParsedKey("AAAA"),new RecordKey().appendParsedKey("ZZZZ"));
+            var f = new SegmentDescriptor(1,new RecordKey().appendParsedKey("AAAA"),new RecordKey().appendParsedKey("ZZZZ"));
+
+            Assert.AreEqual(-1, a.CompareTo(f));
+
+            var b1 = new SegmentDescriptor(0,
+                                new RecordKey().appendParsedKey("test/rnd/306608504"),
+                                new RecordKey().appendParsedKey("test/rnd/653566822"));
+            var b2 = new SegmentDescriptor(0, 
+                                new RecordKey().appendParsedKey("test/rnd/328202073"), 
+                                new RecordKey().appendParsedKey("test/rnd/669936319"));
+            var b3 = new SegmentDescriptor(0,
+                                new RecordKey().appendParsedKey("test/rnd/328202073"),
+                                new RecordKey().appendParsedKey("test/rnd/996219212"));
+
+
+            Assert.AreEqual(-1, b1.CompareTo(b2));
+            Assert.AreEqual(-1, b2.CompareTo(b3));
+
+        }
     }
 
 }
