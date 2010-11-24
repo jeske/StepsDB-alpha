@@ -14,6 +14,7 @@
   - check that we never try to write something bigger than a microblock
 
   - DBG-GUI:
+       - visualize block "fullness" and "tomstone to key ratio"
        - visualize log/workingsegment/checkpoint status
 	   - show number of keys in the database (LayerManager will need to track this)
 	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)

@@ -78,8 +78,9 @@ namespace Bend {
                                 if (foundseg.keyrangeOverlapsWith(segdesc)) {
                                     foundTargets[foundseg] = target_generation;
                                     max_target_generation = Math.Max(max_target_generation, target_generation);
+                                    break;
                                 }
-                                break;
+                                
                             }
                         } catch (KeyNotFoundException) {
                         }                        
@@ -89,22 +90,24 @@ namespace Bend {
                         // the histogram blew up also
                         return;
                     }
-                }
+                } // end foreach record in segment
 
-                // assemble the merge target from the max_target_generation
-                var mergeTargetSegments = new List<SegmentDescriptor>();
-                foreach (var kvp in foundTargets) {
-                    if (kvp.Value == max_target_generation) {
-                        mergeTargetSegments.Add(kvp.Key);
+                if (foundTargets.Count > 0) {
+
+                    // assemble the merge target from the max_target_generation
+                    var mergeTargetSegments = new List<SegmentDescriptor>();
+                    foreach (var kvp in foundTargets) {
+                        if (kvp.Value == max_target_generation) {
+                            mergeTargetSegments.Add(kvp.Key);
+                        }
                     }
+
+                    System.Console.WriteLine("Histogram Merge Target ( key_count = " + key_count +
+                             ", target_block_count = " + mergeTargetSegments.Count + ") " +
+                             segdesc.ToString() + " -> " + String.Join(",", mergeTargetSegments));
+                    var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
+                    this.addMergeCandidate(sourceSegments, mergeTargetSegments);
                 }
-
-                System.Console.WriteLine("Histogram Merge Target ( key_count = " + key_count + 
-                         ", target_block_count = " + mergeTargetSegments.Count + ") " +
-                         segdesc.ToString() + " -> " + String.Join(",",mergeTargetSegments));
-                var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
-                this.addMergeCandidate(sourceSegments, mergeTargetSegments);
-
             }
 
         }
