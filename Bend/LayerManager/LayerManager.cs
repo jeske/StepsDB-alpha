@@ -369,6 +369,7 @@ namespace Bend
 
         public void mergeSegments(IEnumerable<SegmentDescriptor> segs) {
             // TODO: assure this is a valid merge
+            // TODO: change this to map/unmap segments as an atomic operation at the end
             //
             // We write our output in the "minimum" generation number of the merge.
             // This is only valid if our keyranges meet certain constraints. 

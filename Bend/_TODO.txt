@@ -17,6 +17,9 @@
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
   - check that we never try to write something bigger than a microblock
 
+
+  - TODO: make segment merge "apply" a more atomic operation
+
   - DBG-GUI:
        - visualize block "fullness" and "tomstone to key ratio"
        - visualize log/workingsegment/checkpoint status
