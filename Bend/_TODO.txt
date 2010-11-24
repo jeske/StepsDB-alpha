@@ -3,7 +3,10 @@
 ----[ TODO ]---------
 
   - write sorted-intersect extension
-  
+
+  DEBUG LAYERS:    
+	- why are layers overlapping in the debug UI?
+    
 
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
@@ -11,6 +14,9 @@
 
   - DBG-GUI:
        - visualize log/workingsegment/checkpoint status
+	   - show number of keys in the database (LayerManager will need to track this)
+	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
+
 	   
 
 - email indexer test -  to test "custom block handlers"

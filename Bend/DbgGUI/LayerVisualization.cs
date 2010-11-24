@@ -78,7 +78,7 @@ namespace Bend {
 
             // now draw stuff!             
             Pen BluePen = new Pen(Color.Blue, 1);
-            Pen GrayPen = new Pen(Color.LightGray, 1);
+            Pen RangeLinePen = new Pen(Color.Gray, 1);
             Pen GenPen = new Pen(Color.LightGreen, 1);
 
 
@@ -114,14 +114,14 @@ namespace Bend {
                 }
             }
 
-            int cur_x = 10;
-            for (uint generation = 0; generation < max_gen; generation++ ) {
-                bool emptygen = !segments_by_generation.ContainsKey(generation);
-                // generation vertical lines
-                
+            int cur_x = 20;
+            for (uint generation = 0; generation <= max_gen; generation++ ) {
+
+                // generation vertical lines                
                 dc.DrawLine(GenPen, cur_x-10, 0, cur_x-10, regionsize.Height);                
 
-                if (emptygen) {
+                if ( !segments_by_generation.ContainsKey(generation)) {
+                    // generation is empty!
                     cur_x += 10;
                     continue;
                 }
@@ -153,8 +153,8 @@ namespace Bend {
 
                     // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);
                     if (generation != 0 && (y_bottom != y_top + segment_height)) {
-                        dc.DrawLine(GrayPen, cur_x, y_mid_top, cur_x - 10, y_top);
-                        dc.DrawLine(GrayPen, cur_x, y_mid_top + segment_height, cur_x - 10, y_bottom);
+                        dc.DrawLine(RangeLinePen, cur_x, y_mid_top, cur_x - 10, y_top);
+                        dc.DrawLine(RangeLinePen, cur_x, y_mid_top + segment_height, cur_x - 10, y_bottom);
 
                         //   dc.DrawLine(BluePen, cur_x, y_top + segment_height, cur_x - 10, y_bottom);
                         //   dc.DrawLine(BluePen, cur_x, y_top, cur_x - 10, y_top);

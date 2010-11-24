@@ -143,6 +143,8 @@ namespace Bend {
 
                 List<string> lines = new List<string>();
 
+                gui.debugDump(db);
+
                 while (reader.Position < reader.Length - 1) {
                     string line = UnixReadLine(reader);
                     if (line.Length > 6 && line.Substring(0, 5) == "From ") {
@@ -155,6 +157,7 @@ namespace Bend {
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
                                 var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                                gui.debugDump(db,mc);
                                 db.performMerge(mc);
                                 gui.debugDump(db);
                                 // return;
@@ -162,10 +165,10 @@ namespace Bend {
 
                             string docid = fullpath + ":" + count;
                             parse_msg(docid,msg);
-                            if (count > 10) {
-                                db.debugDump();
-                                return;
-                            }
+                           //if (count > 10) {
+                           //     db.debugDump();
+                           //     return;
+                           // }
                         }
                         lines = new List<string>();
                     } else {
