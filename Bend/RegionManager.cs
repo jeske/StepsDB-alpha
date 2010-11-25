@@ -20,11 +20,11 @@ namespace Bend
 
     public interface IRegionManager
     {
-        IRegion readRegionAddr(uint region_addr);
-        IRegion readRegionAddrNonExcl(uint region_addr);
-        IRegion writeFreshRegionAddr(uint region_addr,long length);
-        IRegion writeExistingRegionAddr(uint region_addr);
-        void disposeRegionAddr(uint region_addr);
+        IRegion readRegionAddr(long region_addr);
+        IRegion readRegionAddrNonExcl(long region_addr);
+        IRegion writeFreshRegionAddr(long region_addr,long length);
+        IRegion writeExistingRegionAddr(long region_addr);
+        void disposeRegionAddr(long region_addr);
     }
 
     public interface IRegion : IDisposable
@@ -90,7 +90,7 @@ namespace Bend
     {
         String dir_path;
 
-        Dictionary<uint, EFRegion> region_cache;
+        Dictionary<long, EFRegion> region_cache;
 
         enum EFRegionMode {
             READ_ONLY_EXCL,
@@ -219,7 +219,7 @@ namespace Bend
         }
         public RegionExposedFiles(String location) {
             this.dir_path = location;
-            region_cache = new Dictionary<uint, EFRegion>();
+            region_cache = new Dictionary<long, EFRegion>();
         }
 
         // first time init        
@@ -233,7 +233,7 @@ namespace Bend
             }
         }
 
-        private String makeFilepath(uint region_addr) {
+        private String makeFilepath(long region_addr) {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String addr = enc.GetString(Lsd.numberToLsd((int)region_addr,13));
             String filepath = dir_path + String.Format("\\addr{0}.rgm", addr);
@@ -241,7 +241,7 @@ namespace Bend
         }
         // impl ...
 
-        public IRegion readRegionAddr(uint region_addr) {
+        public IRegion readRegionAddr(long region_addr) {
             String filepath = makeFilepath(region_addr);
             if (File.Exists(filepath)) {                
                 FileStream reader = File.Open(filepath, FileMode.Open);
@@ -256,7 +256,7 @@ namespace Bend
             }
         }
 
-        public IRegion readRegionAddrNonExcl(uint region_addr) {
+        public IRegion readRegionAddrNonExcl(long region_addr) {
             lock (region_cache) {
                 if (region_cache.ContainsKey(region_addr)) {
                     return region_cache[region_addr];
@@ -283,7 +283,7 @@ namespace Bend
         }
 
 
-        public IRegion writeExistingRegionAddr(uint region_addr) {
+        public IRegion writeExistingRegionAddr(long region_addr) {
             String filepath = makeFilepath(region_addr);
             FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
             long length = reader.Length;
@@ -292,7 +292,7 @@ namespace Bend
             return new EFRegion(region_addr, length, filepath, EFRegionMode.READ_WRITE);
         }
 
-        public IRegion writeFreshRegionAddr(uint region_addr, long length) {
+        public IRegion writeFreshRegionAddr(long region_addr, long length) {
             String filepath = makeFilepath(region_addr);
             if (File.Exists(filepath)) {
                 System.Console.WriteLine("Exposed Region Manager, deleting: {0}", filepath);
@@ -300,7 +300,7 @@ namespace Bend
             }
             return new EFRegion(region_addr,length,filepath,EFRegionMode.WRITE_NEW);
         }
-        public void disposeRegionAddr(uint region_addr) {
+        public void disposeRegionAddr(long region_addr) {
             String filepath = this.makeFilepath(region_addr);
             String del_filename = String.Format("\\del{0}addr{1}.region", DateTime.Now.ToBinary(), region_addr);
             File.Move(filepath, dir_path + del_filename);
