@@ -78,14 +78,9 @@ namespace Bend {
 
             // now draw stuff!             
             Pen BluePen = new Pen(Color.Blue, 1);
-            Pen RangeLinePen = new Pen(Color.Gray, 1);
+            Pen RangeLinePen = new Pen(Color.LightGray, 1);
             Pen GenPen = new Pen(Color.LightGreen, 1);
 
-
-            Color[] ColorArray = {
-                    Color.LightCoral, Color.LightCyan, Color.LightGoldenrodYellow, Color.LightGray, Color.LightGreen, 
-                    Color.LightPink, Color.LightSalmon, Color.LightSeaGreen, Color.LightSkyBlue, Color.LightSlateGray, 
-                    Color.LightSteelBlue, Color.LightYellow};
             
             dc.Clear(Color.White);
 
@@ -133,15 +128,15 @@ namespace Bend {
                     int y_mid_top = mid_y - segment_height / 2;
 
                     
-                    // color the inside of the box.
-                    var h1 = seg.start_key.ToString().GetHashCode();
-                    var h2 = seg.end_key.ToString().GetHashCode();
-                    var offset = Math.Abs(h1 + h2) % (ColorArray.Length);
-
-                    var fill = new SolidBrush(ColorArray[offset]);
-                    dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
-
-
+                    // color the inside of the box. pseudorandom color based on a hash of the start/end keys of a block
+                    {
+                        var h1 = Math.Abs(seg.start_key.ToString().GetHashCode());
+                        var h2 = Math.Abs(seg.end_key.ToString().GetHashCode());
+                        
+                        // vary the alpha and colors based on key hashes %N+K makes sure alpha is in a good range
+                        var fill = new SolidBrush(Color.FromArgb((h1%60)+80, (h1 >> 16) & 0xff, (h2 >> 8) & 0xff, h2 & 0xff));
+                        dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
+                    }
 
                     if (lastmerge != null) {
                         if (segs_in_merge.Contains(seg.ToString())) {
@@ -155,15 +150,12 @@ namespace Bend {
                         }
                     }
 
-                    dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
+                    // when we get a lot of blocks, the outline covers 100% of the inside color
+                    //dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
 
-                    // dc.DrawRectangle(BluePen, cur_x, y_top, 50, segment_height);
                     if (generation != 0 && (y_bottom != y_top + segment_height)) {
                         dc.DrawLine(RangeLinePen, cur_x, y_mid_top, cur_x - 10, y_top);
                         dc.DrawLine(RangeLinePen, cur_x, y_mid_top + segment_height, cur_x - 10, y_bottom);
-
-                        //   dc.DrawLine(BluePen, cur_x, y_top + segment_height, cur_x - 10, y_bottom);
-                        //   dc.DrawLine(BluePen, cur_x, y_top, cur_x - 10, y_top);
                     }
                 }
 
