@@ -70,10 +70,8 @@ namespace Bend {
         }
         public bool keyrangeOverlapsWith(RecordKey t_start_key, RecordKey t_end_key) {
             // ignore generation
-            if (this.start_key.CompareTo(t_end_key) > 0) {
-                return false;
-            }
-            if (this.end_key.CompareTo(t_start_key) < 0) {
+            if ((this.start_key.CompareTo(t_end_key) > 0) ||
+                (this.end_key.CompareTo(t_start_key) < 0)) {
                 return false;
             }
             return true;
