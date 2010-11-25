@@ -150,6 +150,7 @@ namespace Bend
                 // build a byte[] for the updates using the basic block encoder
                 {
                     MemoryStream writer = new MemoryStream();
+                    // TODO: this seems like a really inefficient way to write out a key
                     ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
                     encoder.setStream(writer);
                     encoder.add(key, update);
@@ -159,7 +160,7 @@ namespace Bend
 
                 }
                 // TODO: switch our writes to always occur through "handling the log"
-                // TODO: make our writes only visible to US, by creating a "transaction segment"
+                // TODO: make our writes only visible to US?, by creating a "transaction segment"
                 lock (mylayer.segmentlayers) {
                     mylayer.workingSegment.setRecord(key, update); // add to working set
                 }

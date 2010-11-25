@@ -80,7 +80,7 @@
     - simple text-indexer test
     - simulate iibench 
        - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
-       - 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
+       - TARGET: 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
 
 --------[ Bigger TODO items ]-----------
 
@@ -122,6 +122,8 @@
 *** layer-avoidance, bloom filters
 *** distributed shard manager
 *** xml document database
+    - http://www.ibm.com/developerworks/data/library/techarticle/dm-0606schiefer/
+
 *** Network Interface
 
 *** Interactive C# Shell mode?

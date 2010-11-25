@@ -189,38 +189,50 @@ namespace Bend
 
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
-            int keysize = 20000;
-            int keycount = 10000;
-            int flush_period = 1000;
+
+            int keysize = 200;
+            int keycount = 100000000;
+            int flush_period = 100000;
+            int commit_period = 1000;
             bool random_order = true;
+            DateTime start = DateTime.Now;
+            int record_count = 0;
 
             db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\bigtest");
             String value = "";
             String keybase = "TestValueDataABC";
             for (int x = 0; x < keysize / keybase.Length; x++) { value = value + keybase; }
             Random rnd = new Random();
+            var write_group = db.newWriteGroup();
 
             for (int x = 10000001; x < 10000001 + keycount; x++) {
                 if (random_order) {
-                    db.setValueParsed("test/rnd/" + rnd.Next(), value);
+                    write_group.setValueParsed("test/rnd/" + rnd.Next(), value);
                 } else {
-                    db.setValueParsed("test/ordered/" + x, value);
+                    write_group.setValueParsed("test/ordered/" + x, value);
                 }
-               
+                record_count++;
+
+                if (x % commit_period == 0) { write_group.finish(); write_group = db.newWriteGroup(); }
+
                 if (x % flush_period == 0) {
+                    write_group.finish(); write_group = db.newWriteGroup();
                     System.Console.WriteLine("start % 1000 cycle..");
                     db.flushWorkingSegment();                    
                     
                     win.debugDump(db);
                     dumpMergeCandidates(db);
                     
-                    for (int mx = 0; mx < 4; mx++) {
+                    for (int mx = 0; mx < 8; mx++) {
                         
                         mc = db.rangemapmgr.mergeManager.getBestCandidate();
-                        System.Console.WriteLine("merge " + mx + " : " + mc);
-                        if (mc == null) {
+                        if (mc == null) { break; }
+                        if (mc.score() > 0.75) {
+                            System.Console.WriteLine("** best merge score too high: " + mc);
                             break;
                         }
+                        System.Console.WriteLine("merge " + mx + " : " + mc);
+                        
                         win.debugDump(db, mc);
                         db.performMerge(mc);
                         System.Console.WriteLine("mergedone " + mx + " : " + mc);
@@ -230,7 +242,10 @@ namespace Bend
                         win.debugDump(db);                        
                     }
 
-                    System.Console.WriteLine("merge cycle done");                    
+                    double elapsed = (DateTime.Now - start).TotalMilliseconds / 1000.0;
+                    System.Console.WriteLine("*** merge cycle done  {0} records so far, in {1} total time, {2} records/second",
+                             record_count,elapsed, (double)record_count/elapsed);                
+                    
                 }
             }
 
