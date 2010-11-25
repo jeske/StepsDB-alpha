@@ -4,14 +4,11 @@
 
   - write sorted-intersect extension
   
-  - FIX: as the MergeManager is generating merge candidates, when it descends another generation, 
-       it needs to expand the start/end ranges to be inclusive of all the blocks in the previous generations! 
-  - FIX: 
-
-  - DEBUG: block-range overlap bug!  
+  - DEBUG block-range overlap bugs!  
     - sometimes blocks in the same generation have ranges that overlap, but this should NEVER happen
   	- create some more "safety checks" such as assuring an invalid generation is never created.. 
-	- "correctness proof by induction"
+	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
+
 
   - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
   - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
@@ -131,6 +128,8 @@
 
 
 ------------[ DONE ]--------------------
+11/24 - FIXED - as the MergeManager is generating merge candidates, when it descends another generation, 
+        it needs to expand the start/end ranges to be inclusive of all the blocks in the previous generations!   
 11/24 - BDSkipList, short circuit a case where an equal_ok key is found to return faster
 11/24 - fixed merge bug that was causing invalid overlapping blocks (jeske)
 11/23 - visualize merges as they occur (w/progress)

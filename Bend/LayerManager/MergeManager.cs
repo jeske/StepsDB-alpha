@@ -150,16 +150,31 @@ namespace Bend {
                 // first get the record before the startkey, and see if we are inside it...
                 try {
                     var kvp = segmentInfo.FindPrev(start, true);
-                    
+
                     if (kvp.Key.generation == target_generation) {
                         // if overlap
-                        if (kvp.Key.keyrangeOverlapsWith(key_start,key_end)) {
+                        if (kvp.Key.keyrangeOverlapsWith(key_start, key_end)) {
                             targetSegments.Add(kvp.Key);
                             subcount++;
-                        }                        
+                        }
+
+                        // test for this weirdo bug
+                        {
+
+                            var walk = segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null)).GetEnumerator();
+                            if (walk.MoveNext()) {
+                                var nextrow = segmentInfo.FindNext(kvp.Key, false);
+                                if (walk.Current.Key.CompareTo(nextrow.Key) != 0) {
+                                    throw new Exception("weirdo bug!");
+                                }
+                            }
+                        }
+
+
                     }
                 } catch (KeyNotFoundException) {
                 }
+
 
                 foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
                     if (++subcount > MAX_MERGE_SIZE) {
