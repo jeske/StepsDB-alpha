@@ -1,35 +1,18 @@
-﻿1) how was this single-block merge candidate generated?!?!?!?
+﻿
 
-
-gen0 start(.ROOT/FREELIST/HEAD) end(test/rnd/1144055585)
-gen0 start(test/rnd/1145658831) end(test/rnd/1284236425)
-gen0 start(test/rnd/1284260792) end(test/rnd/1417270997)
-gen0 start(test/rnd/1417796303) end(test/rnd/1548634706)
-gen0 start(test/rnd/1548969029) end(test/rnd/1685969663)
-gen0 start(test/rnd/1686221153) end(test/rnd/1827291259)
-gen0 start(test/rnd/1828171371) end(test/rnd/2043167379)
-gen0 start(test/rnd/204509629) end(test/rnd/290503902)
-gen0 start(test/rnd/290648095) end(test/rnd/431918371)
-gen0 start(test/rnd/433850566) end(test/rnd/554305289)
-gen0 start(test/rnd/554529133) end(test/rnd/688400456)
-gen0 start(test/rnd/688618805) end(test/rnd/817412519)
-gen0 start(test/rnd/817574331) end(test/rnd/948663435)
-gen0 start(test/rnd/949649608) end(test/rnd/999736462)
-gen2 start(test/rnd/1841975374) end(test/rnd/311968404)
-gen3 start(.ROOT/FREELIST/HEAD) end(test/rnd/1388356709)
-gen3 start(test/rnd/1388618498) end(test/rnd/1797219296)
-gen3 start(test/rnd/1797624450) end(test/rnd/258047099)
-gen3 start(test/rnd/2624798) end(test/rnd/654535977)
-gen3 start(test/rnd/657983771) end(test/rnd/998716380)
-gen4 start(.ROOT/FREELIST/HEAD) end(test/rnd/1431564459)
-gen4 start(test/rnd/1433583744) end(test/rnd/1853647398)
-gen4 start(test/rnd/185701012) end(test/rnd/349893674)
-gen4 start(test/rnd/354234010) end(test/rnd/708785411)
-gen4 start(test/rnd/709030679) end(test/rnd/999770710)
-gen5 start(.ROOT/FREELIST/HEAD) end(test/rnd/141718745)
-gen5 start(test/rnd/1419243815) end(test/rnd/1787310424)
-gen5 start(test/rnd/1787598664) end(test/rnd/290535803)
-gen5 start(test/rnd/29083326) end(test/rnd/684039240)
-gen5 start(test/rnd/684480029) end(test/rnd/995738942)
--- dumpMergeCandidates
-  [MergeCandidate{ 0 (SegmentDescriptor{3:test/rnd/1388618498:test/rnd/1797219296}) -> () }, 1]
+Exposed Region Manager, deleting: c:\BENDtst\bigtest\addr0002143293440.rgm
+mapGenerationToRegion: SegmentDescriptor{0:test/rnd/1140585566:test/rnd/1160219234}
+allocateNewSegment - next address: 2147487744
+Exposed Region Manager, deleting: c:\BENDtst\bigtest\addr0000000000000.rgm
+died to exception: System.IO.IOException: The process cannot access the file because it is being used by another process.
+   at System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath)
+   at System.IO.File.Move(String sourceFileName, String destFileName)
+   at Bend.RegionExposedFiles.disposeRegionAddr(Int64 region_addr) in C:\Users\David\CODING\Bend\Bend\RegionManager.cs:line 306
+   at Bend.RegionExposedFiles.writeFreshRegionAddr(Int64 region_addr, Int64 length) in C:\Users\David\CODING\Bend\Bend\RegionManager.cs:line 299
+   at Bend.FreespaceManager.allocateNewSegment(WriteGroup tx, Int32 length) in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\FreespaceManager.cs:line 60
+   at Bend.LayerManager._writeSegment(WriteGroup tx, IEnumerable`1 records, Int32 target_generation) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 225
+   at Bend.LayerManager.mergeSegments(IEnumerable`1 segs) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 438
+   at Bend.LayerManager.performMerge(MergeCandidate mc) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 314
+   at Bend.MainBend.do_bringup_test(DbgGUI win) in C:\Users\David\CODING\Bend\Bend\_Main.cs:line 265
+   at Bend.DbgGUI.RunStuff() in C:\Users\David\CODING\Bend\Bend\DbgGUI\DbgGUI.cs:line 27
+press any key...

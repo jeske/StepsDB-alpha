@@ -235,7 +235,7 @@ namespace Bend
 
         private String makeFilepath(long region_addr) {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            String addr = enc.GetString(Lsd.numberToLsd((int)region_addr,13));
+            String addr = enc.GetString(Lsd.numberToLsd(region_addr,13));
             String filepath = dir_path + String.Format("\\addr{0}.rgm", addr);
             return filepath;
         }

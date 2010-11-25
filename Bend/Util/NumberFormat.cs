@@ -121,6 +121,14 @@ namespace BendTests {
 
 
         }
+        [Test]
+        public void T01_BigNumbers() {
+            // 2147487744
+            long number = 2147487744;
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            String number_s = enc.GetString(Lsd.numberToLsd(number, 13));
+            Assert.AreEqual("0002147487744",number_s);
+        }
     }
 
 }
