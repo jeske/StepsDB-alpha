@@ -134,7 +134,7 @@ namespace Bend {
                         var h2 = Math.Abs(seg.end_key.ToString().GetHashCode());
                         
                         // vary the alpha and colors based on key hashes %N+K makes sure alpha is in a good range
-                        var fill = new SolidBrush(Color.FromArgb((h1%60)+80, (h1 >> 16) & 0xff, (h2 >> 8) & 0xff, h2 & 0xff));
+                        var fill = new SolidBrush(Color.FromArgb((h1%60)+80, (h1 + h2) & 0xff, (h2 >> 8) & 0xff, h2 & 0xff));
                         dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
                     }
 
