@@ -16,6 +16,7 @@ namespace Bend {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
         public int MAX_MERGE_SIZE = 4;
+        public int MAX_HISTO_MERGE_SIZE = 6;
         public RangemapManager rangemapmgr;
         
         public MergeManager_Incremental(RangemapManager rmm) {
@@ -71,6 +72,22 @@ namespace Bend {
                     // find the previous generation block this key must merge into                    
                     for (int target_generation = (int)segdesc.generation - 1; target_generation >= 0; target_generation--) {
                         SegmentDescriptor searchdesc = new SegmentDescriptor((uint)target_generation, row.Key, row.Key);
+
+                        // check before 
+                        try {
+                            SegmentDescriptor foundseg = segmentInfo.FindPrev(searchdesc, true).Key;
+                            if (foundseg.generation == target_generation) {
+                                // check for overlap
+                                if (foundseg.keyrangeOverlapsWith(segdesc)) {
+                                    foundTargets[foundseg] = target_generation;
+                                    max_target_generation = Math.Max(max_target_generation, target_generation);
+                                    break;
+                                }
+
+                            }
+                        } catch (KeyNotFoundException) { }
+
+                        // then check after
                         try {
                             SegmentDescriptor foundseg = segmentInfo.FindNext(searchdesc, true).Key;
                             if (foundseg.generation == target_generation) {
@@ -82,11 +99,10 @@ namespace Bend {
                                 }
                                 
                             }
-                        } catch (KeyNotFoundException) {
-                        }                        
+                        } catch (KeyNotFoundException) { }                        
                     }
 
-                    if (foundTargets.Count > MAX_MERGE_SIZE) {
+                    if (foundTargets.Count > MAX_HISTO_MERGE_SIZE) {
                         // the histogram blew up also
                         return;
                     }
@@ -130,7 +146,7 @@ namespace Bend {
 
             for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {                
                 var start = new SegmentDescriptor((uint)target_generation, key_start, new RecordKey());
-                var end = new SegmentDescriptor((uint)target_generation, key_end, new RecordKey());
+                var end = new SegmentDescriptor((uint)target_generation, key_end, key_end);
 
                 var targetSegments = new List<SegmentDescriptor>();
 

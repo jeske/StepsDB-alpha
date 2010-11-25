@@ -6,7 +6,7 @@
   
   - FIX: as the MergeManager is generating merge candidates, when it descends another generation, 
        it needs to expand the start/end ranges to be inclusive of all the blocks in the previous generations! 
-  
+  - FIX: 
 
   - DEBUG: block-range overlap bug!  
     - sometimes blocks in the same generation have ranges that overlap, but this should NEVER happen
