@@ -226,7 +226,10 @@ namespace Bend
             String value = "";
             String keybase = "TestValueDataABC";
             for (int x = 0; x < keysize / keybase.Length; x++) { value = value + keybase; }
-            Random rnd = new Random();
+            int seed = (int)DateTime.Now.Ticks;
+            Random rnd = new Random(seed);
+
+            System.Console.WriteLine("*** RANDOM SEED: " + seed);
             var write_group = db.newWriteGroup();
 
             for (int x = 10000001; x < 10000001 + keycount; x++) {
@@ -240,6 +243,7 @@ namespace Bend
                 if (x % commit_period == 0) { write_group.finish(); write_group = db.newWriteGroup(); }
 
                 if (x % flush_period == 0) {
+                    System.Console.WriteLine("*** RANDOM SEED: " + seed);
                     write_group.finish(); write_group = db.newWriteGroup();
                     System.Console.WriteLine("start % 1000 cycle..");
                     db.flushWorkingSegment();                    
