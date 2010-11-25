@@ -22,7 +22,7 @@ namespace Bend
     // and so the table format can be read by the higher level table manager
     public class FreespaceManager
     {
-        int next_allocation;
+        long next_allocation;
         
         LayerManager store;
         public FreespaceManager(LayerManager store) {
@@ -40,20 +40,21 @@ namespace Bend
         // right now we're going to use a "top of heap" allocation strategy with no reclamation
         // .ROOT/FREELIST/HEAD -> "top of heap"
         public IRegion allocateNewSegment(LayerManager.WriteGroup tx, int length) {
-            int new_addr;
+            long new_addr;
             // grab a chunk
 
             new_addr = next_allocation;
             next_allocation = next_allocation + length;
 
+            Console.WriteLine("allocateNewSegment - next address: " + new_addr);
             // write our new top of heap pointer
             {
                 RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
                 tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 10)));
             }
 
-            if (new_addr == 0) {
-                throw new Exception("zero address in allocateNewSegment");
+            if (new_addr <= 0) {
+                throw new Exception("invalid address in allocateNewSegment: " + new_addr);
             }
 
             return store.regionmgr.writeFreshRegionAddr((uint)new_addr, length);

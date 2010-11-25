@@ -13,16 +13,16 @@ namespace Bend
     
     class Lsd {
 
-        public static byte[] numberToLsd(int encodenum,int pad_to_digits) {
+        public static byte[] numberToLsd(long encodenum,int pad_to_digits) {
             List<byte> builder = new List<byte>();
-            int num = encodenum;
+            long num = encodenum;
 
             if (encodenum > Math.Pow(10, pad_to_digits)) {
                 throw new Exception("can't encode " + encodenum + "with " + pad_to_digits + " digits.");
             }
 
             // build the LSBs
-            int digit;
+            long digit;
             while (num >= 10) {
                 num = Math.DivRem(num, 10, out digit);
                 builder.Insert(0,(byte)((int)'0' + digit));
