@@ -72,7 +72,7 @@ namespace Bend
         }
 
         public static void dumpSegmentList(LayerManager db) {
-            if (true) {
+            if (false) {
                 // this is the slow method
 
                 var walk = db.rangemapmgr.mergeManager.segmentInfo.GetEnumerator();

@@ -131,6 +131,13 @@ namespace Bend {
         }
 
         private void _generateMergeCandidatesFor(SegmentDescriptor segdesc) {
+            // first clear any merge candidates we have
+            if (segmentInfo.ContainsKey(segdesc)) {
+                foreach (var candidate in segmentInfo[segdesc]) {
+                    prioritizedMergeCandidates.Remove(candidate);
+                }
+                segmentInfo[segdesc] = new List<MergeCandidate>();
+            }            
 
             // find out which segments this could merge down into and if
             // the number is small enough, add it to the prioritized candidate list
@@ -230,6 +237,17 @@ namespace Bend {
                 var start = new SegmentDescriptor((uint)source_generation, segdesc.start_key, segdesc.start_key);
                 var end = new SegmentDescriptor((uint)source_generation, segdesc.end_key, segdesc.end_key);
 
+                try {
+                    var kvp = segmentInfo.FindPrev(start, true);
+
+                    if (kvp.Key.generation == source_generation) {
+                        // if overlap
+                        if (kvp.Key.keyrangeOverlapsWith(segdesc.start_key,segdesc.end_key)) {
+                            _generateMergeCandidatesFor(kvp.Key);                             
+                        }
+                    }
+                } catch (KeyNotFoundException) { }
+
                 foreach (var kvp in segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null))) {
                     // TODO: we should really only generate a new candidates IF it includes the new segment
                     _generateMergeCandidatesFor(kvp.Key);
@@ -237,7 +255,7 @@ namespace Bend {
                 
             }
         }
-
+        
         public void notify_removeSegment(SegmentDescriptor segdesc) {
             if (! segmentInfo.ContainsKey(segdesc)) {
                 throw new Exception("MergeManager notify_removeSegment() for unknown segment: " + segdesc);
