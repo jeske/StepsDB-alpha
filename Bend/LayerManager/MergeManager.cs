@@ -92,6 +92,11 @@ namespace Bend {
                     }
                 } // end foreach record in segment
 
+                // TODO: we need to be careful if there are targets that span multiple generations, as 
+                //     they might violate the merge rules. We need to either merge only to a single 
+                //     generation, or we need to rescan based on the start/end of every block in the
+                //     higher generation
+
                 if (foundTargets.Count > 0) {
 
                     // assemble the merge target from the max_target_generation
@@ -120,13 +125,13 @@ namespace Bend {
             var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
             int subcount = 1;
             int merge_candidates = 0;
-            for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {
+            RecordKey key_start = segdesc.start_key;
+            RecordKey key_end = segdesc.end_key;
 
-                // TODO: FIX THIS! It's not valid, because the generation could start BEFORE us but end after our start! 
-                var start = new SegmentDescriptor((uint)target_generation, segdesc.start_key, new RecordKey());
+            for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {                
+                var start = new SegmentDescriptor((uint)target_generation, key_start, new RecordKey());
+                var end = new SegmentDescriptor((uint)target_generation, key_end, new RecordKey());
 
-                // TODO: fix this end-range scan
-                var end = new SegmentDescriptor((uint)target_generation, segdesc.end_key, new RecordKey());
                 var targetSegments = new List<SegmentDescriptor>();
 
                 // first get the record before the startkey, and see if we are inside it...
@@ -135,7 +140,7 @@ namespace Bend {
                     
                     if (kvp.Key.generation == target_generation) {
                         // if overlap
-                        if (kvp.Key.keyrangeOverlapsWith(segdesc)) {
+                        if (kvp.Key.keyrangeOverlapsWith(key_start,key_end)) {
                             targetSegments.Add(kvp.Key);
                             subcount++;
                         }                        
@@ -162,6 +167,20 @@ namespace Bend {
 
                     // add the target segments to the source so we can iterate again                    
                     sourceSegments.AddRange(targetSegments);
+
+                    // expand the start/end range based on the targetSegments if necessary
+                    foreach (var seg in targetSegments) {
+                        if (seg.start_key.CompareTo(key_start) < 0) {                            
+                            System.Console.WriteLine("*************************************************");
+                            System.Console.WriteLine("extended keystart from: " + key_start + "  to: " + seg.start_key);
+                            key_start = seg.start_key;
+                        }
+                        if (seg.end_key.CompareTo(key_end) > 0) {
+                            System.Console.WriteLine("*************************************************");
+                            System.Console.WriteLine("extended keyend from: " + key_end + "  to: " + seg.end_key);
+                            key_end = seg.end_key;
+                        }
+                    }
 
                 }
                 targetSegments = null;

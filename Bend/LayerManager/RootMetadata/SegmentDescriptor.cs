@@ -66,11 +66,14 @@ namespace Bend {
         }
 
         public bool keyrangeOverlapsWith(SegmentDescriptor target) {
+            return this.keyrangeOverlapsWith(target.start_key, target.end_key);
+        }
+        public bool keyrangeOverlapsWith(RecordKey t_start_key, RecordKey t_end_key) {
             // ignore generation
-            if (this.start_key.CompareTo(target.end_key) > 0) {
+            if (this.start_key.CompareTo(t_end_key) > 0) {
                 return false;
             }
-            if (this.end_key.CompareTo(target.start_key) < 0) {
+            if (this.end_key.CompareTo(t_start_key) < 0) {
                 return false;
             }
             return true;
