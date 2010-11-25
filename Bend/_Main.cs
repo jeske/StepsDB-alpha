@@ -232,11 +232,12 @@ namespace Bend
                 mc = db.rangemapmgr.mergeManager.getBestCandidate();
                 System.Console.WriteLine("merge : " + mc);
                 if (mc == null) break;
+                win.debugDump(db, mc);   
                 db.performMerge(mc);
 
                 dumpSegmentList(db);
                 dumpMergeCandidates(db);
-                win.debugDump(db, mc);                              
+                win.debugDump(db,null);                              
             }
 
             dumpSegmentList(db);
