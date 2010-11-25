@@ -176,6 +176,13 @@ namespace Bend
 
             return newgen;
         }
+
+        public void recordMaxGeneration(LayerManager.WriteGroup tx,int num_generations) {
+            tx.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
+                RecordUpdate.WithPayload(num_generations.ToString()));
+
+        }
+
         private uint unpackRegionAddr(byte[] data) {
             // TODO:unpack the update data when we change it to "<addr>:<length>"
             return (uint)Lsd.lsdToNumber(data);

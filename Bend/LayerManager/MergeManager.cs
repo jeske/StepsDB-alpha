@@ -25,7 +25,30 @@ namespace Bend {
             this.rangemapmgr = rmm;
         }
 
-        public  int getMaxGeneration() {            
+        public int minSafeGenerationForKeyRange(RecordKey start_key, RecordKey end_key) {
+            int maxgen = getMaxGeneration();
+            for (int gen = maxgen; gen >= 0; gen--) {
+                try {
+                    var prevseg = segmentInfo.FindPrev(new SegmentDescriptor((uint)gen, start_key, end_key), true);
+                    if (prevseg.Key.generation == gen &&
+                        prevseg.Key.keyrangeOverlapsWith(start_key, end_key)) {
+                            // we hit something, so go above it.
+                            return gen + 1;
+                    }
+                } catch (KeyNotFoundException) { }
+                try {
+                    var nextseg = segmentInfo.FindNext(new SegmentDescriptor((uint)gen, start_key, end_key), true);
+                    if (nextseg.Key.generation == gen &&
+                        nextseg.Key.keyrangeOverlapsWith(start_key, end_key)) {
+                        // we hit something, so go above it.
+                        return gen + 1;
+                    }
+                } catch (KeyNotFoundException) { }
+            }
+            return 0;
+        }
+
+        public int getMaxGeneration() {            
             try {
                 return (int)segmentInfo.FindPrev(new ScanRange<SegmentDescriptor>.maxKey(), true).Key.generation;
             } catch (KeyNotFoundException e) {

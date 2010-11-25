@@ -214,7 +214,7 @@ namespace Bend
         }
         private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
 
-        private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records, uint gen_num) {
+        private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records,int target_generation=-1) {
             // write the checkpoint segment and flush
             // TODO: make this happen in the background!!
             SegmentWriter segmentWriter = new SegmentWriter(records);
@@ -234,8 +234,10 @@ namespace Bend
 
                 // record the index pointer (geneneration and rangekey -> block address)
                 // rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
-                rangemapmgr.mapGenerationToRegion(tx, (int)gen_num, wi.start_key, wi.end_key, reader);
-
+                if (target_generation == -1) {
+                    target_generation = rangemapmgr.mergeManager.minSafeGenerationForKeyRange(wi.start_key, wi.end_key);
+                }
+                rangemapmgr.mapGenerationToRegion(tx, target_generation, wi.start_key, wi.end_key, reader);
             }                
             
 
@@ -269,12 +271,14 @@ namespace Bend
                 // allocate a new generation number
                 uint new_generation_number = (uint) rangemapmgr.allocNewGeneration(tx);
 
-                this._writeSegment(tx, checkpointSegment.sortedWalk(), new_generation_number); 
+                this._writeSegment(tx, checkpointSegment.sortedWalk()); 
     
                 {
                     byte[] emptydata = new byte[0];
                     tx.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
                 }
+                rangemapmgr.recordMaxGeneration(tx,rangemapmgr.mergeManager.getMaxGeneration()+1);
+
                 tx.finish();                             // commit the freespace and rangemap transaction
 
             }
@@ -430,7 +434,7 @@ namespace Bend
                     
                 }
 
-                this._writeSegment(tx, chain, target_generation);
+                this._writeSegment(tx, chain, (int)target_generation);
 
                 // free the space from the old segments
 
