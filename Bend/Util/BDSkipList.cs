@@ -14,10 +14,10 @@
 // for p are 1/2 or 1/4). On average, each element appears in 1/(1-p) lists, and the tallest 
 // element (usually a special head element at the front of the skip list) in \log_{1/p} n\, lists.
 //
-// head[3] 1
-// head[2] 1------->4---->6
-// head[1] 1---->3->4---->6------->9
-// head[0] 1->2->3->4->5->6->7->8->9->10
+// head[3] S->1------------------------------>S
+// head[2] S->1------->4---->6--------------->S
+// head[1] S->1---->3->4---->6------->9------>S
+// head[0] S->1->2->3->4->5->6->7->8->9->10-->S
 //
 // NOTE: this is space inefficient for small K,V because we allocate a linked list node 
 // for EVERY K,V, plus every skiplist jump point.
@@ -362,15 +362,13 @@ namespace Bend
                     if (i < currentListsCount) {
                         cursor = cursor.down;
                     }
-                    if (equal_ok) {
-                        while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) > 0)) {
-                            cursor = cursor.right;
-                        }
-                    } else {
-                        while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) >= 0)) {
-                            cursor = cursor.right;
-                        }
+                    while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) >= 0)) {                        
+                        cursor = cursor.right;
+                        if (equal_ok && keytest.CompareTo(cursor.key) == 0) {
+                            return cursor;
+                        }                            
                     }
+                    
                 }
 
                 /* Here we are on the bottom list. Now we see if the next node is valid, if it is
@@ -394,16 +392,14 @@ namespace Bend
                     if (i < currentListsCount) {
                         pcursor = pcursor.down;
                     }
-                    if (equal_ok) {
-                        while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) < 0)) {
-                            pcursor = pcursor.left;
-                        }
-                    } else {
-                        while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) <= 0)) {
-                            pcursor = pcursor.left;
+                    while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) <= 0)) {
+                        pcursor = pcursor.left;
+                        if (equal_ok && keytest.CompareTo(pcursor.key) == 0) {
+                            return pcursor;
                         }
                     }
                 }
+                
 
                 /* Here we are on the bottom list. Now we see if the next node is valid, if it is
                  * we return the node, if not, we return null.
@@ -814,7 +810,8 @@ namespace BendTests
                 Assert.AreEqual(2, prev.Value);
             }
             {
-                // FindNext(K) better be >, not >=
+                Assert.AreEqual("def",l.FindNext("def",true).Key, "find def, equal_ok=true");
+                Assert.AreEqual("ghi", l.FindNext("def", false).Key, "find def, equal_ok=false");
                 KeyValuePair<string, int> next = l.FindNext("def", false);
                 Assert.AreEqual("ghi", next.Key, "findnext should be >, not >=");
                 Assert.AreEqual(3, next.Value);

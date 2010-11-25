@@ -131,6 +131,7 @@
 
 
 ------------[ DONE ]--------------------
+11/24 - BDSkipList, short circuit a case where an equal_ok key is found to return faster
 11/24 - fixed merge bug that was causing invalid overlapping blocks (jeske)
 11/23 - visualize merges as they occur (w/progress)
 11/23 - color blocks based on has of key range (tomn)
