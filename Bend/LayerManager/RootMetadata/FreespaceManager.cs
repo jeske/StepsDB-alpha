@@ -52,6 +52,10 @@ namespace Bend
                 tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 10)));
             }
 
+            if (new_addr == 0) {
+                throw new Exception("zero address in allocateNewSegment");
+            }
+
             return store.regionmgr.writeFreshRegionAddr((uint)new_addr, length);
         }
     }
