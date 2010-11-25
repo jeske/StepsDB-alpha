@@ -72,9 +72,18 @@ namespace Bend
         }
 
         public static void dumpSegmentList(LayerManager db) {
-            foreach (var seg in db.listAllSegments()) {
-                System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
-            }            
+            if (false) {
+                // this is the slow method
+                foreach (var seg in db.listAllSegments()) {
+                    System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                }
+            } else {
+                // this is the fast method
+                foreach (var seginfo in db.rangemapmgr.mergeManager.segmentInfo) {
+                    var seg = seginfo.Key;
+                    System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                }
+            }
         }
 
         public static void do_bringup_test5(DbgGUI win) {

@@ -15,8 +15,8 @@ namespace Bend {
     public class MergeManager_Incremental {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
-        public int MAX_MERGE_SIZE = 4;
-        public int MAX_HISTO_MERGE_SIZE = 6;
+        public int MAX_MERGE_SIZE = 6;
+        public int MAX_HISTO_MERGE_SIZE = 8;
         public RangemapManager rangemapmgr;
         
         public MergeManager_Incremental(RangemapManager rmm) {
@@ -107,15 +107,12 @@ namespace Bend {
                         return;
                     }
                 } // end foreach record in segment
-
-                // TODO: we need to be careful if there are targets that span multiple generations, as 
-                //     they might violate the merge rules. We need to either merge only to a single 
-                //     generation, or we need to rescan based on the start/end of every block in the
-                //     higher generation
-
+                
                 if (foundTargets.Count > 0) {
 
                     // assemble the merge target from the max_target_generation
+                    // the reason we only use max_target_generation is to prevent needing to
+                    // calculate the merge requirements of all the middle-segments if we decided to span >2 generations
                     var mergeTargetSegments = new List<SegmentDescriptor>();
                     foreach (var kvp in foundTargets) {
                         if (kvp.Value == max_target_generation) {
