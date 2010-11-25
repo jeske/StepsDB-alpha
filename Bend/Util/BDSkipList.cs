@@ -363,10 +363,10 @@ namespace Bend
                         cursor = cursor.down;
                     }
                     while ((!cursor.right.is_sentinel) && (keytest != null) && (keytest.CompareTo(cursor.right.key) >= 0)) {                        
+                        if (equal_ok && keytest.CompareTo(cursor.right.key) == 0) {
+                            break;
+                        }
                         cursor = cursor.right;
-                        if (equal_ok && keytest.CompareTo(cursor.key) == 0) {
-                            return cursor;
-                        }                            
                     }
                     
                 }
@@ -393,10 +393,10 @@ namespace Bend
                         pcursor = pcursor.down;
                     }
                     while ((!pcursor.left.is_sentinel) && (keytest != null) && (keytest.CompareTo(pcursor.left.key) <= 0)) {
-                        pcursor = pcursor.left;
-                        if (equal_ok && keytest.CompareTo(pcursor.key) == 0) {
-                            return pcursor;
+                        if (equal_ok && keytest.CompareTo(pcursor.left.key) == 0) {
+                            break;
                         }
+                        pcursor = pcursor.left;
                     }
                 }
                 
