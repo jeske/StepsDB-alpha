@@ -4,7 +4,11 @@
 
   - write sorted-intersect extension
   
-  - DEBUG block-range overlap bugs!  
+  - FIX histogram merges, so they don't create overlapping blocks!
+  - FIX merge candidates with skipped blocks
+  - FIX segment_data_mismatch (block tombstone lost or ignored)
+
+  - DEBUG block-range overlap bugs!   
     - sometimes blocks in the same generation have ranges that overlap, but this should NEVER happen
   	- create some more "safety checks" such as assuring an invalid generation is never created.. 
 	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
@@ -22,8 +26,6 @@
        - visualize log/workingsegment/checkpoint status
 	   - show number of keys in the database (LayerManager will need to track this)
 	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
-
-	   
 
 - email indexer test -  to test "custom block handlers"
    - given a directory of mbox files, MIME parse and index email messages, provide a query interface
@@ -73,6 +75,7 @@
   - fixes:
     - row-range consistant cache (for system metadata rows)
 	- efficient row-scan instead of repeatin getNext()
+	- sometimes it would be efficient to add more than one "top generation" block to a merge
   - tests:
     - simple text-indexer test
     - simulate iibench 

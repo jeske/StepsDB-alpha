@@ -15,7 +15,7 @@ namespace Bend {
     public class MergeManager_Incremental {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
-        public int MAX_MERGE_SIZE = 6;
+        public int MAX_MERGE_SIZE = 4;
         public int MAX_HISTO_MERGE_SIZE = 8;
         public RangemapManager rangemapmgr;
         
@@ -32,9 +32,9 @@ namespace Bend {
                 return 0;
             }            
         }
-        private void addMergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
+        private void addMergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs, bool histo_merge=false) {
             // create a merge candidate
-            var mergeCandidate = new MergeCandidate(source_segs, target_segs);
+            var mergeCandidate = new MergeCandidate(source_segs, target_segs,histo_merge:histo_merge);
             if (prioritizedMergeCandidates.ContainsKey(mergeCandidate)) {
                 // we already know about this one...
                 return;
@@ -124,7 +124,7 @@ namespace Bend {
                              ", target_block_count = " + mergeTargetSegments.Count + ") " +
                              segdesc.ToString() + " -> " + String.Join(",", mergeTargetSegments));
                     var sourceSegments = new List<SegmentDescriptor>(); sourceSegments.Add(segdesc);
-                    this.addMergeCandidate(sourceSegments, mergeTargetSegments);
+                    this.addMergeCandidate(sourceSegments, mergeTargetSegments,histo_merge:true);
                 }
             }
 
@@ -142,7 +142,7 @@ namespace Bend {
             RecordKey key_end = segdesc.end_key;
 
             for (int target_generation = ((int)segdesc.generation - 1); target_generation >= 0; target_generation--) {                
-                var start = new SegmentDescriptor((uint)target_generation, key_start, new RecordKey());
+                var start = new SegmentDescriptor((uint)target_generation, key_start, key_start);
                 var end = new SegmentDescriptor((uint)target_generation, key_end, key_end);
 
                 var targetSegments = new List<SegmentDescriptor>();
@@ -160,7 +160,6 @@ namespace Bend {
 
                         // test for this weirdo bug
                         {
-
                             var walk = segmentInfo.scanForward(new ScanRange<SegmentDescriptor>(start, end, null)).GetEnumerator();
                             if (walk.MoveNext()) {
                                 var nextrow = segmentInfo.FindNext(kvp.Key, false);
@@ -181,7 +180,11 @@ namespace Bend {
                         // we don't want to scan forever, stop here
                         if (merge_candidates == 0) {
                             // but if we have not generated any merge candidates, double-check the histogram
-                            _generateMergeCandidatesUsingHistogram(segdesc);
+
+                            // TURN OFF HISTO MERGE for now
+                            // TODO: it's broken, because we don't assure the output blocks don't span a
+                            //   range that we didn't merge with
+                            // _generateMergeCandidatesUsingHistogram(segdesc);
                         }
                         return; 
                     }
@@ -193,22 +196,21 @@ namespace Bend {
                     this.addMergeCandidate(sourceSegments, targetSegments);
                     merge_candidates++;
 
-                    // add the target segments to the source so we can iterate again                    
-                    sourceSegments.AddRange(targetSegments);
-
                     // expand the start/end range based on the targetSegments if necessary
                     foreach (var seg in targetSegments) {
-                        if (seg.start_key.CompareTo(key_start) < 0) {                            
-                            System.Console.WriteLine("*************************************************");
-                            System.Console.WriteLine("extended keystart from: " + key_start + "  to: " + seg.start_key);
+                        if (seg.start_key.CompareTo(key_start) < 0) {
+                            System.Console.WriteLine("*** extended keystart from: " + key_start + "  to: " + seg.start_key);
                             key_start = seg.start_key;
                         }
                         if (seg.end_key.CompareTo(key_end) > 0) {
-                            System.Console.WriteLine("*************************************************");
-                            System.Console.WriteLine("extended keyend from: " + key_end + "  to: " + seg.end_key);
+                            System.Console.WriteLine("*** extended keyend from: " + key_end + "  to: " + seg.end_key);
                             key_end = seg.end_key;
                         }
                     }
+
+
+                    // add the target segments to the source so we can iterate again                    
+                    sourceSegments.AddRange(targetSegments);
 
                 }
                 targetSegments = null;
@@ -266,9 +268,10 @@ namespace Bend {
     // ----------------
 
     public class MergeCandidate : IComparable<MergeCandidate> {
-        public SegmentDescriptor[] source_segs;
-        public SegmentDescriptor[] target_segs;
-        float merge_ratio;
+        public readonly SegmentDescriptor[] source_segs;
+        public readonly SegmentDescriptor[] target_segs;
+        public readonly float  merge_ratio;
+        public readonly bool  is_histo_merge;
 
         public int CompareTo(MergeCandidate target) {
             switch (this.merge_ratio.CompareTo(target.merge_ratio)) {
@@ -309,9 +312,10 @@ namespace Bend {
 
         }
 
-        public MergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs) {
+        public MergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs, bool histo_merge=false) {
             this.source_segs = source_segs.ToArray();
             this.target_segs = target_segs.ToArray();
+            this.is_histo_merge = histo_merge;
 
             this.merge_ratio = ((float)target_segs.Count / (float)source_segs.Count) / (float)(target_segs.Count + source_segs.Count);
         }
@@ -321,7 +325,8 @@ namespace Bend {
         }
 
         public override string ToString() {
-            return "MergeCandidate{ " + this.merge_ratio + " (" + String.Join(",", (IEnumerable<SegmentDescriptor>)source_segs) +
+            return "MergeCandidate{ " + (this.is_histo_merge ? "histo" : "range") + " " +  this.merge_ratio + 
+                " (" + String.Join(",", (IEnumerable<SegmentDescriptor>)source_segs) +
                 ") -> (" + String.Join(",", (IEnumerable<SegmentDescriptor>)target_segs) + ") }";
         }
     }

@@ -145,7 +145,13 @@ namespace Bend {
 
                     if (lastmerge != null) {
                         if (segs_in_merge.Contains(seg.ToString())) {
-                           dc.FillRectangle(new SolidBrush(Color.Black), cur_x, y_mid_top, 5, segment_height);
+                            Brush merge_brush;
+                            if (lastmerge.is_histo_merge) {
+                                merge_brush = new SolidBrush(Color.HotPink);
+                            } else {
+                                merge_brush = new SolidBrush(Color.Black);
+                            }
+                           dc.FillRectangle(merge_brush, cur_x, y_mid_top, 5, segment_height);
                         }
                     }
 

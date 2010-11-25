@@ -72,16 +72,40 @@ namespace Bend
         }
 
         public static void dumpSegmentList(LayerManager db) {
-            if (false) {
+            if (true) {
                 // this is the slow method
+
+                var walk = db.rangemapmgr.mergeManager.segmentInfo.GetEnumerator();
+
+                bool discrepancy = false;
+
                 foreach (var seg in db.listAllSegments()) {
-                    System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+
+                    // Assert.AreEqual(true, walk.MoveNext(), "mergemanager missing record!");
+                    // Assert.AreEqual(0, walk.Current.Key.CompareTo(seg), "mergemanager and db.listAllSegments have different data!");
+                    if (walk.MoveNext()) {
+                        if (walk.Current.Key.CompareTo(seg) != 0) {
+                            discrepancy = true;
+                        }
+                    } else { discrepancy = true; }
+
+                    System.Console.WriteLine("sgen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
                 }
+
+                if (discrepancy) {
+                    foreach (var seginfo in db.rangemapmgr.mergeManager.segmentInfo) {
+                        var seg = seginfo.Key;
+                        System.Console.WriteLine("fgen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                    }
+                    throw new Exception("mergemanager and db.listAllSegments have different data!");
+                }
+
+
             } else {
                 // this is the fast method
                 foreach (var seginfo in db.rangemapmgr.mergeManager.segmentInfo) {
                     var seg = seginfo.Key;
-                    System.Console.WriteLine("gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                    System.Console.WriteLine("fgen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
                 }
             }
         }
@@ -190,9 +214,9 @@ namespace Bend
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
 
-            int keysize = 200;
-            int keycount = 100000000;
-            int flush_period = 100000;
+            int keysize = 2000;
+            int keycount = 1000000;
+            int flush_period = 10000;
             int commit_period = 1000;
             bool random_order = true;
             DateTime start = DateTime.Now;
