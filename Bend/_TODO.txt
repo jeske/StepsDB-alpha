@@ -3,8 +3,19 @@
 ----[ TODO ]---------
 
   - write sorted-intersect extension
+
+  - make a 'new block range verify' that makes sure a new block range does not span an existing block range
+    - though it'll need to ignore the blocks it's replacing. 
   
   - FIX histogram merges, so they don't create overlapping blocks!
+     - in order to be valid, the merge has to force a block boundary at the edge of any blocks not involved in the merge
+	   - one way to do this is to force a block boundary at the end of every involved downstream block, though this is more
+	     conservative than necessary
+	   - another way, would be to check each time a block is added to the histogram, and if there were any blocks skipped,
+	     record the need to force a block boundary before the start of that block
+	   - yet another method is to use the histogram information to force a block-split, instead of a merge
+	   - it would be much better if we could figure out how to avoid creating this problem to begin with! 
+
   - FIX merge candidates with skipped blocks
   - FIX segment_data_mismatch (block tombstone lost or ignored)
 

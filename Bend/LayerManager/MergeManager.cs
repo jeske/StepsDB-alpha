@@ -15,7 +15,7 @@ namespace Bend {
     public class MergeManager_Incremental {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
-        public int MAX_MERGE_SIZE = 7;
+        public int MAX_MERGE_SIZE = 12;
         public int MAX_HISTO_MERGE_SIZE = 8;
         public RangemapManager rangemapmgr;
         
@@ -381,7 +381,7 @@ namespace Bend {
             this.target_segs = target_segs.ToArray();
             this.is_histo_merge = histo_merge;
 
-            this.merge_ratio = ((float)target_segs.Count / (float)source_segs.Count) / (float)(target_segs.Count + source_segs.Count);
+            this.merge_ratio = ((float)(target_segs.Count) / (float)source_segs.Count)  + (target_segs.Count + source_segs.Count)/4.0f;
         }
 
         public float score() {
