@@ -26,7 +26,30 @@ namespace Bend {
         }
 
         public int minSafeGenerationForKeyRange(RecordKey start_key, RecordKey end_key) {
-            int maxgen = getMaxGeneration();
+            int fast_answer = minSafeGenerationForKeyRange2(start_key, end_key);
+
+            Console.WriteLine("** minsafeGenerationForKeyrange(" + start_key + "," + end_key + ")");
+            foreach (var seg in segmentInfo) {
+                Console.WriteLine("gen{0} start {1} end {2}",
+                    seg.Key.generation,
+                    seg.Key.start_key,
+                    seg.Key.end_key);
+            }
+
+            foreach (var seginfo in segmentInfo.scanBackward(null)) {
+                if (seginfo.Key.keyrangeOverlapsWith(start_key, end_key)) {
+                    int slow_answer = (int)seginfo.Key.generation + 1;
+                    if (slow_answer != fast_answer) {
+                        throw new Exception("minsafe calculation error");
+                    }
+                    System.Console.WriteLine("ANSWER: " + slow_answer);
+                    return slow_answer;
+                }
+            }
+            return 0;
+        }
+        public int minSafeGenerationForKeyRange2(RecordKey start_key, RecordKey end_key) {
+            int maxgen = getMaxGeneration();           
             for (int gen = maxgen; gen >= 0; gen--) {
                 try {
                     var prevseg = segmentInfo.FindPrev(new SegmentDescriptor((uint)gen, start_key, end_key), true);

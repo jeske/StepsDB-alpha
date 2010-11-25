@@ -234,10 +234,11 @@ namespace Bend
 
                 // record the index pointer (geneneration and rangekey -> block address)
                 // rangemapmgr.newGeneration(tx, reader);   // add the checkpoint segment to the rangemap
+                int use_gen = target_generation;
                 if (target_generation == -1) {
-                    target_generation = rangemapmgr.mergeManager.minSafeGenerationForKeyRange(wi.start_key, wi.end_key);
+                    use_gen = rangemapmgr.mergeManager.minSafeGenerationForKeyRange(wi.start_key, wi.end_key);
                 }
-                rangemapmgr.mapGenerationToRegion(tx, target_generation, wi.start_key, wi.end_key, reader);
+                rangemapmgr.mapGenerationToRegion(tx, use_gen, wi.start_key, wi.end_key, reader);
             }                
             
 
