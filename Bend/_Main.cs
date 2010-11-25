@@ -255,7 +255,7 @@ namespace Bend
                         
                         mc = db.rangemapmgr.mergeManager.getBestCandidate();
                         if (mc == null) { break; }
-                        if (mc.score() > ((5.0 / 2) + 3/4)) {
+                        if (mc.score() > (1.6 + db.rangemapmgr.mergeManager.getMaxGeneration()/3)) {
                             System.Console.WriteLine("** best merge score too high: " + mc);
                             break;
                         }
