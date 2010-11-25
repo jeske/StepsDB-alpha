@@ -4,6 +4,9 @@
 
   - write sorted-intersect extension
 
+  - test adjusting the merge threshold ratio based on the current maximum number of layers... can this
+    get us out of sticky spots?
+
   - make a 'new block range verify' that makes sure a new block range does not span an existing block range
     - though it'll need to ignore the blocks it's replacing. 
   
@@ -81,6 +84,7 @@
   - build synthetic tester... random row addition/deletion, where it turns on expensive
     "strong checking" of every segment operation, and database contents. Let it run
 	for days to generate "failure data". 
+  
 
 * PERFORMANCE
   - fixes:
