@@ -381,7 +381,7 @@ namespace Bend {
             this.target_segs = target_segs.ToArray();
             this.is_histo_merge = histo_merge;
 
-            this.merge_ratio = ((float)(target_segs.Count) / (float)source_segs.Count)  + (target_segs.Count + source_segs.Count)/4.0f;
+            this.merge_ratio = ((float)(target_segs.Count) / (float)source_segs.Count)  - (target_segs.Count + source_segs.Count)/6.0f;
         }
 
         public float score() {
