@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C# Express 2010
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4305AF8E-DFEF-47E3-8AE3-F39847B319DF}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bend", "Bend\Bend.csproj", "{5DB435AE-C387-4600-BC01-0996E28DA344}"
 EndProject
 Global
