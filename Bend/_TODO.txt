@@ -1,7 +1,6 @@
 
 
 ----[ TODO ]---------
-
   - write sorted-intersect extension
   
   - make a 'new block range verify' that makes sure a new block range does not span an existing block range
@@ -25,33 +24,25 @@
   	- create some more "safety checks" such as assuring an invalid generation is never created.. 
 	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
 
+  - CLEANUP:
+    - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
+    - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
+    - check that we never try to write a row bigger than a microblock (how do we handle big rows?)
+    - write scanForward() version of segment walk!! (use mergemanager segmentinfo map?)
 
-  - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
-  - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
-  - check that we never try to write something bigger than a microblock
+  - TODO: make segment merge "apply" a truly atomic operation
 
-
-  - TODO: make segment merge "apply" a more atomic operation
+  - APP: email indexer test
+     - given a directory of mbox files, MIME parse and index email messages, provide a query interface
+	 - perform search-intersection, proximity scoring
+     - write a custom block handler for the index hits and efficient search intersection
+     - compare indexing and query performance with lucene/xapian     
 
   - DBG-GUI:
        - visualize block "fullness" and "tomstone to key ratio"
        - visualize log/workingsegment/checkpoint status
 	   - show number of keys in the database (LayerManager will need to track this)
 	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
-
-- email indexer test -  to test "custom block handlers"
-   - given a directory of mbox files, MIME parse and index email messages, provide a query interface
-   - write a custom block handler for the index hits and efficient search intersection
-   - compare indexing and query performance with lucene/xapian
-   - Q: how does it store "large" document blobs?
-
-- write scanForward() version of segment walk!!
-
-  - fix runaway max-generation issue....  
-     Q: Can we just ditch "max generations" and rely on MergeManager to do all generation number assignment?
-     Q: How to make "new" merge all produce the same performance as "old" merge all with numgen-hack
-	   - collapse max-generation number when possible?
-	   - keep a list of "live generations"?
 
   - fix 'unmergable' higher generation blocks (i.e. increasing order insertion)
      - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
@@ -81,8 +72,7 @@
 * TESTING
   - build synthetic tester... random row addition/deletion, where it turns on expensive
     "strong checking" of every segment operation, and database contents. Let it run
-	for days to generate "failure data". 
-  
+	for days to generate "failure data".   
 
 * PERFORMANCE
   - fixes:
@@ -91,7 +81,7 @@
 	- sometimes it would be efficient to add more than one "top generation" block to a merge
   - tests:
     - simple text-indexer test
-    - simulate iibench 
+    - simulate iibench
        - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
        - TARGET: 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
 
@@ -147,7 +137,9 @@
 
 
 ------------[ DONE ]--------------------
-11/25 - - test adjusting the merge threshold ratio based on the current maximum number of layers...
+  
+11/25 - test adjusting the merge threshold ratio based on the current maximum number of layers...
+11/24 - fix runaway max-generation issue....  
 11/24 - FIXED - as the MergeManager is generating merge candidates, when it descends another generation, 
         it needs to expand the start/end ranges to be inclusive of all the blocks in the previous generations!   
 11/24 - BDSkipList, short circuit a case where an equal_ok key is found to return faster
