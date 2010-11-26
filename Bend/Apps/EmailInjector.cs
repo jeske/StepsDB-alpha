@@ -70,9 +70,6 @@ namespace Bend {
             //}                    
         }
 
-
-
-
         public void parse_email_messages() {
             string basepath = @"c:\EmailTest\Data";
 
@@ -115,10 +112,11 @@ namespace Bend {
 
                             string docid = fullpath + ":" + count;
                             parse_msg(docid,msg);
-                           //if (count > 10) {
-                           //     db.debugDump();
-                           //     return;
-                           // }
+                           
+                            if (count > 10) {
+                                db.debugDump();
+                                return;
+                           }
                         }
                         lines = new List<string>();
                     } else {
