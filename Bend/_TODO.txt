@@ -3,6 +3,7 @@
 ----[ TODO ]---------
 
   - write sorted-intersect extension
+    - how to deal with position proximity scoring?
 
   - APP: email indexer test
      - given a directory of mbox files, MIME parse and index email messages, provide a query interface

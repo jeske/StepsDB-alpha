@@ -221,12 +221,19 @@ namespace Bend
 
 
             while (segmentWriter.hasMoreData()) {
+                DateTime start = DateTime.Now;
                 // allocate new segment address from freespace
                 IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
                 Stream wstream = writer.getNewAccessStream();
                 SegmentWriter.WriteInfo wi = segmentWriter.writeToStream(wstream);
-                wstream.Flush();
+
+                wstream.Flush();  // TODO: flush at the end of all segment writing, not for each one
                 wstream.Close();
+
+                double elapsed = (DateTime.Now - start).TotalSeconds;
+                Console.WriteLine("segmentWritten with {0} keys in {1} seconds {2} keys/second",
+                    wi.key_count, elapsed, (double)wi.key_count / elapsed);
+                    
 
                 // reopen the segment for reading
                 IRegion reader = regionmgr.readRegionAddr(writer.getStartAddress());

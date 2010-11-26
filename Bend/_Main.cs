@@ -110,7 +110,7 @@ namespace Bend
             }
         }
 
-        public static void do_bringup_test5(DbgGUI win) {
+        public static void do_bringup_test(DbgGUI win) {
             var db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
             var eminj = new EmailInjector(db, win);
             eminj.DoEmailTest();
@@ -124,7 +124,7 @@ namespace Bend
             System.Console.WriteLine("done");
         }
 
-        public static void do_bringup_test(DbgGUI win) {
+        public static void do_bringup_test6(DbgGUI win) {
 
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\BENDtst\\main");

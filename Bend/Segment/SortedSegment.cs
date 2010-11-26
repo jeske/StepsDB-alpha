@@ -533,6 +533,7 @@ namespace Bend
         {
             public RecordKey start_key;
             public RecordKey end_key;
+            public long key_count;
             public bool isPopulated() {
                 if (start_key == null || end_key == null) {
                     return false;
@@ -548,7 +549,7 @@ namespace Bend
             SegmentWriterAdvisor advisor = new SegmentWriterAdvisor();           
             MicroBlockStream mb_writer = null;
             bool destination_full = false;
-            int num_microblocks_in_this_block = 0;
+            int num_microblocks_in_this_block = 0;            
 
             long MIN_OUTPUT_LENGTH = 500 * 1024; // 500k min output block size for now!
 
@@ -590,6 +591,7 @@ namespace Bend
                         // yes, there is enough space to add the microblock
                         this._writeMicroBlock(writer, mb_writer, index);
                         num_microblocks_in_this_block++;
+                        block_wi.key_count += mb_writer.num_rows;
 
                         if (block_wi.start_key == null) { block_wi.start_key = mb_writer.block_start_key; }
                         block_wi.end_key = mb_writer.last_seen_key;

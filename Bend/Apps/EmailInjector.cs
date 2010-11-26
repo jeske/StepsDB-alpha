@@ -43,7 +43,7 @@ namespace Bend {
                 msgtxt = msgtxt.Substring(0, 4 * 1024 - 1);
             }
             // db.setValueParsed(".zdata/doc/" + docid, msgtxt);
-            gui.debugDump(db);
+            // gui.debugDump(db);
 
 
             if (true) {
@@ -142,8 +142,7 @@ namespace Bend {
                 // http://msdn.microsoft.com/en-us/library/system.io.streamreader.readline.aspx
 
                 List<string> lines = new List<string>();
-
-                gui.debugDump(db);
+                
 
                 while (reader.Position < reader.Length - 1) {
                     string line = UnixReadLine(reader);
@@ -153,13 +152,17 @@ namespace Bend {
                             count++;
 
                             System.Console.WriteLine("count: " + count);
-                            if (count % 1000 == 0) {                                
+                            if (count % 400 == 0) {
+                                gui.debugDump(db);
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
-                                var mc = db.rangemapmgr.mergeManager.getBestCandidate();
-                                gui.debugDump(db,mc);
-                                db.performMerge(mc);
-                                gui.debugDump(db);
+                                for (int x = 0; x < 5; x++) {
+                                    var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                                    gui.debugDump(db, mc);
+                                    if (mc == null) { break; }
+                                    db.performMerge(mc);
+                                    gui.debugDump(db);
+                                }                                
                                 // return;
                             }
 
