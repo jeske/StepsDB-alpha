@@ -1,10 +1,14 @@
 
 
 ----[ TODO ]---------
+
   - write sorted-intersect extension
-  
-  - make a 'new block range verify' that makes sure a new block range does not span an existing block range
-    - though it'll need to ignore the blocks it's replacing. 
+
+  - APP: email indexer test
+     - given a directory of mbox files, MIME parse and index email messages, provide a query interface
+	 - perform search-intersection, proximity scoring
+     - write a custom block handler for the index hits and efficient search intersection
+     - compare indexing and query performance with lucene/xapian     
   
   - FIX histogram merges, so they don't create overlapping blocks!
      - IDEA-1: force a block boundary at the edge of any blocks not involved in the merge
@@ -19,9 +23,9 @@
   
   - FIX segment_data_mismatch (block tombstone lost or ignored)
 
-  - DEBUG block-range overlap bugs!   
-    - sometimes blocks in the same generation have ranges that overlap, but this should NEVER happen
-  	- create some more "safety checks" such as assuring an invalid generation is never created.. 
+
+  - CLEANUP: make a 'new block range verify' that makes sure a new block range does not span an existing block range
+    - though it'll need to ignore the blocks it's replacing. 
 	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
 
   - CLEANUP:
@@ -31,12 +35,6 @@
     - write scanForward() version of segment walk!! (use mergemanager segmentinfo map?)
 
   - TODO: make segment merge "apply" a truly atomic operation
-
-  - APP: email indexer test
-     - given a directory of mbox files, MIME parse and index email messages, provide a query interface
-	 - perform search-intersection, proximity scoring
-     - write a custom block handler for the index hits and efficient search intersection
-     - compare indexing and query performance with lucene/xapian     
 
   - DBG-GUI:
        - visualize block "fullness" and "tomstone to key ratio"
