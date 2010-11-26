@@ -229,7 +229,7 @@ namespace Bend
                 wstream.Close();
 
                 // reopen the segment for reading
-                IRegion reader = regionmgr.readRegionAddr((uint)writer.getStartAddress());
+                IRegion reader = regionmgr.readRegionAddr(writer.getStartAddress());
 
 
                 // record the index pointer (geneneration and rangekey -> block address)

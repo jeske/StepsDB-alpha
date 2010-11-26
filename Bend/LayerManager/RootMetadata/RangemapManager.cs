@@ -102,7 +102,7 @@ namespace Bend
             SegmentDescriptor sdesc = new SegmentDescriptor((uint)gen_number, start_key, end_key);
             RecordKey key = sdesc.record_key;
 
-            System.Console.WriteLine("mapGenerationToRegion: " + sdesc);
+            System.Console.WriteLine("mapGenerationToRegion: {0} -> {1}",sdesc,region);
 
             // TODO: pack the metdata record <addr>:<size>
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
@@ -183,14 +183,14 @@ namespace Bend
 
         }
 
-        private uint unpackRegionAddr(byte[] data) {
+        private long unpackRegionAddr(byte[] data) {
             // TODO:unpack the update data when we change it to "<addr>:<length>"
-            return (uint)Lsd.lsdToNumber(data);
+            return Lsd.lsdToNumber(data);
         }
 
         private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
             // we now have a pointer to a segment addres for GEN<max>
-            uint region_addr = unpackRegionAddr(data);
+            long region_addr = unpackRegionAddr(data);
 
             if (region_addr == 0) {                
                 throw new Exception("segment bytes unpacked to zero! (" + BitConverter.ToString(data) + ")");

@@ -97,8 +97,8 @@ namespace Bend
             READ_ONLY_SHARED,
             WRITE_NEW,
             READ_WRITE
-        }
-        
+        }        
+
         // ------------ IRegion -------------
         class EFRegion : IRegion
         {
@@ -124,6 +124,9 @@ namespace Bend
                 
             }
 
+            public override string ToString() {
+                return String.Format("addr:{0}  len:{1}",this.address,this.length);
+            }
             public Stream getNewAccessStream() {
                 if (this.mode == EFRegionMode.READ_ONLY_EXCL) {
                     FileStream reader = File.Open(filepath, FileMode.Open,FileAccess.Read, FileShare.None);
@@ -233,10 +236,12 @@ namespace Bend
             }
         }
 
-        private String makeFilepath(long region_addr) {
+        public String makeFilepath(long region_addr) {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String addr = enc.GetString(Lsd.numberToLsd(region_addr,13));
             String filepath = dir_path + String.Format("\\addr{0}.rgm", addr);
+
+            Console.WriteLine("makeFilepath({0}) -> {1}", region_addr, filepath);
             return filepath;
         }
         // impl ...

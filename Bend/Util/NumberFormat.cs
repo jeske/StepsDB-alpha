@@ -41,9 +41,9 @@ namespace Bend
             return builder.ToArray();
         }
 
-        public static uint lsdToNumber(byte[] bytes) {
-            int number = 0;
-            int pos = 0;
+        public static long lsdToNumber(byte[] bytes) {
+            long number = 0;
+            long pos = 0;
             
             // skip zero pad
             while (pos < bytes.Length && bytes[pos] == '0') {
@@ -61,7 +61,7 @@ namespace Bend
                 number = number + (cur - (int)'0');
                 pos++;
             }
-            return (uint)number;
+            return number;
         }
     }
 }
@@ -95,7 +95,7 @@ namespace BendTests {
             byte[] test = { (byte)'0', (byte)'1', (byte)':', (byte)'3' };
             bool err = false;
             try {
-                uint num = Lsd.lsdToNumber(test);
+                long num = Lsd.lsdToNumber(test);
             } catch {
                 err = true;
             }
@@ -128,6 +128,20 @@ namespace BendTests {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String number_s = enc.GetString(Lsd.numberToLsd(number, 13));
             Assert.AreEqual("0002147487744",number_s);
+
+
+            // 4294971392
+            number = 4294971392;
+            var bytes = Lsd.numberToLsd(number, 13);
+            number_s = enc.GetString(bytes);
+            Assert.AreEqual("0004294971392", number_s);
+            Assert.AreEqual(number, Lsd.lsdToNumber(bytes));
+
+            // not really a bignumbers test, but this is failing at runtime, why!?!? 
+            var REF = new RegionExposedFiles(@"c:\foo");
+            var filepath = REF.makeFilepath(number);
+            Assert.AreEqual(@"c:\foo\addr0004294971392.rgm", filepath);
+            
         }
     }
 

@@ -32,8 +32,12 @@ namespace Bend
             if (store.getRecord(new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD"), out data) == GetStatus.MISSING) {
                 // TODO: fix this init hack
                 next_allocation = (int)(RootBlock.MAX_ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
+
+                // this was a test to be able to start with big address numbers..
+                // next_allocation = 4294971392;
+                // next_allocation = 4294971392 - 8*1024*1024;
             } else {
-                next_allocation = (int)Lsd.lsdToNumber(data.data);
+                next_allocation = Lsd.lsdToNumber(data.data);
             }
         }
 
@@ -44,20 +48,20 @@ namespace Bend
             // grab a chunk
 
             new_addr = next_allocation;
-            next_allocation = next_allocation + length;
+            next_allocation = next_allocation + (long)length;
 
             Console.WriteLine("allocateNewSegment - next address: " + new_addr);
             // write our new top of heap pointer
             {
                 RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
-                tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 10)));
+                tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 13)));
             }
 
             if (new_addr <= 0) {
                 throw new Exception("invalid address in allocateNewSegment: " + new_addr);
             }
 
-            return store.regionmgr.writeFreshRegionAddr((uint)new_addr, length);
+            return store.regionmgr.writeFreshRegionAddr(new_addr, length);
         }
     }
 }
