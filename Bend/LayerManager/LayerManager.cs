@@ -575,6 +575,22 @@ namespace Bend
 
         }
 
+        // TBD
+        
+        // KeyValuePair<K, V> FindPrev(IComparable<K> keytest, bool equal_ok);        
+        // IEnumerable<KeyValuePair<K, V>> scanBackward(IScanner<K> scanner);
+
+        public KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
+            RecordKey found_key = new RecordKey();
+            RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
+
+            if (rangemapmgr.getNextRecord(keytest, ref found_key, ref record,equal_ok) == GetStatus.PRESENT) {
+                return new KeyValuePair<RecordKey,RecordData>(found_key,record);
+            }
+            throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
+
+        }
+
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
             IComparable<RecordKey> lowestKeyTest = null;
