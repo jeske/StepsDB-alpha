@@ -39,6 +39,7 @@
   - DBG-GUI:
        - visualize block "fullness" and "tomstone to key ratio"
        - visualize log/workingsegment/checkpoint status
+	   - visualize the disk/block address space
 	   - show number of keys in the database (LayerManager will need to track this)
 	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
 
@@ -119,9 +120,11 @@
 - Singleton keyparts for less allocation + faster comparisons
 - stats tracking (qps, w_qps at 1 second interval)
 
+*** consider enabling a workingSegmentFlush to operate as a merge, so we don't just write the blocks to then force a merge of most of them 
 *** I/O scheduling (so log writes and segment writes don't thrash)
 *** layer-avoidance, bloom filters
 *** distributed shard manager
+  - Cassandra performance tests - http://www.coreyhulen.org/?p=326
 *** xml document database
     - http://www.ibm.com/developerworks/data/library/techarticle/dm-0606schiefer/
 
