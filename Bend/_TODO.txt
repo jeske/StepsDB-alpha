@@ -3,23 +3,21 @@
 ----[ TODO ]---------
 
   - write sorted-intersect extension
-
-  - test adjusting the merge threshold ratio based on the current maximum number of layers... can this
-    get us out of sticky spots?
-
+  
   - make a 'new block range verify' that makes sure a new block range does not span an existing block range
     - though it'll need to ignore the blocks it's replacing. 
   
   - FIX histogram merges, so they don't create overlapping blocks!
-     - in order to be valid, the merge has to force a block boundary at the edge of any blocks not involved in the merge
+     - IDEA-1: force a block boundary at the edge of any blocks not involved in the merge
 	   - one way to do this is to force a block boundary at the end of every involved downstream block, though this is more
 	     conservative than necessary
 	   - another way, would be to check each time a block is added to the histogram, and if there were any blocks skipped,
 	     record the need to force a block boundary before the start of that block
 	   - yet another method is to use the histogram information to force a block-split, instead of a merge
-	   - it would be much better if we could figure out how to avoid creating this problem to begin with! 
-
-  - FIX merge candidates with skipped blocks
+	   - it would be much better if we could figure out how to avoid creating this problem to begin with!
+	  - IDEA-2: let merge manger place the target block. If it overlaps, let it float to the higher gen.
+	    - this doesn't solve anything. The new block will just be a new histo merge, continuing in an endless cycle. 		 
+  
   - FIX segment_data_mismatch (block tombstone lost or ignored)
 
   - DEBUG block-range overlap bugs!   
@@ -141,11 +139,15 @@
 
 *** Network Interface
 
+*** Hookup Hive/Pig for data-analysis
+*** prototype "Palantir" data-slicing GUI
+
 *** Interactive C# Shell mode?
    - http://tirania.org/blog/archive/2008/Sep-08.html
 
 
 ------------[ DONE ]--------------------
+11/25 - - test adjusting the merge threshold ratio based on the current maximum number of layers...
 11/24 - FIXED - as the MergeManager is generating merge candidates, when it descends another generation, 
         it needs to expand the start/end ranges to be inclusive of all the blocks in the previous generations!   
 11/24 - BDSkipList, short circuit a case where an equal_ok key is found to return faster
