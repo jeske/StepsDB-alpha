@@ -113,8 +113,17 @@ namespace Bend {
                             string docid = fullpath + ":" + count;
                             parse_msg(docid,msg);
                            
-                            if (count > 10) {
-                                db.debugDump();
+                            if (count > 1000) {
+                                db.flushWorkingSegment();
+                                gui.debugDump(db);
+                                for (int x = 0; x < 5; x++) {
+                                    var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                                    gui.debugDump(db, mc);
+                                    if (mc == null) { break; }
+                                    db.performMerge(mc);
+                                    gui.debugDump(db);
+                                }                                
+                                // db.debugDump();
                                 return;
                            }
                         }
