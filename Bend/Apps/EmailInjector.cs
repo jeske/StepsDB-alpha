@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using anmar.SharpMimeTools;
 using LumiSoft.Net.Mime;
 
-using System.Text.RegularExpressions; // used to split body msg into words
+using Bend.Indexer;
 
 // TODO: put this in a different namespace from Bend, in a separate build target
 
@@ -18,10 +18,12 @@ namespace Bend {
     public class EmailInjector {
         LayerManager db;
         DbgGUI gui;
+        TextIndexer indexer;
 
         public EmailInjector(LayerManager db, DbgGUI gui) {
             this.db = db;
             this.gui = gui;
+            this.indexer = new TextIndexer(db);
         }
 
         public static string UnixReadLine(Stream stream) {
@@ -51,12 +53,12 @@ namespace Bend {
                 SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
                 System.Console.WriteLine("Subject: " + msg.Subject);
 
-                index_document(docid, msg.Body);
+                indexer.index_document(docid, msg.Body);
             } else {
                 // LumiSoft                
                 Mime msg = LumiSoft.Net.Mime.Mime.Parse(System.Text.Encoding.Default.GetBytes(msgtxt));
                 System.Console.WriteLine("Subject: " + msg.MainEntity.Subject);
-                index_document(docid, msg.MainEntity.DataText);
+                indexer.index_document(docid, msg.MainEntity.DataText);
 
             }
 
@@ -69,62 +71,7 @@ namespace Bend {
         }
 
 
-        public void index_document(string docid, string txtbody) {
-            //System.Console.WriteLine(msg.Body);
-            int count = 0;
-           
-            foreach (var srcword in Regex.Split(txtbody, @"\W+")) {
-                // System.Console.Write(word + "/");
-                if (srcword.Length == 0) { continue; }
 
-                // clean up word.
-                var word = srcword.ToLower();
-                // remove 's , do stimming, ignore non-words.
-
-                // create a key and insert into the db
-                // TODO: docid may have / on UNIX .
-                var key = new RecordKey().appendParsedKey(".zdata/index/" + word + "/" + docid + "/" + count); 
-                
-                // System.Console.WriteLine(key);
-                this.db.setValue(key, RecordUpdate.WithPayload(""));
-                count++;
-            }
-
-        }
-
-        public class EndPrefixMatch : IComparable<RecordKey> {
-            RecordKey key;
-            public EndPrefixMatch(RecordKey k) {
-                this.key = k;
-            }
-            public int CompareTo(RecordKey target) {
-                if (target.isSubkeyOf(key)) {
-                    return -1;
-                } else {
-                    return 1;
-                }
-            }
-            public override string ToString() {
-                return "EndPrefixMatch{" + key.ToString() + "}";
-            }
-        }
-
-
-        public void find_email_test() {
-            string[] words_to_find = { "you", "about"};
-
-            System.Console.WriteLine("### In email test");
-            foreach (var word in words_to_find) {
-                var start = new RecordKey().appendParsedKey(".zdata/index/" + word);
-                var end = new EndPrefixMatch(new RecordKey().appendParsedKey(".zdata/index/" + word));
-
-                foreach (var hit in db.scanForward(new ScanRange<RecordKey> (start, end, null))) {
-                    System.Console.WriteLine(hit);
-                }
-
-            }
-
-        }
 
         public void parse_email_messages() {
             string basepath = @"c:\EmailTest\Data";
@@ -186,7 +133,7 @@ namespace Bend {
 
         public void DoEmailTest() {
             parse_email_messages();
-            find_email_test();
+            indexer.find_email_test();
         }
 
     }

@@ -84,6 +84,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Apps\TextIndexer.cs" />
     <Compile Include="Apps\EmailInjector.cs" />
     <Content Include="_BUGS.txt" />
     <Compile Include="DbgGUI\DbgGUI.cs">
