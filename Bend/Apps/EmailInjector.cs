@@ -40,7 +40,7 @@ namespace Bend {
             return "";
         }
 
-        public void parse_msg(string docid, string msgtxt) {
+        public void parse_msg(LayerManager.WriteGroup txwg, string docid, string msgtxt) {
             if (msgtxt.Length > 4 * 1024) {
                 msgtxt = msgtxt.Substring(0, 4 * 1024 - 1);
             }
@@ -53,12 +53,12 @@ namespace Bend {
                 SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
                 System.Console.WriteLine("Subject: " + msg.Subject);
 
-                indexer.index_document(docid, msg.Body);
+                indexer.index_document(txwg, docid, msg.Body);
             } else {
                 // LumiSoft                
                 Mime msg = LumiSoft.Net.Mime.Mime.Parse(System.Text.Encoding.Default.GetBytes(msgtxt));
                 System.Console.WriteLine("Subject: " + msg.MainEntity.Subject);
-                indexer.index_document(docid, msg.MainEntity.DataText);
+                indexer.index_document(txwg, docid, msg.MainEntity.DataText);
 
             }
 
@@ -86,7 +86,9 @@ namespace Bend {
                 // http://msdn.microsoft.com/en-us/library/system.io.streamreader.readline.aspx
 
                 List<string> lines = new List<string>();
-                
+                LayerManager.WriteGroup txwg = new LayerManager.WriteGroup(db);
+                txwg.add_to_log = false;
+
 
                 while (reader.Position < reader.Length - 1) {
                     string line = UnixReadLine(reader);
@@ -111,8 +113,10 @@ namespace Bend {
                             }
 
                             string docid = fullpath + ":" + count;
-                            parse_msg(docid,msg);
-                           
+                            parse_msg(txwg, docid,msg);
+
+                            // if (count > 40) { return; }
+
                             if (count > 1000) {
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);

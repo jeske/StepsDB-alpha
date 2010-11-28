@@ -133,6 +133,7 @@ namespace Bend
             LayerManager mylayer;
             long tsn; // transaction sequence number
             long last_logwaitnumber = 0;
+            public bool add_to_log = true;
             enum WriteGroupState
             {
                 PENDING,
@@ -148,7 +149,7 @@ namespace Bend
 
             public void setValue(RecordKey key, RecordUpdate update) {
                 // build a byte[] for the updates using the basic block encoder
-                {
+                if (add_to_log)  {
                     MemoryStream writer = new MemoryStream();
                     // TODO: this seems like a really inefficient way to write out a key
                     ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
@@ -157,7 +158,6 @@ namespace Bend
                     encoder.flush();
                     mylayer.logwriter.addCommand((byte)LogCommands.UPDATE, writer.ToArray(), 
                         ref this.last_logwaitnumber);
-
                 }
                 // TODO: switch our writes to always occur through "handling the log"
                 // TODO: make our writes only visible to US?, by creating a "transaction segment"
@@ -190,9 +190,14 @@ namespace Bend
                 if (this.state == WriteGroupState.CLOSED) {
                     throw new Exception("flush called on closed WriteGroup"); // TODO: add LSN/info
                 }
-
-                if (this.last_logwaitnumber != 0) {
-                    mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
+                if (add_to_log) {
+                    // we've been logging
+                    if (this.last_logwaitnumber != 0) {
+                        mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
+                    }
+                } else {
+                    // we turned off logging, so the only way to commit is to checkpoint!
+                    // TODO: force checkpoint 
                 }
 
                 state = WriteGroupState.CLOSED;

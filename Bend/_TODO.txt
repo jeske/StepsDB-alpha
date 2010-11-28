@@ -10,6 +10,10 @@
 	 - perform search-intersection, proximity scoring
      - write a custom block handler for the index hits and efficient search intersection
      - compare indexing and query performance with lucene/xapian     
+
+  - design/build [SimpleAtomicCommit] Attribute, and Attribute system
+     - simply provide an atomic commit for a set of changes. Nobody (including us) should see the
+	   changes until the transaction is committed. 
   
   - FIX histogram merges, so they don't create overlapping blocks!
      - IDEA-1: force a block boundary at the edge of any blocks not involved in the merge
@@ -23,7 +27,6 @@
 	    - this doesn't solve anything. The new block will just be a new histo merge, continuing in an endless cycle. 		 
   
   - FIX segment_data_mismatch (block tombstone lost or ignored)
-
 
   - CLEANUP: make a 'new block range verify' that makes sure a new block range does not span an existing block range
     - though it'll need to ignore the blocks it's replacing. 
