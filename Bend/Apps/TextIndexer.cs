@@ -173,15 +173,15 @@ namespace Bend.Indexer {
                     while (true) {
                         switch (hit1.docid.CompareTo(hit2.docid)) {
                             case -1:
-                                System.Console.WriteLine("     advance1: {0} < {1}", hit1, hit2);
+                                // System.Console.WriteLine("     advance1: {0} < {1}", hit1, hit2);
                                 hit1 = term1.advanceTo(hit2);
                                 break;
                             case 1:
-                                System.Console.WriteLine("     advance2: {0} > {1}", hit1, hit2);
+                                // System.Console.WriteLine("     advance2: {0} > {1}", hit1, hit2);
                                 hit2 = term2.advanceTo(hit1);
                                 break;
                             case 0:
-                                System.Console.WriteLine("  match: {0} == {1}", hit1, hit2);                                                                
+                                // System.Console.WriteLine("        MATCH: {0} == {1}", hit1, hit2);                                                                
                                 return hit1;
                         }
                     }
@@ -227,12 +227,11 @@ namespace Bend.Indexer {
                 return; 
             }
 
+            DateTime start = DateTime.Now;
             List<string> hits = HitsForExpression(tree);
+            double elapsed_s = (DateTime.Now - start).TotalMilliseconds/1000.0;
             Console.WriteLine("search for [{0}] returned {1} hits", expression, hits.Count);
-            foreach (var hit in hits) {
-                Console.WriteLine("    " + hit);
-            }
-
+            Console.WriteLine("    " + String.Join(",",hits));
         }
 
         public void find_email_test() {
