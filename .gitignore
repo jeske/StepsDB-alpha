@@ -6,3 +6,4 @@ Bend/Apps/*/bin/*
 Bend/ThirdParty/*/obj/*
 Bend/ThirdParty/*/bin/*
 *.suo
+*.user
