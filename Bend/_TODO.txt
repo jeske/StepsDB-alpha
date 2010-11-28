@@ -8,7 +8,7 @@
   - email-indexer and search test programs
   - simple database client w/command line 
   
-  --> distribute datastore handlers?!?!?
+  --> distributed datastore handlers?!?!?
 
   - email indexer test  
 	 - add phrase match
@@ -139,7 +139,7 @@
     - http://www.ibm.com/developerworks/data/library/techarticle/dm-0606schiefer/
 
 *** Network Interface
-
+*** Use DotFuscator to make safer output targets
 *** Hookup Hive/Pig for data-analysis
 *** prototype "Palantir" data-slicing GUI
 
