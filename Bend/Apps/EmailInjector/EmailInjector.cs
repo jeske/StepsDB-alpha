@@ -2,6 +2,9 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Windows.Forms;
+
+using System.Threading;
 
 using LumiSoft.Net.Mime;
 using anmar.SharpMimeTools;
@@ -13,12 +16,37 @@ using Bend.Indexer;
 // http://stackoverflow.com/questions/903711/reading-an-mbox-file-in-c
 // http://www.codeproject.com/KB/cs/mime_project.aspx?print=true
 
-namespace Bend {
-
+namespace Bend.EmailIndexerTest {
+     
+   
     public class EmailInjector {
+
         LayerManager db;
         DbgGUI gui;
         TextIndexer indexer;
+
+
+        [STAThread]
+        static void Main(string[] args) {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            var window = new DbgGUI();
+            window.SetDesktopLocation(700, 200);
+
+            Thread newThread = new Thread(delegate() {
+                EmailInjector.do_test(window);
+            });
+            newThread.Start();
+            Application.Run(window);
+        }
+
+        public static void do_test(DbgGUI window) {
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
+            EmailInjector injector = new EmailInjector(db, window);
+            injector.DoEmailTest();
+            Console.WriteLine("done...press any key.");
+            Console.ReadLine();
+        }
 
         public EmailInjector(LayerManager db, DbgGUI gui) {
             this.db = db;
