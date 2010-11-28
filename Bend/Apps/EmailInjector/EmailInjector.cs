@@ -3,8 +3,8 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 
-using anmar.SharpMimeTools;
 using LumiSoft.Net.Mime;
+using anmar.SharpMimeTools;
 
 using Bend.Indexer;
 
@@ -49,7 +49,7 @@ namespace Bend {
 
 
             if (true) {
-                // sharptools
+                // sharptools                
                 SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
                 System.Console.WriteLine("Subject: " + msg.Subject);
 
