@@ -2,6 +2,14 @@
 
 ----[ TODO ]---------
 
+  - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
+  - standalone db server w/network protocol
+  - "Key Value DB" and "Indexer" handler/APIs
+  - email-indexer and search test programs
+  - simple database client w/command line 
+  
+  --> distribute datastore handlers?!?!?
+
   - email indexer test  
 	 - add phrase match
 	 - add proximity scoring
