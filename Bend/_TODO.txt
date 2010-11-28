@@ -2,12 +2,10 @@
 
 ----[ TODO ]---------
 
-  - write sorted-intersect extension
-    - how to deal with position proximity scoring?
-
-  - APP: email indexer test
-     - given a directory of mbox files, MIME parse and index email messages, provide a query interface
-	 - perform search-intersection, proximity scoring
+  - email indexer test  
+	 - add phrase match
+	 - add proximity scoring
+	 - add TFxIDF scoring (need numeric accumulators in the database!!) 
      - write a custom block handler for the index hits and efficient search intersection
      - compare indexing and query performance with lucene/xapian     
 
@@ -143,6 +141,7 @@
 
 ------------[ DONE ]--------------------
   
+11/27 - basic text-indexer test with AND conjunction of terms is working
 11/25 - test adjusting the merge threshold ratio based on the current maximum number of layers...
 11/24 - fix runaway max-generation issue....  
 11/24 - FIXED - as the MergeManager is generating merge candidates, when it descends another generation, 
