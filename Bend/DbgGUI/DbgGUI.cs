@@ -24,7 +24,7 @@ namespace Bend {
 
         public void RunStuff() {
             try {
-                MainBend.do_bringup_test(this);
+                //MainBend.do_bringup_test(this);
             } catch (Exception exc) {
                 System.Console.WriteLine("died to exception: " + exc.ToString());
                 Console.WriteLine("press any key...");

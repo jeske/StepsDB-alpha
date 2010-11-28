@@ -1,3 +1,8 @@
 # ignore object directories
 Bend/obj/*
 Bend/bin/*
+Bend/Apps/*/obj/*
+Bend/Apps/*/bin/*
+Bend/ThirdParty/*/obj/*
+Bend/ThirdParty/*/bin/*
+*.suo

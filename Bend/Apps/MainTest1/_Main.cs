@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using NUnit.Framework;
 
 namespace Bend
 {
@@ -110,12 +109,14 @@ namespace Bend
             }
         }
 
+        /*
         public static void do_bringup_test(DbgGUI win) {
             var db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
             var eminj = new EmailInjector(db, win);
             eminj.DoEmailTest();
             System.Console.WriteLine("done");
         }
+         */
         public static void do_bringup_test3(DbgGUI win) {
 
             var testclass = new BendTests.A02_MergeManagerTests();
@@ -124,7 +125,7 @@ namespace Bend
             System.Console.WriteLine("done");
         }
 
-        public static void do_bringup_test6(DbgGUI win) {
+        public static void do_bringup_test(DbgGUI win) {
 
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION,"c:\\BENDtst\\main");

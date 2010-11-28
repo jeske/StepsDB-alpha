@@ -11,7 +11,7 @@
   --> distributed datastore handlers?!?!?
 
   - email indexer test  
-	 - add phrase match
+	 - add exact phrase match
 	 - add proximity scoring
 	 - add TFxIDF scoring (need numeric accumulators in the database!!) 
      - write a custom block handler for the index hits and efficient search intersection

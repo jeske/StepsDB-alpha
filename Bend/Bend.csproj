@@ -6,14 +6,15 @@
     <ProductVersion>9.0.21022</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{5DB435AE-C387-4600-BC01-0996E28DA344}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BendDefault</RootNamespace>
+    <RootNamespace>Bend</RootNamespace>
     <AssemblyName>Bend</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <IsWebBootstrapper>false</IsWebBootstrapper>
-    <StartupObject>Bend.MainBend</StartupObject>
+    <StartupObject>
+    </StartupObject>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
@@ -58,15 +59,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\ThirdParty\Lib\ICSharpCode.SharpZipLib.dll</HintPath>
     </Reference>
-    <Reference Include="LumiSoft.Net">
-      <HintPath>..\ThirdParty\LumiSoft\Net\Net\obj\Release\LumiSoft.Net.dll</HintPath>
-    </Reference>
     <Reference Include="nunit.framework, Version=2.5.9.10320, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\ThirdParty\NUnit\nunit.framework.dll</HintPath>
-    </Reference>
-    <Reference Include="SharpMimeTools">
-      <HintPath>..\ThirdParty\SharpMimeTools\obj\Release\SharpMimeTools.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -84,8 +79,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Apps\TextIndexer.cs" />
-    <Compile Include="Apps\EmailInjector.cs" />
     <Content Include="_BUGS.txt" />
     <Compile Include="DbgGUI\DbgGUI.cs">
       <SubType>Form</SubType>
@@ -134,7 +127,6 @@
     <Compile Include="Util\SortedMergeExtension.cs" />
     <Compile Include="Util\_UtilTest.cs" />
     <Compile Include="Util\WhoCalls.cs" />
-    <Compile Include="_Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

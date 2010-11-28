@@ -22,6 +22,7 @@
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("SharpMimeTools")]
 [assembly: AssemblyDescription("SharpMimeTools is an assembly for parsing MIME entities")]
@@ -37,3 +38,4 @@ using System.Runtime.CompilerServices;
 // [assembly: AssemblyDelaySign(false)]
 // [assembly: AssemblyKeyFile(@"SharpMimeTools.snk")]
 // [assembly: AssemblyKeyName("")]
+[assembly: ComVisibleAttribute(true)]

@@ -33,7 +33,7 @@ namespace anmar.SharpMimeTools
 			internal long start_body;
 			internal long end;
 			internal anmar.SharpMimeTools.SharpMimeHeader header;
-			internal anmar.SharpMimeTools.SharpMimeMessageCollection parts;
+			internal anmar.SharpMimeTools.SharpMimeMessageCollection parts;            
 
 			internal MessageInfo ( anmar.SharpMimeTools.SharpMimeMessageStream m, long start ) {
 				this.start = start;

@@ -141,7 +141,7 @@ namespace Bend
                 CLOSED,                
             }
             WriteGroupState state = WriteGroupState.PENDING;
-            internal WriteGroup(LayerManager _layer) {
+            public WriteGroup(LayerManager _layer) {
                 this.mylayer = _layer;
                 this.tsn = System.DateTime.Now.ToBinary();
                 // TODO: store the stack backtrace of who created this if we're in debug mode

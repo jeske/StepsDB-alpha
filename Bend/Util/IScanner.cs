@@ -29,7 +29,7 @@ namespace Bend
     }
     public interface IScannableDictionary<K, V> : IDictionary<K, V>, IScannable<K, V> { }
 
-    class ScanRange<K> : IScanner<K> 
+    public class ScanRange<K> : IScanner<K> 
     {
         IComparable<K> lowkey, highkey;
         IComparable<K> matchtest;
