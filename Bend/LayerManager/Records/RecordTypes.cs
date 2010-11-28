@@ -234,6 +234,10 @@ namespace Bend
         public RecordKey appendParsedKey(String keyToParse) {
             char[] delimiters = { DELIMITER };
 
+            if (keyToParse == null) {
+                throw new Exception("appendParsedKey() handed a null pointer");
+            }
+
             if (keyToParse.Length > 0) {
                 if (keyToParse[keyToParse.Length - 1] == DELIMITER) {
                     throw new Exception(
@@ -251,6 +255,9 @@ namespace Bend
 
         public RecordKey appendKeyParts(params object[] args) {
             foreach (object arg in args) {
+                if (arg == null) {
+                    throw new Exception("appendKeyParts(params object[] args) handed null pointer");
+                }
                 if (arg.GetType() == typeof(String)) {
                     this.appendKeyPart((String)arg);
                 } else if (arg.GetType() == typeof(byte[])) {
@@ -263,10 +270,16 @@ namespace Bend
         }
 
         public RecordKey appendKeyPart(String part) {
+            if (part == null) {
+                throw new Exception("appendKeyPart(string part) handed null pointer");
+            }
             key_parts.Add(part);
             return this;
         }
         public RecordKey appendKeyPart(byte[] data) {
+            if (data == null) {
+                throw new Exception("appendKeyPart(byte[] data) handed null pointer");
+            }
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String keystring = enc.GetString(data);
             key_parts.Add(keystring);

@@ -11,7 +11,7 @@ namespace Bend
     //  10 -> 00010
     // 200 -> 00200
     
-    class Lsd {
+    public class Lsd {
 
         public static byte[] numberToLsd(long encodenum,int pad_to_digits) {
             List<byte> builder = new List<byte>();

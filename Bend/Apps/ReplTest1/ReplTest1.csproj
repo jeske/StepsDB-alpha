@@ -8,7 +8,7 @@
     <ProjectGuid>{65396AB4-D808-4BED-948E-3F13F0C537E4}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ConsoleApplication1</RootNamespace>
+    <RootNamespace>ReplTest1</RootNamespace>
     <AssemblyName>ReplTest1</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>

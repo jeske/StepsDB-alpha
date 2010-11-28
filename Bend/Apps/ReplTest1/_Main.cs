@@ -30,6 +30,14 @@ namespace Bend.ReplTest1 {
             ReplHandler repl = new ReplHandler(db);
 
 
+            repl.setValueParsed("/a", "1");
+            repl.setValueParsed("/b", "2");
+            repl.setValueParsed("/a", "3");
+            Console.WriteLine("debug dump DB");
+            db.debugDump();
+
+
+
             Console.WriteLine("waiting for key");
             Console.ReadKey();
             Console.WriteLine("quitting..");
