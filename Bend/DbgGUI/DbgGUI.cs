@@ -16,22 +16,9 @@ namespace Bend {
         
             this.Size = new System.Drawing.Size(600, 600);
             this.Location = new Point(700, 700);
-            this.Show();
-
-            Thread newThread = new Thread(this.RunStuff);
-            newThread.Start();
+            this.Show();            
         }
 
-        public void RunStuff() {
-            try {
-                //MainBend.do_bringup_test(this);
-            } catch (Exception exc) {
-                System.Console.WriteLine("died to exception: " + exc.ToString());
-                Console.WriteLine("press any key...");
-
-            }
-            //            Console.ReadKey();
-        }
 
         public void debugDump(LayerManager db, MergeCandidate mc = null) {
             this.layerVisualization1.refreshFromDb(db, mc);

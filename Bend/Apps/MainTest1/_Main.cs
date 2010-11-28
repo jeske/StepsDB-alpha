@@ -8,6 +8,8 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
+using System.Threading;
+
 namespace Bend
 {
     using BendTests;
@@ -37,8 +39,15 @@ namespace Bend
             Application.SetCompatibleTextRenderingDefault(false);
             var window = new DbgGUI();
             window.SetDesktopLocation(700, 200);
+
+            Thread newThread = new Thread(delegate() {
+                MainBend.do_bringup_test(window);
+            });
+            newThread.Start();
+
             Application.Run(window);      
         }
+
 
         public static void dumpAllDbRecords(LayerManager db) {
             foreach (var kv in db.scanForward(null)) {
