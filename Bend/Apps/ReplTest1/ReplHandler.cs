@@ -9,16 +9,17 @@ using Bend;
 using System.IO;
 
 
-
 /*
- * our keysapce schema
+ * our keyspace schema
  * 
  *  _my/config/DATA-INSTANCE-ID = <guid of the dataset>
- *  
  *  _my/config/MY-SERVER-ID = <server guid>
  *  
- *  _my/config/quorum_requirement = <number of servers before we advance the repl tail>
- *  
+ *  _my/config/quorum_write_requirement = <number of servers before we advance the repl tail>
+ *  _my/config/log_max_age = <oldest loglines we want to keep.. 
+ *                             note tombstones have to be forced to live this long>
+ *  _my/config/log_max_size = <max log size in approximate bytes>
+ * 
  *  _server/<SERVER GUID>/location = host:port
  *  
  *  _logs/<SERVER GUID>/<logid> -> [update info]
@@ -36,10 +37,12 @@ using System.IO;
  * TODO: 
  * 
  * - don't let us touch keys until there is an instance id (either via INIT_NEW or JOIN_EXISTING)
+ * - don't let us touch keys until the server is "active"
  * - make a simulated "server connect" so we can also have "disconnect"
  * - tail-log command (where we supply log pointers, error if the pointer is too old)
  * - fallback to key-copy if the tail-log didn't work
- * - make sure log application order doesn't matter (timestamp order log apply? per-record timestamp?)
+ * - make sure which server-log we process first doesn't change final records 
+ *      (timestamp order log apply? per-record timestamp?)
  * 
  */
 
