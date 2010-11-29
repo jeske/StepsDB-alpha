@@ -13,6 +13,10 @@
   --> distributed datastore handlers?!?!?
 
   - email indexer test  
+	 - PERFORMANCE:
+	   - support integer recordkey parts for much faster comparisons
+	   - ? recordkey.withPrefix() construction, to avoid long prefix allocations
+	   - better block format than basic block
 	 - add exact phrase match
 	 - add proximity scoring
 	 - add TFxIDF scoring (need numeric accumulators in the database!!) 
