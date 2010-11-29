@@ -79,6 +79,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="_CODING_STYLE.txt" />
     <Content Include="_BUGS.txt" />
     <Compile Include="DbgGUI\DbgGUI.cs">
       <SubType>Form</SubType>
