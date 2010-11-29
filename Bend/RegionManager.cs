@@ -120,7 +120,7 @@ namespace Bend
                 this.mode = mode;
                 this.filepath = filepath;
                 my_streams = new Dictionary<int, Stream>();
-                block_cache = new LRUCache<int, byte[]>(5000);                    
+                block_cache = new LRUCache<int, byte[]>(20);                    
                 
             }
 

@@ -71,7 +71,7 @@ namespace Bend
         private void _removeOldest() {
             _PriorityNode<K, V> tailnode = tail;
             if (tailnode != null) {
-                System.Console.WriteLine("removing node: {0}", tailnode.key);
+                // System.Console.WriteLine("removing node: {0}", tailnode.key);
                 _unlinkNode(tailnode);               
                 
                 bool did_remove = data.Remove(tailnode.key);
@@ -84,8 +84,8 @@ namespace Bend
 
             if (data.Count > this.maxEntries) {
                 int removeCount = data.Count - this.maxEntries;
-                System.Console.WriteLine("clean : {0}, {1}, remove {2}", 
-                    this.maxEntries, data.Count, removeCount);
+                // System.Console.WriteLine("clean : {0}, {1}, remove {2}", 
+                //    this.maxEntries, data.Count, removeCount);
                 
                 for (int i = 0; i < removeCount; i++) {
                     _removeOldest();
