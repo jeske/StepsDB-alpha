@@ -13,14 +13,19 @@ namespace Bend.ReplTest1 {
 
         [STAThread]
         static void Main(string[] args) {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            var window = new DbgGUI();
-            window.SetDesktopLocation(700, 200);
+            if (false) {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                var window = new DbgGUI();
+                window.SetDesktopLocation(700, 200);
+                Thread newThread = new Thread(_Main.do_test);
+                newThread.Start();
+                Application.Run(window);
+            } else {
+                _Main.do_test();
+            }
 
-            Thread newThread = new Thread(_Main.do_test);            
-            newThread.Start();
-            Application.Run(window);
+            
         }
 
 

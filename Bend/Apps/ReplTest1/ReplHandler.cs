@@ -10,6 +10,23 @@ using System.IO;
 
 
 /*
+ * TODO: 
+ * 
+ * - don't let us touch keys until there is an instance id (either via INIT_NEW or JOIN_EXISTING)
+ * - don't let us touch keys until the server is "active"
+ * - make a simulated "server connect" so we can also have "disconnect"
+ * - tail-log command (where we supply log pointers, error if the pointer is too old)
+ * - fallback to key-copy if the tail-log didn't work
+ * - make sure which server-log we process first doesn't change final records 
+ *      (timestamp order log apply? per-record timestamp?)
+ * 
+ * Cases to Handle
+ * 
+ * read/write keys in our keyspace
+ * push new writes to other clients, manage 'quorum agreed' pointer
+ * check/pull logs from other servers when we join/connect
+ * 
+ * 
  * our keyspace schema
  * 
  *  _my/config/DATA-INSTANCE-ID = <guid of the dataset>
@@ -27,22 +44,6 @@ using System.IO;
  *  _log_status/<SERVER_GUID>/repl_tail -> the oldest <logid> that may not be replicated for this server-guid
  *  
  * 
- * Cases to Handle
- * 
- * read/write keys in our keyspace
- * push new writes to other clients, manage 'quorum agreed' pointer
- * check/pull logs from other servers when we join/connect
- * 
- * 
- * TODO: 
- * 
- * - don't let us touch keys until there is an instance id (either via INIT_NEW or JOIN_EXISTING)
- * - don't let us touch keys until the server is "active"
- * - make a simulated "server connect" so we can also have "disconnect"
- * - tail-log command (where we supply log pointers, error if the pointer is too old)
- * - fallback to key-copy if the tail-log didn't work
- * - make sure which server-log we process first doesn't change final records 
- *      (timestamp order log apply? per-record timestamp?)
  * 
  */
 
