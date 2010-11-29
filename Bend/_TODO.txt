@@ -2,15 +2,16 @@
 
 ----[ TODO ]---------
 
-  - FIX: text-indexer notify_removeSegment crash
+  - distributed datastore handler
+     - add psudo connection handling
+	 - add full-repl
 
-  - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
-  - standalone db server w/network protocol
-  - "Key Value DB" and "Indexer" handler/APIs
-  - email-indexer and search test programs
-  - simple database client w/command line 
-  
-  --> distributed datastore handlers?!?!?
+  - standalone server
+     - standalone db server w/network protocol
+     - test background checkpoint/merge (and make segment changes atomic)
+     - "Key Value DB" and "Indexer" handler/APIs
+     - email-indexer and search test programs
+     - simple database client w/command line   
 
   - email indexer test  
 	 - PERFORMANCE:
@@ -158,6 +159,8 @@
 
 ------------[ DONE ]--------------------
   
+11/29 - FIX: text-indexer notify_removeSegment crash
+11/28 - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
 11/27 - basic text-indexer test with AND conjunction of terms is working
 11/25 - test adjusting the merge threshold ratio based on the current maximum number of layers...
 11/24 - fix runaway max-generation issue....  
