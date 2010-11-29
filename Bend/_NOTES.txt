@@ -18,3 +18,7 @@ http://stackoverflow.com/questions/39712/visual-studio-2005-2008-how-can-you-sha
 Debug Levels and Tracing
 
 http://www.codeguru.com/csharp/.net/net_debugging/tracing/article.php/c5919
+
+Solr + HBase + Avro = flexible searchable document store
+
+http://www.javarants.com/2010/06/30/havrobase-a-searchable-evolvable-entity-store-on-top-of-hbase-and-solr/

@@ -76,7 +76,7 @@ namespace Bend
                 
                 bool did_remove = data.Remove(tailnode.key);
                 if (!did_remove) {
-                    throw new Exception("LRUCache INTERNAL error, missing node to remove");
+                    // throw new Exception("LRUCache INTERNAL error, missing node to remove");
                 }
             }
         }
