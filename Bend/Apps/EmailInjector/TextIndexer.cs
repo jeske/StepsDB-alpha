@@ -44,7 +44,7 @@ namespace Bend.Indexer {
             }
 
         }
-
+        
 
 
         public class EndPrefixMatch : IComparable<RecordKey> {
@@ -63,8 +63,13 @@ namespace Bend.Indexer {
                 return "EndPrefixMatch{" + key.ToString() + "}";
             }
         }
+        public class IndexStats {
+            public int unique_hits_produced = 0;
+            public int comparisons = 0;
+        }
 
-        public struct TermHit {
+
+        public class TermHit {
             public string word;
             public string docid;
             public string position;
@@ -75,8 +80,8 @@ namespace Bend.Indexer {
         }
 
         public interface Term {
-            TermHit advanceTo(TermHit newpos);
-            TermHit advancePastDocid(string docid);
+            TermHit advanceTo(IndexStats stats, TermHit newpos);
+            TermHit advancePastDocid(IndexStats stats, string docid);
         };
 
         public class TermWord : Term {
@@ -102,13 +107,13 @@ namespace Bend.Indexer {
                 // Console.WriteLine("unpackHit: " + hitrow);
 
                 int len_of_index_prefix = 2;  // ASSUME THIS FOR NOW
-                TermHit hit;
+                TermHit hit = new TermHit();
                 hit.word = hitrow.key_parts[len_of_index_prefix+0];
                 hit.docid = hitrow.key_parts[len_of_index_prefix + 1];
                 hit.position = hitrow.key_parts[len_of_index_prefix + 2];
                 return hit;
             }
-            public TermHit advancePastDocid(string docid) {
+            public TermHit advancePastDocid(IndexStats stats, string docid) {
                 var prefix = new RecordKey().appendParsedKey(this.index.index_location_prefix)
                       .appendKeyPart(this.word)
                       .appendKeyPart(docid);
@@ -127,11 +132,11 @@ namespace Bend.Indexer {
                         String.Format("INTERNAL ERROR: failure to advance past docid({0}) prefix({1}) rowreturned({2})",
                               docid, prefix, row.Key));
                 }
-
+                stats.unique_hits_produced++;
                 return hit;
             }
 
-            public TermHit advanceTo(TermHit newpos) {
+            public TermHit advanceTo(IndexStats stats, TermHit newpos) {
                 //    ".zindex/index/<word>/<docid>"
 
                 var keysearch = new RecordKey().appendParsedKey(this.index.index_location_prefix)
@@ -142,6 +147,7 @@ namespace Bend.Indexer {
                 KeyValuePair<RecordKey, RecordData> row = index.db.FindNext(keysearch, false);
                 TermHit hit = unpackHit(row.Key);
                 if (hit.word.CompareTo(this.word) == 0) {
+                    stats.unique_hits_produced++;
                     return hit;
                 } else {
                     throw new KeyNotFoundException(
@@ -162,23 +168,24 @@ namespace Bend.Indexer {
                 this.term2 = right;                
             }
 
-            public TermHit advanceTo(TermHit hit) {
-                return advancePastDocid(hit.docid);
+            public TermHit advanceTo(IndexStats stats, TermHit hit) {
+                return advancePastDocid(stats,hit.docid);
             }
 
-            public TermHit advancePastDocid(string docid) {
-                hit1 = term1.advancePastDocid(docid);
-                hit2 = term2.advancePastDocid(docid);
+            public TermHit advancePastDocid(IndexStats stats, string docid) {
+                hit1 = term1.advancePastDocid(stats,docid);
+                hit2 = term2.advancePastDocid(stats, docid);
                 try {
                     while (true) {
+                        stats.comparisons++;
                         switch (hit1.docid.CompareTo(hit2.docid)) {
                             case -1:
                                 // System.Console.WriteLine("     advance1: {0} < {1}", hit1, hit2);
-                                hit1 = term1.advanceTo(hit2);
+                                hit1 = term1.advanceTo(stats, hit2);
                                 break;
                             case 1:
                                 // System.Console.WriteLine("     advance2: {0} > {1}", hit1, hit2);
-                                hit2 = term2.advanceTo(hit1);
+                                hit2 = term2.advanceTo(stats, hit1);
                                 break;
                             case 0:
                                 // System.Console.WriteLine("        MATCH: {0} == {1}", hit1, hit2);                                                                
@@ -192,13 +199,13 @@ namespace Bend.Indexer {
             }
         }
 
-        public List<string> HitsForExpression(Term term) {
+        public List<string> HitsForExpression(IndexStats stats, Term term) {
             List<string> hits = new List<string>();
-            TermHit hit;            
+            TermHit hit = new TermHit();            
             hit.docid = "";
             while (true) {
                 try {
-                    hit = term.advancePastDocid(hit.docid);
+                    hit = term.advancePastDocid(stats,hit.docid);
                     hits.Add(hit.docid);
                     //System.Console.WriteLine("search returned: {0}", hit);
                 } catch (KeyNotFoundException e) {
@@ -226,12 +233,14 @@ namespace Bend.Indexer {
                 Console.WriteLine("empty search");
                 return; 
             }
-
+            var stats = new IndexStats();
             DateTime start = DateTime.Now;
-            List<string> hits = HitsForExpression(tree);
+            List<string> hits = HitsForExpression(stats, tree);
             double elapsed_s = (DateTime.Now - start).TotalMilliseconds/1000.0;
-            Console.WriteLine("search for [{0}] returned {1} hits in {2}", expression, hits.Count, elapsed_s);
-            Console.WriteLine("    " + String.Join(",",hits));
+            Console.WriteLine("search for [{0}] returned {1} hits in {2}s   ({3} productions, {4} comparisons)", 
+                expression, hits.Count, elapsed_s, stats.unique_hits_produced, stats.comparisons);
+            Console.WriteLine("    " + String.Join(",",hits.Count < 15 ? hits : hits.GetRange(0,15)));
+            
         }
 
         public void find_email_test() {

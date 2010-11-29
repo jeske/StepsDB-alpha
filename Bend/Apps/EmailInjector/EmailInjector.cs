@@ -34,16 +34,28 @@ namespace Bend.EmailIndexerTest {
             window.SetDesktopLocation(700, 200);
 
             Thread newThread = new Thread(delegate() {
-                EmailInjector.do_test(window);
+                EmailInjector.do_test(window, args);
             });
             newThread.Start();
             Application.Run(window);
         }
 
-        public static void do_test(DbgGUI window) {
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
-            EmailInjector injector = new EmailInjector(db, window);
-            injector.DoEmailTest();
+        public static void do_test(DbgGUI window, string[] args) {
+            if (args.Length < 1) {
+                Console.WriteLine("Usage:\n  index - clear the db and index email\n   search - perform search tests");
+                Environment.Exit(1);
+            }
+            if (args[0].CompareTo("index") == 0) {
+                LayerManager db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
+                EmailInjector injector = new EmailInjector(db, window);
+                injector.parse_email_messages();
+                injector.indexer.find_email_test();
+            } else if (args[0].CompareTo("search") == 0) {
+                LayerManager db = new LayerManager(InitMode.RESUME, @"c:\EmailTest\DB");
+                EmailInjector injector = new EmailInjector(db, window);
+                window.debugDump(db);
+                injector.indexer.find_email_test();
+            }
             Console.WriteLine("done...press any key.");
             Console.ReadLine();
         }
@@ -189,12 +201,7 @@ namespace Bend.EmailIndexerTest {
             }                                
 
 
-        }
-
-        public void DoEmailTest() {
-            parse_email_messages();
-            indexer.find_email_test();
-        }
+        }        
 
     }
 }
