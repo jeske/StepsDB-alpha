@@ -15,10 +15,10 @@ namespace Bend {
     // .ROOT/GEN/000/</> -> addr:length
 
     public class SegmentDescriptor : IComparable<SegmentDescriptor> {
-        public RecordKey record_key;
-        public uint generation;
-        public RecordKey start_key;
-        public RecordKey end_key;
+        public readonly RecordKey record_key;
+        public readonly uint generation;
+        public readonly RecordKey start_key;
+        public readonly RecordKey end_key;
 
         public SegmentDescriptor(RecordKey key) {
             RecordKey expected_prefix = new RecordKey().appendParsedKey(".ROOT/GEN");
@@ -89,6 +89,21 @@ namespace Bend {
             this.generation = generation;
             this.start_key = start_key;
             this.end_key = end_key;
+
+
+            // double check that the encode/decode is reversible
+            {
+                SegmentDescriptor check_sdesc = new SegmentDescriptor(this.record_key);
+
+                if (this.CompareTo(check_sdesc) != 0) {
+                    Console.WriteLine("start key: hext {1} - {0}",start_key,Lsd.ToHexString(start_key.encode()));
+                    Console.WriteLine("end_key: hex {1} - {0}",end_key,Lsd.ToHexString(end_key.encode()));
+
+                    throw new Exception(
+                        String.Format("mapGenerationToRegion: segment descriptor pack/unpack error ({0}) decoded to ({1})",
+                        this,check_sdesc));
+                }
+            }
 
         }
 
@@ -177,6 +192,30 @@ namespace BendTests {
             Assert.AreEqual(true, b1.keyrangeOverlapsWith(b3));
             Assert.AreEqual(true, b2.keyrangeOverlapsWith(b3));
 
+        }
+
+        [Test]
+        public void T05_DescriptorEncodeDecodeBugTests() {
+            /* 
+             * .zdata.index.\/.c:\EmailTest\Data\saved_mail_2002:1104.131
+             * 
+             *  46 (122 100 97 116 97) 
+             *  47 (105 110 100 101 120) 
+             *  47 (92 43 0)   <-- culpret
+             *  47 (99 58 92 69 109 97 105 108 84 101 115 116 92 68 97 116 97 92 115 97 118 101 100 95 109 
+             *  97 105 108 95 50 48 48 50 58 49 49 48 52 47 49 51 49)
+             */
+
+            byte[] test_part = { 92, 43, 0 };           
+            RecordKey test = new RecordKey()
+                .appendKeyPart(".zdata")
+                .appendKeyPart("index")
+                .appendKeyPart(test_part)
+                .appendKeyPart(@"c:\EmailTest\Data\saved_mail_2002:1104.131");
+            
+            SegmentDescriptor sdesc = new SegmentDescriptor(0,test,test);
+
+            Assert.AreEqual(sdesc, new SegmentDescriptor(sdesc.record_key), "segment descriptor encode/decode problem");
         }
             
     }

@@ -319,6 +319,9 @@ namespace Bend
 
         public void performMerge(MergeCandidate mc) {
             if (mc == null) { return; }
+
+            Console.WriteLine("performMerge({0})", mc.ToString());
+
             var segs_to_merge = new List<SegmentDescriptor>();
             segs_to_merge.AddRange(mc.source_segs);
             segs_to_merge.AddRange(mc.target_segs);

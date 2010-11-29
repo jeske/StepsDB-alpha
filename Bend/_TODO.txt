@@ -2,6 +2,8 @@
 
 ----[ TODO ]---------
 
+  - FIX: text-indexer notify_removeSegment crash
+
   - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
   - standalone db server w/network protocol
   - "Key Value DB" and "Indexer" handler/APIs
@@ -16,6 +18,8 @@
 	 - add TFxIDF scoring (need numeric accumulators in the database!!) 
      - write a custom block handler for the index hits and efficient search intersection
      - compare indexing and query performance with lucene/xapian     
+
+  - APP: graphical db-data debugging browser (so I can fish and figured out what happened in data)
 
   - design/build [SimpleAtomicCommit] Attribute, and Attribute system
      - simply provide an atomic commit for a set of changes. Nobody (including us) should see the

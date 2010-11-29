@@ -61,8 +61,23 @@ namespace BendTests
                 // verify comparison
                 Assert.AreEqual(0, key.CompareTo(key2));
 
-                // verify individual parts   
+                // verify individual parts
+
             }
+
+            // test encode/decode with zero bytes in parts  
+            
+            // 92 43 0
+            byte[] chars = { 92, 43, 0 };
+
+            String[] parts2 = { System.Text.ASCIIEncoding.ASCII.GetString(chars) , "test2", "test3" };
+            {
+                RecordKey key = new RecordKey();
+                key.appendKeyParts(parts2);
+                byte[] data = key.encode();
+                Assert.AreEqual(key, new RecordKey(data), "check encode/decode with binary data");
+            }
+
 
             // verify hierarchial sorting
             {
@@ -71,7 +86,7 @@ namespace BendTests
                 RecordKey key3 = new RecordKey().appendParsedKey(".ROOT/GEN/000/>");     // ord('>') -> 62
                 RecordKey key4 = new RecordKey().appendParsedKey(".ROOT/GEN");
 
-                Assert.AreEqual(true, ">".CompareTo("<") > 0, "expect '>' > '<'");                
+                Assert.AreEqual(true, ">".CompareTo("<") > 0, "expect '>' > '<'");
 
                 Assert.AreEqual(true, key1.CompareTo(key2) < 0, "prefix key should be considered earlier");
                 Assert.AreEqual(true, key3.CompareTo(key2) > 0, "but parts are considered individually before using length ord('_') > ord('<')");
@@ -80,7 +95,7 @@ namespace BendTests
                 Assert.AreEqual(true, prefixend.CompareTo(key1) > 0, "prefix1");
                 Assert.AreEqual(true, prefixend.CompareTo(key2) > 0, "prefix2");
                 Assert.AreEqual(true, prefixend.CompareTo(key3) > 0, "prefix3");
-                Assert.AreEqual(true, prefixend.CompareTo(key4) > 0, "prefix4"); 
+                Assert.AreEqual(true, prefixend.CompareTo(key4) > 0, "prefix4");
 
             }
 

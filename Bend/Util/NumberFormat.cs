@@ -63,6 +63,15 @@ namespace Bend
             }
             return number;
         }
+
+        public static String ToHexString(byte[] bytes) {
+            String str = "";
+            foreach (byte b in bytes) {
+                str = str + ((int)b).ToString() + " ";
+            }
+            return str;
+        }
+
     }
 }
 namespace BendTests {
@@ -71,13 +80,6 @@ namespace BendTests {
 
     public partial class A00_UtilTest
     {
-        public String ToHexString(byte[] bytes) {
-            String str = "";
-            foreach (byte b in bytes) {
-                str = str + ((int)b).ToString() + " ";
-            }
-            return str;
-        }
         [Test]
         public void T00_EncodeDecode() {
             int[] testnumbers = { 0, 1, 2, 14, 23, 99, 105, 4020, 82925, 199292, 2992022 };
@@ -86,7 +88,7 @@ namespace BendTests {
             for (int i = 0; i < testnumbers.Length; i++) {
                 byte[] encodednum = Lsd.numberToLsd(testnumbers[i], encode_length);
                 Assert.AreEqual(encode_length,encodednum.Length, "encoded length not correct");
-                Assert.AreEqual(testnumbers[i], Lsd.lsdToNumber(encodednum), "decode not equal {0}", ToHexString(encodednum));
+                Assert.AreEqual(testnumbers[i], Lsd.lsdToNumber(encodednum), "decode not equal {0}", Lsd.ToHexString(encodednum));
             }
         }
 
