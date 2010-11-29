@@ -230,7 +230,7 @@ namespace Bend.Indexer {
             DateTime start = DateTime.Now;
             List<string> hits = HitsForExpression(tree);
             double elapsed_s = (DateTime.Now - start).TotalMilliseconds/1000.0;
-            Console.WriteLine("search for [{0}] returned {1} hits", expression, hits.Count);
+            Console.WriteLine("search for [{0}] returned {1} hits in {2}", expression, hits.Count, elapsed_s);
             Console.WriteLine("    " + String.Join(",",hits));
         }
 
