@@ -27,13 +27,37 @@ namespace Bend.ReplTest1 {
         static void do_test() {
             Console.WriteLine("ReplTest1 startup...");
             LayerManager db = new LayerManager(InitMode.NEW_REGION,@"C:\BENDtest\repl");
-            ReplHandler repl = new ReplHandler(db);
+            Random rnd = new Random();
 
+            ReplHandler repl_1 = new ReplHandler(db, "server_1", "guid"+rnd.Next());
+            ReplHandler repl_2 = new ReplHandler(db, "server_2", "guid" + rnd.Next());
 
-            repl.setValueParsed("/a", "1");
-            repl.setValueParsed("/b", "2");
-            repl.setValueParsed("/a", "3");
+            repl_1.addServer(repl_2);
+            repl_2.addServer(repl_1);
+
+            repl_1.setValueParsed("/a", "1");
+            repl_1.setValueParsed("/b", "2");
+            repl_1.setValueParsed("/a", "3");
+
             Console.WriteLine("debug dump DB");
+            db.debugDump();
+
+            repl_2.setValueParsed("/a", "5");
+
+            Console.WriteLine("debug dump DB");
+            db.debugDump();
+
+
+            ReplHandler repl_3 = new ReplHandler(db, "server_3", "guid"+rnd.Next());
+            
+            repl_3.addServer(repl_1);
+            repl_3.addServer(repl_2);
+            repl_1.addServer(repl_3);
+            repl_2.addServer(repl_3);
+
+            db.debugDump();
+
+            repl_3.setValueParsed("/qq", "10");
             db.debugDump();
 
 

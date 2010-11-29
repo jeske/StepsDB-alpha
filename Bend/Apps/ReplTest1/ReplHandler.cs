@@ -10,7 +10,8 @@ using Bend;
 
 // our keysapce schema
 
-// _my/config/ID = <server guid>
+// _my/config/DATA-INSTANCE-ID = <guid of the dataset>
+// _my/config/MY-SERVER-ID = <server guid>
 // _my/config/quorum_requirement = <number of servers before we advance the repl tail>
 
 // _server/<SERVER GUID>/location = host:port
@@ -21,20 +22,80 @@ using Bend;
 
 namespace Bend.ReplTest1 {
 
-
     public class ReplHandler {
         LayerManager db;
         string my_server_guid;
         Random rnd;
+        ReplPusher pusher;
+        string prefix_hack;
 
-        public ReplHandler(LayerManager db) {
+        public ReplHandler(LayerManager db, string prefix_hack, string server_guid) {
             this.db = db;
             this.rnd = new Random();
+            this.pusher = new ReplPusher(this);
+            this.prefix_hack = prefix_hack;
 
-            my_server_guid = "TESTGUID";
-
+            my_server_guid = server_guid;
+            db.setValue(new RecordKey().appendParsedKey(prefix_hack)
+                .appendKeyPart("_config")
+                .appendKeyPart("MY-SERVER-ID"),
+                RecordUpdate.WithPayload(my_server_guid));
         }
 
+        public class ReplPusher {
+            List<ReplHandler> servers;
+            ReplHandler myhandler;
+            public ReplPusher(ReplHandler handler) {
+                servers = new List<ReplHandler>();
+                myhandler = handler;
+            }
+            public void addServer(ReplHandler server) {
+                // make sure the server is up to date first
+                servers.Add(server);
+            }
+            public void removeServer(ReplHandler server) {
+                servers.Remove(server);
+            }
+
+            public void pushNewLogEntry(byte[] logstamp, RecordUpdate logdata) {
+                foreach (var server in servers) {
+                    server.applyLogEntry(myhandler.my_server_guid, logstamp, logdata);
+                }
+            }
+        }
+    
+
+        public void applyLogEntry(string from_server_guid, byte[] logstamp, RecordUpdate logdata) {
+            // (0) unpack the data
+
+            RecordKey packed_update = new RecordKey(logdata.data);
+            RecordKey unpacked_key = new RecordKey().appendParsedKey(packed_update.key_parts[0]);
+            RecordUpdate unpacked_data = RecordUpdate.WithPayload(packed_update.key_parts[1]);
+            
+            // (1) add it to our copy of that server's log
+            RecordKey logkey = new RecordKey()
+            .appendKeyPart(prefix_hack)
+            .appendKeyPart("_logs")
+            .appendKeyPart(from_server_guid)
+            .appendKeyPart(logstamp);
+
+            db.setValue(logkey, logdata);
+
+            // (2) add it to the database
+
+            RecordKey local_data_key = new RecordKey()
+                .appendKeyPart(prefix_hack)
+                .appendKeyPart("_data");
+            foreach (var part in unpacked_key.key_parts) {
+                local_data_key.appendKeyPart(part);
+            }
+
+            db.setValue(local_data_key, unpacked_data);
+
+        }
+        public void addServer(ReplHandler target_server) {
+            pusher.addServer(target_server);
+        }
 
         public void setValue(RecordKey skey, RecordUpdate supdate) {
             // (1) write our repl log entry
@@ -42,16 +103,17 @@ namespace Bend.ReplTest1 {
             DateTime now = DateTime.Now;
             long timestamp = (now.Ticks * 100000) + now.Millisecond + rnd.Next(100);
 
+            byte[] logstamp = Lsd.numberToLsd(timestamp,35);
             RecordKey logkey = new RecordKey()
+                .appendKeyPart(prefix_hack)
                 .appendKeyPart("_logs")
                 .appendKeyPart(my_server_guid)
-                .appendKeyPart(Lsd.numberToLsd(timestamp,35));
-            
+                .appendKeyPart(logstamp);            
             
             // (1.1) pack the key/value together into the log entry
 
             // okay, this is really hacky to use RecordKey to pack a structure, TODO: fix this!!
-            RecordKey packed_update = new RecordKey()
+            RecordKey packed_update = new RecordKey()                
                 .appendKeyPart(skey)
                 .appendKeyPart(supdate.encode());
             RecordUpdate logupdate = RecordUpdate.WithPayload(packed_update.encode());
@@ -64,12 +126,18 @@ namespace Bend.ReplTest1 {
             // (2) write the record key
             Console.WriteLine("writing data entry: {0} = {1}",
                 skey, supdate);
-            db.setValue(skey, supdate);
+            RecordKey private_record_key = new RecordKey()
+                .appendKeyPart(prefix_hack)
+                .appendKeyPart("_data");
+            foreach (var part in skey.key_parts) {
+                private_record_key.appendKeyPart(part);
+            }
+            db.setValue(private_record_key, supdate);
 
             // (3) trigger the repl notifier that there is a new entry to push
-
+            pusher.pushNewLogEntry(logstamp, logupdate);
         }
-
+        
         public void setValueParsed(string skey, string svalue) {
             RecordKey key = new RecordKey();
             key.appendParsedKey(skey);
@@ -77,8 +145,6 @@ namespace Bend.ReplTest1 {
 
             this.setValue(key, update);
         }
-
-
     }
 
 }
