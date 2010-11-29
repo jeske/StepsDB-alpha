@@ -34,7 +34,7 @@ namespace Bend {
     //    .. to jump back far and still find a record boundary
 
     
-    class SegmentBlockBasicEncoder : ISegmentBlockEncoder
+    public class SegmentBlockBasicEncoder : ISegmentBlockEncoder
     {
         Stream output;
 
@@ -102,7 +102,7 @@ namespace Bend {
 
     }
 
-    class SegmentBlockBasicDecoder : ISegmentBlockDecoder
+    public class SegmentBlockBasicDecoder : ISegmentBlockDecoder
     {
         BlockAccessor datastream; // keep in mind, we don't want to share this, since it has only one seek pointer
        

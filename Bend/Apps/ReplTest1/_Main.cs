@@ -35,14 +35,14 @@ namespace Bend.ReplTest1 {
             repl_1.addServer(repl_2);
             repl_2.addServer(repl_1);
 
-            repl_1.setValueParsed("/a", "1");
-            repl_1.setValueParsed("/b", "2");
-            repl_1.setValueParsed("/a", "3");
+            repl_1.setValueParsed("/a/1", "1");
+            repl_1.setValueParsed("/b/2", "2");
+            repl_1.setValueParsed("/a/1", "3");
 
             Console.WriteLine("debug dump DB");
             db.debugDump();
 
-            repl_2.setValueParsed("/a", "5");
+            repl_2.setValueParsed("/a/2", "5");
 
             Console.WriteLine("debug dump DB");
             db.debugDump();

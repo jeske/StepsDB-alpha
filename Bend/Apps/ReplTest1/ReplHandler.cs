@@ -6,6 +6,8 @@ using System.Text;
 
 using Bend;
 
+using System.IO;
+
 
 
 // our keysapce schema
@@ -20,7 +22,16 @@ using Bend;
 
 // _log_status/<SERVER_GUID>/repl_tail -> the oldest <logid> that may not be replicated for this server-guid
 
-namespace Bend.ReplTest1 {
+
+/*
+ * Cases to Handle
+ * 
+ * read/write keys in our keyspace
+ * push new writes to other clients, manage 'quorum agreed' pointer
+ * check/pull logs from other servers when we join/connect
+ */
+
+namespace Bend {
 
     public class ReplHandler {
         LayerManager db;
@@ -67,11 +78,9 @@ namespace Bend.ReplTest1 {
 
         public void applyLogEntry(string from_server_guid, byte[] logstamp, RecordUpdate logdata) {
             // (0) unpack the data
-
-            RecordKey packed_update = new RecordKey(logdata.data);
-            RecordKey unpacked_key = new RecordKey().appendParsedKey(packed_update.key_parts[0]);
-            RecordUpdate unpacked_data = RecordUpdate.WithPayload(packed_update.key_parts[1]);
-            
+            BlockAccessor ba = new BlockAccessor(logdata.data);
+            ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
+                                               
             // (1) add it to our copy of that server's log
             RecordKey logkey = new RecordKey()
             .appendKeyPart(prefix_hack)
@@ -83,14 +92,17 @@ namespace Bend.ReplTest1 {
 
             // (2) add it to the database
 
-            RecordKey local_data_key = new RecordKey()
-                .appendKeyPart(prefix_hack)
-                .appendKeyPart("_data");
-            foreach (var part in unpacked_key.key_parts) {
-                local_data_key.appendKeyPart(part);
+            foreach (var kvp in decoder.sortedWalk()) {
+                RecordKey local_data_key = new RecordKey()
+                    .appendKeyPart(prefix_hack)
+                    .appendKeyPart("_data");
+                foreach (var part in kvp.Key.key_parts) {
+                    local_data_key.appendKeyPart(part);
+                }
+                db.setValue(local_data_key, kvp.Value);
             }
 
-            db.setValue(local_data_key, unpacked_data);
+            
 
         }
         public void addServer(ReplHandler target_server) {
@@ -103,24 +115,29 @@ namespace Bend.ReplTest1 {
             DateTime now = DateTime.Now;
             long timestamp = (now.Ticks * 100000) + now.Millisecond + rnd.Next(100);
 
-            byte[] logstamp = Lsd.numberToLsd(timestamp,35);
+            byte[] logstamp = Lsd.numberToLsd(timestamp, 35);
             RecordKey logkey = new RecordKey()
                 .appendKeyPart(prefix_hack)
                 .appendKeyPart("_logs")
                 .appendKeyPart(my_server_guid)
-                .appendKeyPart(logstamp);            
-            
-            // (1.1) pack the key/value together into the log entry
+                .appendKeyPart(logstamp);
 
-            // okay, this is really hacky to use RecordKey to pack a structure, TODO: fix this!!
-            RecordKey packed_update = new RecordKey()                
-                .appendKeyPart(skey)
-                .appendKeyPart(supdate.encode());
-            RecordUpdate logupdate = RecordUpdate.WithPayload(packed_update.encode());
+            // (1.1) pack the key/value together into the log entry
+            byte[] packed_update;
+            {
+                MemoryStream writer = new MemoryStream();
+                // TODO: this seems like a really inefficient way to write out a key
+                ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
+                encoder.setStream(writer);
+                encoder.add(skey, supdate);
+                encoder.flush();
+                packed_update = writer.ToArray();
+            }
+            RecordUpdate logupdate = RecordUpdate.WithPayload(packed_update);
 
 
             Console.WriteLine("writing log entry: {0} -> [ {1} = {2} ]",
-                logkey,skey,supdate);
+                logkey, skey, supdate);
             db.setValue(logkey, logupdate);
 
             // (2) write the record key
