@@ -65,20 +65,6 @@ namespace BendTests
 
             }
 
-            // test encode/decode with zero bytes in parts  
-            
-            // 92 43 0
-            byte[] chars = { 92, 43, 0 };
-
-            String[] parts2 = { System.Text.ASCIIEncoding.ASCII.GetString(chars) , "test2", "test3" };
-            {
-                RecordKey key = new RecordKey();
-                key.appendKeyParts(parts2);
-                byte[] data = key.encode();
-                Assert.AreEqual(key, new RecordKey(data), "check encode/decode with binary data");
-            }
-
-
             // verify hierarchial sorting
             {
                 RecordKey key1 = new RecordKey().appendParsedKey(".ROOT/GEN/000");
@@ -227,7 +213,7 @@ namespace BendTests
 
             bool err = false;
             try {
-                RecordKey key = new RecordKey().appendParsedKey("TEST/1" + new String(RecordKey.DELIMITER,1));
+                RecordKey key = new RecordKey().appendParsedKey("TEST/1" + new String(RecordKey.PRINTED_DELIMITER,1));
             } catch {
                 err = true;
             }
@@ -257,6 +243,40 @@ namespace BendTests
             // Assert.AreEqual(false, f.isSubkeyOf(b));
             
         }
+
+        [Test]
+        public void T10_RecordKeyEncodeDecodeBugTest() {
+
+            // test encode/decode with byte[] parts  
+
+            // 92 43 0
+            byte[] chars = { 92, 43, 0 };
+            {
+
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                String keystring = enc.GetString(chars);
+                enc.GetBytes(keystring);
+
+                Assert.AreEqual(chars, enc.GetBytes(keystring), "string encoding not reversible");
+
+                RecordKey key = new RecordKey();
+                key.appendKeyPart(chars);
+                byte[] data = key.encode();
+                Assert.AreEqual(key, new RecordKey(data), "check encode/decode with binary data");
+
+                // check nested key
+
+                var wrap_key = new RecordKey().appendKeyPart(key.encode());
+                byte[] wrap_encoded = wrap_key.encode();
+
+                RecordKey wrap_decoded = new RecordKey(wrap_encoded);
+                
+
+            }
+
+
+        }
+
     }
 
 
@@ -276,7 +296,7 @@ namespace BendTests
 
         [Test]
         public void T06_RecordKeyDelimiterEscape() {
-            string DELIM = new String(RecordKey.DELIMITER, 1);
+            string DELIM = new String(RecordKey.PRINTED_DELIMITER, 1);
 
 
             RecordKey key1 = new RecordKey();

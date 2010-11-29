@@ -107,16 +107,16 @@ namespace BendTests
 
         }
         [Test]
-        public void T01_SimpleEncoder_BinaryData() {
+        public void T01_SimpleEncoder_UseOfSpecials() {
             byte[] chars = { 92, 43, 0 };
 
             byte[] escape_list = { 47, 43 };
             byte escape_char = 43;
 
             SimpleEncoder enc = new SimpleEncoder(escape_list, escape_char);
-            byte[] output = enc.encode(chars);
+            byte[] output = enc.encode(enc.encode(chars));
 
-            byte[] decoded_version = enc.decode(output);
+            byte[] decoded_version = enc.decode(enc.decode(output));
             Assert.AreEqual(chars, decoded_version, "binary decoded version does not match original");
         }
     }

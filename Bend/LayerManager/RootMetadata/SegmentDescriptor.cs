@@ -28,10 +28,9 @@ namespace Bend {
             record_key = key;
 
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-
             generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
-            start_key = new RecordKey().appendParsedKey(key.key_parts[3]);
-            end_key = new RecordKey().appendParsedKey(key.key_parts[4]);
+            start_key = new RecordKey(System.Text.ASCIIEncoding.ASCII.GetBytes(key.key_parts[3]));
+            end_key = new RecordKey(System.Text.ASCIIEncoding.ASCII.GetBytes(key.key_parts[4]));
 
             {
                 var testkey = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
@@ -100,7 +99,7 @@ namespace Bend {
                     Console.WriteLine("end_key: hex {1} - {0}",end_key,Lsd.ToHexString(end_key.encode()));
 
                     throw new Exception(
-                        String.Format("mapGenerationToRegion: segment descriptor pack/unpack error ({0}) decoded to ({1})",
+                        String.Format("mapGenerationToRegion: segment descriptor pack/unpack error\n input ({0}) \ndecoded to ({1})",
                         this,check_sdesc));
                 }
             }
@@ -206,16 +205,16 @@ namespace BendTests {
              *  97 105 108 95 50 48 48 50 58 49 49 48 52 47 49 51 49)
              */
 
-            byte[] test_part = { 92, 43, 0 };           
+            byte[] test_part = { 92, 43, 0 };
             RecordKey test = new RecordKey()
-                .appendKeyPart(".zdata")
-                .appendKeyPart("index")
-                .appendKeyPart(test_part)
-                .appendKeyPart(@"c:\EmailTest\Data\saved_mail_2002:1104.131");
+                .appendKeyPart("A")
+                .appendKeyPart(test_part);
+                
             
-            SegmentDescriptor sdesc = new SegmentDescriptor(0,test,test);
+            SegmentDescriptor sdesc = new SegmentDescriptor(0,test,new RecordKey().appendParsedKey("B"));
 
-            Assert.AreEqual(sdesc, new SegmentDescriptor(sdesc.record_key), "segment descriptor encode/decode problem");
+            Assert.AreEqual(0, sdesc.CompareTo(new SegmentDescriptor(sdesc.record_key)),
+                "segment descriptor encode/decode problem");
         }
             
     }

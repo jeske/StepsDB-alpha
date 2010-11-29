@@ -219,7 +219,7 @@ namespace Bend
         // TODO: key_parts really shouldn't be public, people should be using pipes to read keys
         // TODO: maybe key parts shouldn't be limited to strings
         public List<String> key_parts;  
-        public static char DELIMITER = '/';
+        public static char PRINTED_DELIMITER = '/';
         public static byte DELIMITER_B = 47;
         
         public RecordKey()
@@ -232,17 +232,17 @@ namespace Bend
         }
 
         public RecordKey appendParsedKey(String keyToParse) {
-            char[] delimiters = { DELIMITER };
+            char[] delimiters = { PRINTED_DELIMITER };
 
             if (keyToParse == null) {
                 throw new Exception("appendParsedKey() handed a null pointer");
             }
 
             if (keyToParse.Length > 0) {
-                if (keyToParse[keyToParse.Length - 1] == DELIMITER) {
+                if (keyToParse[keyToParse.Length - 1] == PRINTED_DELIMITER) {
                     throw new Exception(
                         String.Format("appendParsedKey({0}) may not end in DELIMTER({1})",
-                        keyToParse, DELIMITER));
+                        keyToParse, PRINTED_DELIMITER));
                 }
             }
 
@@ -502,7 +502,7 @@ namespace Bend
 
         // decode
         void decode2(byte[] data) {
-            char[] delimiters = { DELIMITER };
+            char[] delimiters = { PRINTED_DELIMITER };
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             String keystring = enc.GetString(data);
             String[] keystring_parts = keystring.Split(delimiters);
