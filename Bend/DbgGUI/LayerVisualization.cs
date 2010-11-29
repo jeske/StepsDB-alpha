@@ -52,9 +52,9 @@ namespace Bend {
                 return;
             }
 
-            if (segments == null) {                
+            if (segments == null) {
                 return;
-            }            
+            }
             Size regionsize = this.ClientSize;
 
             // compute the data I need first...
@@ -81,7 +81,7 @@ namespace Bend {
             Pen RangeLinePen = new Pen(Color.LightGray, 1);
             Pen GenPen = new Pen(Color.LightGreen, 1);
 
-            
+
             dc.Clear(Color.White);
 
 
@@ -110,12 +110,12 @@ namespace Bend {
             }
 
             int cur_x = 20;
-            for (uint generation = 0; generation <= max_gen; generation++ ) {
+            for (uint generation = 0; generation <= max_gen; generation++) {
 
                 // generation vertical lines                
-                dc.DrawLine(GenPen, cur_x-10, 0, cur_x-10, regionsize.Height);                
+                dc.DrawLine(GenPen, cur_x - 10, 0, cur_x - 10, regionsize.Height);
 
-                if ( !segments_by_generation.ContainsKey(generation)) {
+                if (!segments_by_generation.ContainsKey(generation)) {
                     // generation is empty!
                     cur_x += 10;
                     continue;
@@ -127,14 +127,14 @@ namespace Bend {
                     int mid_y = (y_top + y_bottom) / 2;
                     int y_mid_top = mid_y - segment_height / 2;
 
-                    
+
                     // color the inside of the box. pseudorandom color based on a hash of the start/end keys of a block
                     {
                         var h1 = Math.Abs(seg.start_key.ToString().GetHashCode());
                         var h2 = Math.Abs(seg.end_key.ToString().GetHashCode());
-                        
+
                         // vary the alpha and colors based on key hashes %N+K makes sure alpha is in a good range
-                        var fill = new SolidBrush(Color.FromArgb((h1%60)+80, (h1 + h2) & 0xff, (h2 >> 8) & 0xff, h2 & 0xff));
+                        var fill = new SolidBrush(Color.FromArgb((h1 % 60) + 80, (h1 + h2) & 0xff, (h2 >> 8) & 0xff, h2 & 0xff));
                         dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
                     }
 
@@ -146,7 +146,7 @@ namespace Bend {
                             } else {
                                 merge_brush = new SolidBrush(Color.Black);
                             }
-                           dc.FillRectangle(merge_brush, cur_x, y_mid_top, 5, segment_height);
+                            dc.FillRectangle(merge_brush, cur_x, y_mid_top, 5, segment_height);
                         }
                     }
 
@@ -162,8 +162,37 @@ namespace Bend {
                 // reset for next time through the loop
                 cur_x += 70;
             }
-                      
-            
+
+
+
+            // paint some other stuff
+            {
+                int y_pos = 0 + 20;
+                long memsize = GC.GetTotalMemory(false);
+                
+                Brush bb = new SolidBrush(Color.Black);
+                String msg = String.Format("Memsize: {0:0.00} MB", ((double)memsize / 1024 / 1024));
+                SizeF msgsz = dc.MeasureString(msg, this.Font);
+                dc.DrawString(msg, this.Font, bb, 
+                    new Point(regionsize.Width - (int)msgsz.Width, y_pos + (int)msgsz.Height));
+                y_pos += (int)msgsz.Height + 10;
+                int max_gc_generation = GC.MaxGeneration;
+                msg = "GC generations: " + (max_gc_generation + 1);
+                msgsz = dc.MeasureString(msg, this.Font);
+                dc.DrawString(msg, this.Font, bb, new Point(regionsize.Width - (int)msgsz.Width, y_pos + (int)msgsz.Height));
+                y_pos += (int)msgsz.Height + 10;
+                for (int x = 0; x <= max_gc_generation; x++) {
+                    int collection_count = GC.CollectionCount(x);
+                    msg = String.Format("[{0}] = [{1}]",x,collection_count);
+                    msgsz = dc.MeasureString(msg, this.Font);
+                    dc.DrawString(msg, this.Font, bb, new Point(regionsize.Width - (int)msgsz.Width, y_pos + (int)msgsz.Height));
+                    y_pos += (int)msgsz.Height + 10;
+
+                }
+
+            }
+
+
 
         }
 

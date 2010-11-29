@@ -126,7 +126,7 @@ namespace Bend.EmailIndexerTest {
                             count++;
 
                             System.Console.WriteLine("count: " + count);
-                            if (count % 400 == 0) {
+                            if (count % 800 == 0) {
                                 gui.debugDump(db);
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
@@ -145,7 +145,7 @@ namespace Bend.EmailIndexerTest {
 
                             // if (count > 40) { return; }
 
-                            if (count > 1000) {
+                            if (count > 4000000000) {
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
                                 for (int x = 0; x < 5; x++) {
@@ -168,6 +168,19 @@ namespace Bend.EmailIndexerTest {
                 }
                 
             }
+
+            // be sure to flush and merge before we search...
+            db.flushWorkingSegment();
+            gui.debugDump(db);
+            for (int x = 0; x < 5; x++) {
+                var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                gui.debugDump(db, mc);
+                if (mc == null) { break; }
+                db.performMerge(mc);
+                gui.debugDump(db);
+            }                                
+
+
         }
 
         public void DoEmailTest() {

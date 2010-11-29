@@ -116,6 +116,7 @@ namespace Bend
         public void clearSegmentCacheHack() {            
             lock (disk_segment_cache) {
                 disk_segment_cache = new Dictionary<RecordKey, SegmentReader>();
+                GC.Collect();
             }
             System.Console.WriteLine("*** clearSegmentCacheHack() ***");
             // TODO: see unmapGeneration(). This should go away when a transaction apply which
