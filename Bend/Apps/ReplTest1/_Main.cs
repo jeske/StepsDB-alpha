@@ -31,14 +31,22 @@ namespace Bend.ReplTest1 {
 
         static void do_test() {
             Console.WriteLine("ReplTest1 startup...");
-            LayerManager db = new LayerManager(InitMode.NEW_REGION,@"C:\BENDtest\repl");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, @"C:\BENDtest\repl");
             Random rnd = new Random();
+            ServerConnector connector = new ServerConnector();
+            
+            ServerContext ctx_1 = new ServerContext();         
+            ctx_1.server_guid = "guid" + rnd.Next();
+            ctx_1.prefix_hack = ctx_1.server_guid + "/repl";
+            ctx_1.connector = connector;
+            ReplHandler repl_1 = ReplHandler.InitFresh(db, ctx_1);            
 
-            ReplHandler repl_1 = new ReplHandler(db, "server_1", "guid"+rnd.Next());
-            ReplHandler repl_2 = new ReplHandler(db, "server_2", "guid" + rnd.Next());
 
-            repl_1.addServer(repl_2);
-            repl_2.addServer(repl_1);
+            ServerContext ctx_2 = new ServerContext();
+            ctx_2.server_guid = "guid" + rnd.Next();
+            ctx_2.prefix_hack = ctx_2.server_guid + "/repl";
+            ctx_2.connector = connector;
+            ReplHandler repl_2 = ReplHandler.InitJoin(db, ctx_2, ctx_1.server_guid);
 
             repl_1.setValueParsed("/a/1", "1");
             repl_1.setValueParsed("/b/2", "2");
@@ -53,19 +61,17 @@ namespace Bend.ReplTest1 {
             db.debugDump();
 
 
-            ReplHandler repl_3 = new ReplHandler(db, "server_3", "guid"+rnd.Next());
-            
-            repl_3.addServer(repl_1);
-            repl_3.addServer(repl_2);
-            repl_1.addServer(repl_3);
-            repl_2.addServer(repl_3);
+
+            ServerContext ctx_3 = new ServerContext();
+            ctx_3.server_guid = "guid" + rnd.Next();
+            ctx_3.prefix_hack = ctx_2.server_guid + "/repl";
+            ctx_3.connector = connector;
+            ReplHandler repl_3 = ReplHandler.InitJoin(db, ctx_3, ctx_2.server_guid);            
 
             db.debugDump();
 
             repl_3.setValueParsed("/qq", "10");
             db.debugDump();
-
-
 
             Console.WriteLine("waiting for key");
             Console.ReadKey();

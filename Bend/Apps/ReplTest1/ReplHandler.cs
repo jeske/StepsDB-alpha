@@ -8,6 +8,8 @@ using Bend;
 
 using System.IO;
 
+using System.Threading;
+
 
 /*
  * TODO: 
@@ -29,19 +31,19 @@ using System.IO;
  * 
  * our keyspace schema
  * 
- *  _my/config/DATA-INSTANCE-ID = <guid of the dataset>
- *  _my/config/MY-SERVER-ID = <server guid>
+ *  _config/DATA-INSTANCE-ID = <guid of the dataset>
+ *  _config/MY-SERVER-ID = <server guid>
  *  
- *  _my/config/quorum_write_requirement = <number of servers before we advance the repl tail>
- *  _my/config/log_max_age = <oldest loglines we want to keep.. 
+ *  _config/quorum_write_requirement = <number of servers before we advance the repl tail>
+ *  _config/log_max_age = <oldest loglines we want to keep.. 
  *                             note tombstones have to be forced to live this long>
- *  _my/config/log_max_size = <max log size in approximate bytes>
+ *  _config/log_max_size = <max log size in approximate bytes>
  * 
- *  _server/<SERVER GUID>/location = host:port
+ *  _config/seeds/<SERVER GUID>
  *  
  *  _logs/<SERVER GUID>/<logid> -> [update info]
  *  
- *  _log_status/<SERVER_GUID>/repl_tail -> the oldest <logid> that may not be replicated for this server-guid
+ *  _log_commit_heads/<SERVER_GUID> -> the newest log entry that is known to be committed for this server_guid
  *  
  * 
  * 
@@ -49,44 +51,232 @@ using System.IO;
 
 namespace Bend {
 
+    public class ServerConnector {
+        Dictionary<string, ReplHandler> server_list = new Dictionary<string, ReplHandler>();
+        public void registerServer(string name, ReplHandler instance) {
+            server_list.Add(name, instance);
+        }
+        public ReplHandler connectToServer(string name) {
+            return server_list[name];
+        }
+
+    }
+
+    public class ServerContext {
+        public string server_guid;
+        public ServerConnector connector;
+        public string prefix_hack;
+    }
+
     public class ReplHandler {
         LayerManager db;
-        string my_server_guid;
+        ServerContext ctx;
+
         Random rnd;
         ReplPusher pusher;
-        string prefix_hack;
+        string data_instance_id;        
 
-        public ReplHandler(LayerManager db, string prefix_hack, string server_guid) {
+        public static Random myrnd = new Random();
+
+        Thread worker;
+        public enum ReplState {
+            init,
+            pending,
+            active
+        };
+        ReplState state = ReplState.init;
+
+
+        private ReplHandler(LayerManager db, ServerContext ctx) {
             this.db = db;
             this.rnd = new Random();
             this.pusher = new ReplPusher(this);
-            this.prefix_hack = prefix_hack;
+            this.ctx = ctx;
 
-            my_server_guid = server_guid;
-            db.setValue(new RecordKey().appendParsedKey(prefix_hack)
+            
+            try {
+                var rec = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                    .appendKeyPart("_config")
+                    .appendKeyPart("DATA-INSTANCE-ID"),
+                    true);
+                this.data_instance_id = rec.Value.ToString();
+                Console.WriteLine("ReplHandler - {0}: data_instance_id {1}",
+                    ctx.server_guid, data_instance_id);
+            } catch (KeyNotFoundException) {
+                throw new Exception("no data instance ID, try InitResume or InitJoin");
+            }
+
+            // check server_guid matches?
+
+            // register ourself
+            ctx.connector.registerServer(ctx.server_guid, this);
+
+            // startup our background task
+            worker = new Thread(delegate() {
+                this.workerThread();
+            });
+        }
+
+        IEnumerable<string> logCommitHeads() {
+            var log_commit_heads_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_log_commit_heads");
+            foreach (var row in db.scanForward(
+                  new ScanRange<RecordKey>(log_commit_heads_prefix, 
+                                            RecordKey.AfterPrefix(log_commit_heads_prefix), null))) {
+                yield return row.Key.key_parts[row.Key.key_parts.Count - 1];
+            }
+
+        }
+
+        private void workerThread() {
+            while (true) {
+
+                // make sure we try to stay connnected to all seeds
+                var seed_key_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
+                    .appendKeyPart("_config")
+                    .appendKeyPart("seeds");
+                foreach (var row in db.scanForward(new ScanRange<RecordKey>(seed_key_prefix, RecordKey.AfterPrefix(seed_key_prefix), null))) {
+                    string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
+
+                    if (!this.pusher.isConnectedToServer(sname)) {
+                        ReplHandler srvr = ctx.connector.connectToServer(sname);
+                        this.pusher.addServer(sname, srvr);
+                    }
+                }
+                
+                if (this.state == ReplState.init) {
+                    // we are intiializing.... check our log state and see if we need a full rebuild
+
+
+                    // (1) check our log tail pointers
+                    ReplHandler srvr = pusher.getRandomSeed();
+
+                    LogStatus ls = srvr.checkLogStatus(this.logCommitHeads());
+
+
+                    
+                } else if (this.state == ReplState.pending) {
+                    // we are connected, bring us up to date
+
+                } else {
+                    // we are just running!! 
+                }
+                Thread.Sleep(10000);
+            }
+        }
+
+
+        public static ReplHandler InitFresh(LayerManager db, ServerContext ctx) {
+            // init fresh
+
+            // record our instance ID
+            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_config")
                 .appendKeyPart("MY-SERVER-ID"),
-                RecordUpdate.WithPayload(my_server_guid));
+                RecordUpdate.WithPayload(ctx.server_guid));
+
+            // create and record a new instance ID
+            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_config")
+                .appendKeyPart("DATA-INSTANCE_ID"),
+                RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
+
+            ReplHandler repl = new ReplHandler(db, ctx);
+            return repl;
+
+        }
+
+        public static ReplHandler InitResume(LayerManager db, ServerContext ctx) {
+            ReplHandler repl = new ReplHandler(db, ctx);
+            return repl;
+        }
+
+        public static ReplHandler InitJoin(LayerManager db, ServerContext ctx, string seed_name) {
+
+            // connect to the other server, get his instance id, exchange seeds
+            ReplHandler seed = ctx.connector.connectToServer(seed_name);
+            ReplHandler.JoinInfo join_info = seed.requestToJoin(ctx.server_guid);
+
+            // record the join result
+            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_config")
+                .appendKeyPart("DATA_INSTANCE_ID"),
+                RecordUpdate.WithPayload(join_info.data_instance_id));
+            foreach (var seed_server in join_info.seed_servers) {
+                db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                    .appendKeyPart("_config")
+                    .appendKeyPart("seeds")
+                    .appendKeyPart(seed_server),
+                    RecordUpdate.WithPayload(""));                
+            }
+                                  
+            ReplHandler repl = new ReplHandler(db, ctx);
+            return repl;
+        }
+
+        public class LogStatus {
+
+        }
+
+        public LogStatus checkLogStatus(List<string> logtails) {
+            // 
+        }
+
+        public JoinInfo requestToJoin(string server_guid) {
+            // (1) record his guid
+            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_config").appendKeyPart("seeds").appendKeyPart(server_guid),
+                RecordUpdate.WithPayload(""));
+
+            // (2) send him our instance ID and a list of seeds
+            var ji = new JoinInfo();
+            ji.data_instance_id = this.data_instance_id;
+
+            ji.seed_servers = new List<string>();
+            var seed_key_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_config")
+                .appendKeyPart("seeds");            
+            foreach (var row in db.scanForward(new ScanRange<RecordKey>(seed_key_prefix,RecordKey.AfterPrefix(seed_key_prefix),null))) {
+                string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
+                ji.seed_servers.Add(sname);
+            }
+            if (!ji.seed_servers.Contains(this.ctx.server_guid)) {
+                ji.seed_servers.Add(this.ctx.server_guid);
+            }
+            return ji;
+        }
+
+        public class JoinInfo {
+            public string data_instance_id;
+            public List<string> seed_servers;
         }
 
         public class ReplPusher {
-            List<ReplHandler> servers;
+            Dictionary<string,ReplHandler> servers;
             ReplHandler myhandler;
             public ReplPusher(ReplHandler handler) {
-                servers = new List<ReplHandler>();
+                servers = new Dictionary<string,ReplHandler>();
                 myhandler = handler;
             }
-            public void addServer(ReplHandler server) {
-                // make sure the server is up to date first
-                servers.Add(server);
+            public bool isConnectedToServer(string server_guid) {
+                return servers.ContainsKey(server_guid);
             }
-            public void removeServer(ReplHandler server) {
-                servers.Remove(server);
+            public void addServer(string server_guid, ReplHandler srvr) {
+                if (server_guid.CompareTo(myhandler.ctx.server_guid) == 0) {
+                    // we can't add ourself!!
+                    return;
+                }
+                servers[server_guid] = srvr;
+            }
+            public ReplHandler getRandomSeed() {
+                ReplHandler[] srvr_array = servers.Values.ToArray();
+                int pick = myhandler.rnd.Next(srvr_array.Length);
+                return srvr_array[pick];                
             }
 
             public void pushNewLogEntry(byte[] logstamp, RecordUpdate logdata) {
-                foreach (var server in servers) {
-                    server.applyLogEntry(myhandler.my_server_guid, logstamp, logdata);
+                foreach (var kvp in servers) {
+                    kvp.Value.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
                 }
             }
         }
@@ -99,7 +289,7 @@ namespace Bend {
                                                
             // (1) add it to our copy of that server's log
             RecordKey logkey = new RecordKey()
-            .appendKeyPart(prefix_hack)
+            .appendParsedKey(ctx.prefix_hack)
             .appendKeyPart("_logs")
             .appendKeyPart(from_server_guid)
             .appendKeyPart(logstamp);
@@ -110,7 +300,7 @@ namespace Bend {
 
             foreach (var kvp in decoder.sortedWalk()) {
                 RecordKey local_data_key = new RecordKey()
-                    .appendKeyPart(prefix_hack)
+                    .appendParsedKey(ctx.prefix_hack)
                     .appendKeyPart("_data");
                 foreach (var part in kvp.Key.key_parts) {
                     local_data_key.appendKeyPart(part);
@@ -121,9 +311,6 @@ namespace Bend {
             
 
         }
-        public void addServer(ReplHandler target_server) {
-            pusher.addServer(target_server);
-        }
 
         public void setValue(RecordKey skey, RecordUpdate supdate) {
             // (1) write our repl log entry
@@ -133,9 +320,9 @@ namespace Bend {
 
             byte[] logstamp = Lsd.numberToLsd(timestamp, 35);
             RecordKey logkey = new RecordKey()
-                .appendKeyPart(prefix_hack)
+                .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_logs")
-                .appendKeyPart(my_server_guid)
+                .appendKeyPart(ctx.server_guid)
                 .appendKeyPart(logstamp);
 
             // (1.1) pack the key/value together into the log entry
@@ -160,7 +347,7 @@ namespace Bend {
             Console.WriteLine("writing data entry: {0} = {1}",
                 skey, supdate);
             RecordKey private_record_key = new RecordKey()
-                .appendKeyPart(prefix_hack)
+                .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_data");
             foreach (var part in skey.key_parts) {
                 private_record_key.appendKeyPart(part);
