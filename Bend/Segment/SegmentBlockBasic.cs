@@ -109,9 +109,12 @@ namespace Bend {
         // prepare to read from a stream
         public SegmentBlockBasicDecoder(BlockAccessor datastream) {
             this.datastream = datastream;
+            if (this.datastream.Length == 0) {
+                throw new Exception("SegmentBlockBasicDecoder: handed empty stream");
+            }
         }
 
-        private static KeyValuePair<RecordKey, RecordUpdate> decodeRecordFromBlock(BlockAccessor rs) {
+        private static KeyValuePair<RecordKey, RecordUpdate> decodeRecordFromBlock(BlockAccessor rs) {            
             bool at_endmarker = false;
             
             // ..we are ASSUMING that the records starts right here in the stream, it better be true!

@@ -157,6 +157,23 @@ namespace Bend {
             // public string newest_pending_entry_pointer;
         }
 
+        private LogStatus _statusForLog(string server_guid) {
+            var log_status = new LogStatus();
+            log_status.server_guid = server_guid;
+
+
+            // first log entry for this log
+            var oldestlogrow = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_log").appendKeyPart(server_guid), false);
+            log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+
+            // newest log entry for this log
+            var newestlogrow = db.FindPrev(RecordKey.AfterPrefix(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_log").appendKeyPart(server_guid)), false);
+            log_status.log_commit_head = newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+            return log_status;
+        }
+
         IEnumerable<LogStatus> getStatusForLogs() {
             var seeds_prefix = new RecordKey()
                 .appendParsedKey(ctx.prefix_hack)
@@ -165,23 +182,13 @@ namespace Bend {
             var scanrange = new ScanRange<RecordKey>(seeds_prefix,
                                             RecordKey.AfterPrefix(seeds_prefix), null);
 
+            yield return _statusForLog(ctx.server_guid); // be sure to include myself
+
             foreach (var seed_row in db.scanForward(scanrange)) {
                 var server_guid = seed_row.Key.key_parts[seed_row.Key.key_parts.Count - 1];
-                
-                var log_status = new LogStatus();
-                log_status.server_guid = server_guid;
-                
 
-                // first log entry for this log
-                var oldestlogrow = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                    .appendKeyPart("_log").appendKeyPart(server_guid), false);
-                log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
-
-                // newest log entry for this log
-                throw new Exception("NOT YET IMPLEMENTED");
-                //       log_status.log_commit_head = 
-
-                yield return log_status;
+                if (server_guid.Equals(ctx.server_guid)) { continue; } // skip ourselves
+                yield return _statusForLog(server_guid);
             }
 
         }
@@ -218,10 +225,12 @@ namespace Bend {
                     log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
                 }
                 byte[] data = srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head);
-                BlockAccessor ba = new BlockAccessor(data);
-                ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
-                foreach (var kv in decoder.sortedWalk()) {
-
+                if (data.Length > 0) {
+                    BlockAccessor ba = new BlockAccessor(data);
+                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
+                    foreach (var kv in decoder.sortedWalk()) {
+                        throw new Exception("NOT YET IMPLEMENTED");
+                    }
                 }
             }
         }
@@ -260,16 +269,16 @@ namespace Bend {
         }
 
         private byte[] fetchLogEntries(string log_server_guid, string log_start_key, string log_end_key) {
-            RecordKey rk_start = new RecordKey()
+            var rk_start = new RecordKey()
                 .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_logs")
                 .appendKeyPart(log_server_guid)
                 .appendKeyPart(log_start_key);
-            RecordKey rk_end = new RecordKey()
+            var rk_end = RecordKey.AfterPrefix(new RecordKey()
                 .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_logs")
                 .appendKeyPart(log_server_guid)
-                .appendKeyPart(log_end_key);
+                .appendKeyPart(log_end_key));
             var scanrange = new ScanRange<RecordKey>(rk_start,rk_end,null);
 
             byte[] packed_log_records;
