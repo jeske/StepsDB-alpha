@@ -114,10 +114,15 @@ namespace Bend {
 
             
             try {
-                var rec = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
+
+                var di_rk = new RecordKey().appendParsedKey(ctx.prefix_hack)
                     .appendKeyPart("_config")
-                    .appendKeyPart("DATA-INSTANCE-ID"),
-                    true);
+                    .appendKeyPart("DATA-INSTANCE-ID");
+                var rec = db.FindNext(di_rk,true);
+                if (di_rk.CompareTo(rec.Key) != 0) {
+                    throw new Exception(
+                        String.Format("ReplHandler {0} , not able to fetch DATA-INSTANCE-ID", ctx.server_guid));
+                }
                 this.data_instance_id = rec.Value.ToString();
                 Console.WriteLine("ReplHandler - {0}: data_instance_id {1}",
                     ctx.server_guid, data_instance_id);
@@ -159,7 +164,8 @@ namespace Bend {
                 var log_commit_head = log_head_row.Value.ToString();
                 
                 var log_status = new LogStatus();
-                log_status.log_commit_head = log_commit_head;
+                log_status.server_guid = server_guid;
+                log_status.log_commit_head = log_commit_head;                
 
                 // first log entry for this log
                 var oldestlogrow = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
@@ -258,7 +264,7 @@ namespace Bend {
 
             ReplHandler repl = new ReplHandler(db, ctx);
 
-            repl.state = ReplState.active; //TODO: is this the right way to become active?            
+            repl.state = ReplState.active; // TODO: is this the right way to become active?            
             return repl;
 
         }
@@ -360,7 +366,8 @@ namespace Bend {
             }
 
             public void scanSeeds() {
-                var seed_key_prefix = new RecordKey().appendParsedKey(myhandler.ctx.prefix_hack)
+                var seed_key_prefix = new RecordKey()
+                    .appendParsedKey(myhandler.ctx.prefix_hack)
                     .appendKeyPart("_config")
                     .appendKeyPart("seeds");
                 foreach (var row in myhandler.db.scanForward(
@@ -368,8 +375,8 @@ namespace Bend {
                         RecordKey.AfterPrefix(seed_key_prefix), null))) {
                     string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
 
+                    Console.WriteLine("seed scan row: {0}", row);
                     if (!servers.Contains(sname))
-
                         try {
                             ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);
                             this.addServer(sname);

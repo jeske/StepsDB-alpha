@@ -253,6 +253,8 @@ namespace Bend
                  layers = this.store.segmentlayers.ToArray();
             }
             
+
+            // TODO: fix this super-hack to do "minKey/maxKey"
             foreach (SegmentMemoryBuilder layer in layers) {
                 var segrk = RangeKey.newSegmentRangeKey(
                                 new RecordKey().appendKeyPart("<"),

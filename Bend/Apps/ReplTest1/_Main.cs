@@ -22,7 +22,11 @@ namespace Bend.ReplTest1 {
                 newThread.Start();
                 Application.Run(window);
             } else {
-                _Main.do_test();
+                try {
+                    _Main.do_test();
+                } catch (Exception e) {
+                    Console.WriteLine(e.ToString());
+                }
             }
 
             
@@ -57,15 +61,21 @@ namespace Bend.ReplTest1 {
             Console.WriteLine("----------------[ init two servers together, write some records ]-----------------");
 
             ServerContext ctx_1 = new ServerContext();         
-            ctx_1.server_guid = "guid1-" + rnd.Next();
+            ctx_1.server_guid = ".guid1-" + rnd.Next();
             ctx_1.prefix_hack = ctx_1.server_guid + "/repl";
             ctx_1.connector = connector;
-            ReplHandler repl_1 = ReplHandler.InitFresh(db, ctx_1);
+            ReplHandler repl_1;
+            try {
+                 repl_1 = ReplHandler.InitFresh(db, ctx_1);
+            } catch (Exception e) {
+                db.debugDump();
+                throw new Exception();
+            }
 
             waitUntilActive(db, repl_1);
 
             ServerContext ctx_2 = new ServerContext();
-            ctx_2.server_guid = "guid2-" + rnd.Next();
+            ctx_2.server_guid = ".guid2-" + rnd.Next();
             ctx_2.prefix_hack = ctx_2.server_guid + "/repl";
             ctx_2.connector = connector;
             ReplHandler repl_2 = ReplHandler.InitJoin(db, ctx_2, ctx_1.server_guid);
@@ -102,13 +112,10 @@ namespace Bend.ReplTest1 {
 
 
 
-
-
-
             return; // not ready for this yet
 
             ServerContext ctx_3 = new ServerContext();
-            ctx_3.server_guid = "guid3-" + rnd.Next();
+            ctx_3.server_guid = ".guid3-" + rnd.Next();
             ctx_3.prefix_hack = ctx_2.server_guid + "/repl";
             ctx_3.connector = connector;
             ReplHandler repl_3 = ReplHandler.InitJoin(db, ctx_3, ctx_2.server_guid);            

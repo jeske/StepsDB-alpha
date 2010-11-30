@@ -1,6 +1,7 @@
 
 
 ----[ TODO ]---------
+  - FIX: the min-key max-key superhack in segment_walk
 
   - distributed datastore handler
      - add psudo connection handling
