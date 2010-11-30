@@ -223,17 +223,6 @@ namespace Bend
 
         // ------------[ public segmentWalkForKey ] --------------
 
-        public RecordUpdateResult segmentWalkForKey_OLD(
-            RecordKey key,
-            ISortedSegment curseg,
-            ref RecordData record) {
-
-            HashSet<int> handledGenerations = new HashSet<int>();
-            return this.INTERNAL_segmentWalkForKey_OLD(
-                key, curseg, handledGenerations, num_generations, ref record);
-
-
-        }
 
         public GetStatus getNextRecord(IComparable<RecordKey> lowkey, ref RecordKey key, ref RecordData record,
             bool equal_ok) {
@@ -501,83 +490,6 @@ namespace Bend
             // now repeat the walk of range references in this segment, this time actually descending
         }
         
-
-
-        // ------------[ ** INTERNAL ** segmentWalkForKey ]-------
-        //
-        // This is the meaty internal function that does the "magic"
-        // of the segment walk.
-        
-        private RecordUpdateResult INTERNAL_segmentWalkForKey_OLD(
-            RecordKey key,
-            ISortedSegment curseg,
-            HashSet<int> handledGenerations,
-            int maxgen,
-            ref RecordData record) {
-
-            // first look in this segment for the key
-            {
-                RecordUpdate update;
-                if (curseg.getRecordUpdate(key, out update) == GetStatus.PRESENT) {
-                    if (record.applyUpdate(update) == RecordUpdateResult.FINAL) {
-                        return RecordUpdateResult.FINAL;
-                    }
-                }
-            }
-
-            // make a note of which generation range references have precedence in this segment
-            HashSet<int> nextHandledGenerations = new HashSet<int>(handledGenerations);
-            for (int i = maxgen; i >= 0; i--) {
-                RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
-                    .appendKeyPart(Lsd.numberToLsd(i,GEN_LSD_PAD)).appendParsedKey("</>");
-                RecordUpdate update;
-
-                RangeKey trangekey = RangeKey.newSegmentRangeKey(
-                   new RecordKey().appendParsedKey("<"),
-                   new RecordKey().appendParsedKey(">"), i);
-                if ((!trangekey.toRecordKey().Equals(rangekey))) {
-                    throw new Exception(String.Format("RangeKey({0}) differs from RecordKey({1})", trangekey.toRecordKey(), rangekey));
-                }
-
-                // TODO: make a "getRecordExists()" call in ISortedSegment to make this more efficient
-                //  .. then make sure we use that optimization to avoid calling getRecordUpdate on those
-                //  .. entries in the next loop below.
-                if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
-                    nextHandledGenerations.Add(i);  // mark the generation handled at this level
-                }
-            }
-
-            // now repeat the walk of range references in this segment, this time actually descending
-            for (int i = maxgen; i >= 0; i--) {
-                
-                RecordKey rangekey = new RecordKey().appendParsedKey(".ROOT/GEN")
-                    .appendKeyPart(Lsd.numberToLsd(i,GEN_LSD_PAD)).appendParsedKey("</>");
-
-               
-
-                RecordUpdate update;  
-                if (curseg.getRecordUpdate(rangekey,out update) == GetStatus.PRESENT) {
-                    if (update.type == RecordUpdateTypes.FULL) {
-                        
-                        SegmentReader sr = segmentReaderFromRow(rangekey,update);
-
-                        // RECURSE
-                        if (INTERNAL_segmentWalkForKey_OLD(key, sr, nextHandledGenerations, maxgen - 1, ref record) == RecordUpdateResult.FINAL) {
-                            return RecordUpdateResult.FINAL;
-                        }
-                    } else if (update.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
-                        // A tombstone for a rangemap means we can skip it!
-                        // throw new Exception("TBD: implement handling for rangemap tombstones");
-                    } else {
-                        throw new Exception("Invalid rangerecord updatetype in walk: " + update.type.ToString());
-                    }
-
-                }
-            }
-
-            return RecordUpdateResult.SUCCESS;
-        }
-
 
 
 
