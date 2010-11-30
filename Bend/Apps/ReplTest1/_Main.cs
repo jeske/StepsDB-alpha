@@ -94,35 +94,36 @@ namespace Bend.ReplTest1 {
             db.debugDump();
 
 
-            Thread.Sleep(10000);
+            Thread.Sleep(5000);
 
             db.debugDump();
-
-            Environment.Exit(1);
 
             Console.WriteLine("-----------------[ remove one server, write some records ]----------------");
 
             repl_2.Shutdown();
 
+            // wait until repl2 is really shutdown
+
             repl_1.setValueParsed("/c/1", "10");
-
             db.debugDump();
-
 
             Console.WriteLine("----------------[ reinit server 2 ]-----------------------------");
 
             repl_2 = ReplHandler.InitResume(db, ctx_2);
-
             
             // wait until it comes online
 
-            Console.WriteLine("debug dump DB");
+            Thread.Sleep(7000);
+            
             db.debugDump();
 
+            Thread.Sleep(7000);
 
+            db.debugDump();
 
+            Environment.Exit(1);
 
-            return; // not ready for this yet
+            
 
             ServerContext ctx_3 = new ServerContext();
             ctx_3.server_guid = ".guid3-" + rnd.Next();

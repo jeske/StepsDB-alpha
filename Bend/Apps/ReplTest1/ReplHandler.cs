@@ -14,13 +14,15 @@ using System.Threading;
 /*
  * TODO: 
  * 
- * - don't let us touch keys until there is an instance id (either via INIT_NEW or JOIN_EXISTING)
- * - don't let us touch keys until the server is "active"
+ * - don't let us touch keys unless the server is "active"
  * - make a simulated "server connect" so we can also have "disconnect"
  * - tail-log command (where we supply log pointers, error if the pointer is too old)
  * - fallback to key-copy if the tail-log didn't work
  * - make sure which server-log we process first doesn't change final records 
  *      (timestamp order log apply? per-record timestamp?)
+ *      
+ * TODO: consider having "pending" log entries and "real" (how do we flip? two logs? flag?)
+ * TODO: fix write-ordering problems (add record timestamp resolver attribute)
  * 
  * Cases to Handle
  * 
@@ -43,6 +45,8 @@ using System.Threading;
  *  
  *  _logs/<SERVER GUID>/<logid> -> [update info]
  *  
+ * 
+ * not really using this yet...
  *  _log_commit_heads/<SERVER_GUID> -> the newest log entry that is known to be committed for this server_guid
  *  
  * 
@@ -154,23 +158,28 @@ namespace Bend {
         }
 
         IEnumerable<LogStatus> getStatusForLogs() {
-            var log_commit_heads_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
-                .appendKeyPart("_log_commit_heads");
-            foreach (var log_head_row in db.scanForward(
-                  new ScanRange<RecordKey>(log_commit_heads_prefix, 
-                                            RecordKey.AfterPrefix(log_commit_heads_prefix), null))) {
-                
-                var server_guid = log_head_row.Key.key_parts[log_head_row.Key.key_parts.Count - 1];
-                var log_commit_head = log_head_row.Value.ToString();
+            var seeds_prefix = new RecordKey()
+                .appendParsedKey(ctx.prefix_hack)
+                .appendParsedKey("_config/seeds");
+
+            var scanrange = new ScanRange<RecordKey>(seeds_prefix,
+                                            RecordKey.AfterPrefix(seeds_prefix), null);
+
+            foreach (var seed_row in db.scanForward(scanrange)) {
+                var server_guid = seed_row.Key.key_parts[seed_row.Key.key_parts.Count - 1];
                 
                 var log_status = new LogStatus();
                 log_status.server_guid = server_guid;
-                log_status.log_commit_head = log_commit_head;                
+                
 
                 // first log entry for this log
                 var oldestlogrow = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
                     .appendKeyPart("_log").appendKeyPart(server_guid), false);
                 log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+
+                // newest log entry for this log
+                throw new Exception("NOT YET IMPLEMENTED");
+                //       log_status.log_commit_head = 
 
                 yield return log_status;
             }
@@ -496,7 +505,16 @@ namespace Bend {
 
         }
 
+        private void checkActive() {
+            if (this.state != ReplState.active) {
+                // TODO: spin for the timeout duration to see if we become active
+                throw new Exception(String.Format("Server {0} in state {1}, not ready for setValue",
+                    ctx.server_guid, state));
+            }
+        }
         public void setValue(RecordKey skey, RecordUpdate supdate) {
+            checkActive();
+
             // (1) write our repl log entry
 
             DateTime now = DateTime.Now;
@@ -527,6 +545,9 @@ namespace Bend {
                 logkey, skey, supdate);
             db.setValue(logkey, logupdate);
 
+            // (2) trigger the repl notifier that there is a new entry to push
+            pusher.pushNewLogEntry(logstamp, logupdate);
+
             // (2) write the record key
             Console.WriteLine("writing data entry: {0} = {1}",
                 skey, supdate);
@@ -537,9 +558,6 @@ namespace Bend {
                 private_record_key.appendKeyPart(part);
             }
             db.setValue(private_record_key, supdate);
-
-            // (3) trigger the repl notifier that there is a new entry to push
-            pusher.pushNewLogEntry(logstamp, logupdate);
         }
         
         public void setValueParsed(string skey, string svalue) {
