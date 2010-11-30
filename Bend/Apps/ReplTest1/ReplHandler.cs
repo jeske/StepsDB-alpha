@@ -53,11 +53,24 @@ namespace Bend {
 
     public class ServerConnector {
         Dictionary<string, ReplHandler> server_list = new Dictionary<string, ReplHandler>();
-        public void registerServer(string name, ReplHandler instance) {
-            server_list.Add(name, instance);
+        public ReplHandler getServerHandle(string server_guid) {
+
+            try {
+                return server_list[server_guid];
+            } catch (KeyNotFoundException) {
+                throw new KeyNotFoundException("could not connect to server: " + server_guid);
+            }
         }
-        public ReplHandler connectToServer(string name) {
-            return server_list[name];
+
+        public void registerServer(string name, ReplHandler instance) {
+            server_list[name] = instance;            
+        }
+        public void unregisterServer(string server_guid) {
+            try {
+                server_list.Remove(server_guid);
+            } catch (KeyNotFoundException) {
+                // nothing to remove
+            }
         }
 
     }
@@ -81,11 +94,17 @@ namespace Bend {
         Thread worker;
         public enum ReplState {
             init,
-            pending,
-            active
+            rebuild,
+            active,
+            shutdown
         };
-        ReplState state = ReplState.init;
+        private ReplState state = ReplState.init;
+        public ReplState State { get { return state; } }
 
+
+        public override string ToString() {
+            return String.Format("ReplHandler({0}:{1})", this.ctx.server_guid, this.state.ToString());
+        }
 
         private ReplHandler(LayerManager db, ServerContext ctx) {
             this.db = db;
@@ -115,53 +134,109 @@ namespace Bend {
             worker = new Thread(delegate() {
                 this.workerThread();
             });
+            worker.Start();
         }
 
-        IEnumerable<string> logCommitHeads() {
+        public void Shutdown() {
+            // remove us from the connector
+            ctx.connector.unregisterServer(ctx.server_guid);
+        }
+        public class LogStatus {
+            public string server_guid;
+            public string log_commit_head;
+            public string oldest_entry_pointer;
+            // public string newest_pending_entry_pointer;
+        }
+
+        IEnumerable<LogStatus> getStatusForLogs() {
             var log_commit_heads_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_log_commit_heads");
-            foreach (var row in db.scanForward(
+            foreach (var log_head_row in db.scanForward(
                   new ScanRange<RecordKey>(log_commit_heads_prefix, 
                                             RecordKey.AfterPrefix(log_commit_heads_prefix), null))) {
-                yield return row.Key.key_parts[row.Key.key_parts.Count - 1];
+                
+                var server_guid = log_head_row.Key.key_parts[log_head_row.Key.key_parts.Count - 1];
+                var log_commit_head = log_head_row.Value.ToString();
+                
+                var log_status = new LogStatus();
+                log_status.log_commit_head = log_commit_head;
+
+                // first log entry for this log
+                var oldestlogrow = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
+                    .appendKeyPart("_log").appendKeyPart(server_guid), false);
+                log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+
+                yield return log_status;
             }
 
         }
 
-        private void workerThread() {
-            while (true) {
+        private void erasePendingLogEntries() {
+            // TODO: erase all log entries newer than the commit_head
+            // someday this might be an MVCC abort/rollback
+        }
 
-                // make sure we try to stay connnected to all seeds
-                var seed_key_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
-                    .appendKeyPart("_config")
-                    .appendKeyPart("seeds");
-                foreach (var row in db.scanForward(new ScanRange<RecordKey>(seed_key_prefix, RecordKey.AfterPrefix(seed_key_prefix), null))) {
-                    string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
+        private void workerFunc() {
+            if (state != ReplState.active) {
+                // be sure to pull us out of the connector registry!!
+                ctx.connector.unregisterServer(ctx.server_guid);
+            }
 
-                    if (!this.pusher.isConnectedToServer(sname)) {
-                        ReplHandler srvr = ctx.connector.connectToServer(sname);
-                        this.pusher.addServer(sname, srvr);
+            // Make sure we try to stay connnected to all seeds so we can push writes to them
+            // as fast as possible.
+            pusher.scanSeeds();
+
+                
+            if (this.state == ReplState.init) {
+                // we are initializing.... check our log state and see if we need a full rebuild                    
+
+                // (1) see if we can resume from our commit_head pointers                    
+                var our_log_status_dict = new Dictionary<string, LogStatus>();
+                foreach (var ls in this.getStatusForLogs()) {
+                    our_log_status_dict[ls.server_guid] = ls;
+                }
+                    
+                ReplHandler srvr = pusher.getRandomSeed();
+                foreach (var ls in srvr.getStatusForLogs()) {
+                    if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
+                        // we are missing an entire log, we need a full rebuild!
+                        this.state = ReplState.rebuild;
+                        return;
                     }
                 }
-                
-                if (this.state == ReplState.init) {
-                    // we are intiializing.... check our log state and see if we need a full rebuild
 
+                // (2) erase our pending entries (those newer than commit heads)
+                //     TODO: check them instead of erasing
 
-                    // (1) check our log tail pointers
-                    ReplHandler srvr = pusher.getRandomSeed();
+                this.erasePendingLogEntries();
 
-                    LogStatus ls = srvr.checkLogStatus(this.logCommitHeads());
+                // (3) replay from the commit heads
 
+            } else if (this.state == ReplState.rebuild) {
+                // we need a FULL rebuild
+                Console.WriteLine("TODO: do full rebuild");                    
+            } else {
+                // we are just running!! 
+                ctx.connector.registerServer(ctx.server_guid, this);
+            }
+        }
 
-                    
-                } else if (this.state == ReplState.pending) {
-                    // we are connected, bring us up to date
-
-                } else {
-                    // we are just running!! 
+        private void workerThread() {
+            int error_count = 0;
+            while (true) {
+                try {
+                    workerFunc();
+                } catch (Exception e) {
+                    error_count++;
+                    Console.WriteLine("Server ({0}) exception {1}:\n{2}",
+                        ctx.server_guid, error_count, e.ToString());
+                    if (error_count > 5) {
+                        Console.WriteLine("too many exceptions, shutting down");
+                        this.state = ReplState.shutdown;
+                        return;
+                    }
                 }
-                Thread.Sleep(10000);
+                Thread.Sleep(1000);
             }
         }
 
@@ -182,6 +257,8 @@ namespace Bend {
                 RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
 
             ReplHandler repl = new ReplHandler(db, ctx);
+
+            repl.state = ReplState.active; //TODO: is this the right way to become active?            
             return repl;
 
         }
@@ -194,7 +271,7 @@ namespace Bend {
         public static ReplHandler InitJoin(LayerManager db, ServerContext ctx, string seed_name) {
 
             // connect to the other server, get his instance id, exchange seeds
-            ReplHandler seed = ctx.connector.connectToServer(seed_name);
+            ReplHandler seed = ctx.connector.getServerHandle(seed_name);
             ReplHandler.JoinInfo join_info = seed.requestToJoin(ctx.server_guid);
 
             // record the join result
@@ -202,6 +279,7 @@ namespace Bend {
                 .appendKeyPart("_config")
                 .appendKeyPart("DATA_INSTANCE_ID"),
                 RecordUpdate.WithPayload(join_info.data_instance_id));
+
             foreach (var seed_server in join_info.seed_servers) {
                 db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
                     .appendKeyPart("_config")
@@ -209,19 +287,15 @@ namespace Bend {
                     .appendKeyPart(seed_server),
                     RecordUpdate.WithPayload(""));                
             }
+
+            Console.WriteLine("InitJoin: server ({0}) joining seeds ({1})",
+                ctx.server_guid, String.Join(",", join_info.seed_servers));
                                   
             ReplHandler repl = new ReplHandler(db, ctx);
             return repl;
         }
 
-        public class LogStatus {
-
-        }
-
-        public LogStatus checkLogStatus(List<string> logtails) {
-            // 
-        }
-
+     
         public JoinInfo requestToJoin(string server_guid) {
             // (1) record his guid
             db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
@@ -240,8 +314,9 @@ namespace Bend {
                 string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
                 ji.seed_servers.Add(sname);
             }
+            // add ourself to the seed list! 
             if (!ji.seed_servers.Contains(this.ctx.server_guid)) {
-                ji.seed_servers.Add(this.ctx.server_guid);
+                ji.seed_servers.Add(this.ctx.server_guid); 
             }
             return ji;
         }
@@ -252,31 +327,68 @@ namespace Bend {
         }
 
         public class ReplPusher {
-            Dictionary<string,ReplHandler> servers;
+            HashSet<string> servers;
             ReplHandler myhandler;
             public ReplPusher(ReplHandler handler) {
-                servers = new Dictionary<string,ReplHandler>();
+                servers = new HashSet<string>();
                 myhandler = handler;
             }
-            public bool isConnectedToServer(string server_guid) {
-                return servers.ContainsKey(server_guid);
-            }
-            public void addServer(string server_guid, ReplHandler srvr) {
+            public void addServer(string server_guid) {
                 if (server_guid.CompareTo(myhandler.ctx.server_guid) == 0) {
                     // we can't add ourself!!
                     return;
                 }
-                servers[server_guid] = srvr;
+                servers.Add(server_guid);
+                Console.WriteLine("Server {0} pusher added seed {1}",
+                    myhandler.ctx.server_guid, server_guid);
             }
             public ReplHandler getRandomSeed() {
-                ReplHandler[] srvr_array = servers.Values.ToArray();
-                int pick = myhandler.rnd.Next(srvr_array.Length);
-                return srvr_array[pick];                
+                List<ReplHandler> available_servers = new List<ReplHandler>();
+                foreach (var server_guid in servers) {
+                    try {
+                        available_servers.Add(myhandler.ctx.connector.getServerHandle(server_guid));
+                    } catch (KeyNotFoundException) {
+                        Console.WriteLine("getRandomSeed: server {0} not available", server_guid);
+                    }
+                }
+                if (available_servers.Count == 0) {
+                    throw new KeyNotFoundException("getRandomSeed: no servers avaialble");
+                }
+                ReplHandler[] srvr_array = available_servers.ToArray();
+                int pick = myhandler.rnd.Next(available_servers.Count);
+                return available_servers[pick];
+            }
+
+            public void scanSeeds() {
+                var seed_key_prefix = new RecordKey().appendParsedKey(myhandler.ctx.prefix_hack)
+                    .appendKeyPart("_config")
+                    .appendKeyPart("seeds");
+                foreach (var row in myhandler.db.scanForward(
+                    new ScanRange<RecordKey>(seed_key_prefix, 
+                        RecordKey.AfterPrefix(seed_key_prefix), null))) {
+                    string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
+
+                    if (!servers.Contains(sname))
+
+                        try {
+                            ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);
+                            this.addServer(sname);
+                            Console.WriteLine("Server {0} pusher, added seed {1}", myhandler.ctx.server_guid,
+                                sname);
+                        } catch (KeyNotFoundException) {
+                        }
+
+                }
             }
 
             public void pushNewLogEntry(byte[] logstamp, RecordUpdate logdata) {
-                foreach (var kvp in servers) {
-                    kvp.Value.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
+                foreach (var server_guid in servers) {
+                    try {
+                        ReplHandler srvr = myhandler.ctx.connector.getServerHandle(server_guid);
+                        srvr.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
+                    } catch (KeyNotFoundException) {
+                        Console.WriteLine("couldn't push to server: " + server_guid);
+                    }
                 }
             }
         }

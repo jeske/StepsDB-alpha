@@ -28,42 +28,87 @@ namespace Bend.ReplTest1 {
             
         }
 
+        public static void waitUntilActive(LayerManager db, ReplHandler srvr) {
+
+            for (int x = 0; x < 20; x++) {
+                if (srvr.State == ReplHandler.ReplState.active) {
+                    break;
+                }
+                Console.WriteLine("waiting for ({0}) to become active.. (currently: {1})", 
+                    srvr.ToString(),srvr.State);
+                db.debugDump();
+                Thread.Sleep(1000);
+            }
+            if (srvr.State != ReplHandler.ReplState.active) {
+                Console.WriteLine("server({0}) failed to become active, aborting test", srvr.ToString());
+                Environment.Exit(1);
+            }
+
+            Console.WriteLine("Server ({0}) is now active!", srvr);
+
+        }
 
         static void do_test() {
             Console.WriteLine("ReplTest1 startup...");
             LayerManager db = new LayerManager(InitMode.NEW_REGION, @"C:\BENDtest\repl");
             Random rnd = new Random();
             ServerConnector connector = new ServerConnector();
-            
+
+            Console.WriteLine("----------------[ init two servers together, write some records ]-----------------");
+
             ServerContext ctx_1 = new ServerContext();         
-            ctx_1.server_guid = "guid" + rnd.Next();
+            ctx_1.server_guid = "guid1-" + rnd.Next();
             ctx_1.prefix_hack = ctx_1.server_guid + "/repl";
             ctx_1.connector = connector;
-            ReplHandler repl_1 = ReplHandler.InitFresh(db, ctx_1);            
+            ReplHandler repl_1 = ReplHandler.InitFresh(db, ctx_1);
 
+            waitUntilActive(db, repl_1);
 
             ServerContext ctx_2 = new ServerContext();
-            ctx_2.server_guid = "guid" + rnd.Next();
+            ctx_2.server_guid = "guid2-" + rnd.Next();
             ctx_2.prefix_hack = ctx_2.server_guid + "/repl";
             ctx_2.connector = connector;
             ReplHandler repl_2 = ReplHandler.InitJoin(db, ctx_2, ctx_1.server_guid);
+            
+            waitUntilActive(db, repl_2);
 
             repl_1.setValueParsed("/a/1", "1");
-            repl_1.setValueParsed("/b/2", "2");
-            repl_1.setValueParsed("/a/1", "3");
-
-            Console.WriteLine("debug dump DB");
-            db.debugDump();
-
             repl_2.setValueParsed("/a/2", "5");
 
+            Console.WriteLine("-----------------");
+            db.debugDump();
+
+            return;
+
+            Console.WriteLine("-----------------[ remove one server, write some records ]----------------");
+
+            repl_2.Shutdown();
+
+            repl_1.setValueParsed("/c/1", "10");
+
+            db.debugDump();
+
+
+            Console.WriteLine("----------------[ reinit server 2 ]-----------------------------");
+
+            repl_2 = ReplHandler.InitResume(db, ctx_2);
+
+            
+            // wait until it comes online
+
             Console.WriteLine("debug dump DB");
             db.debugDump();
 
 
 
+
+
+
+
+            return; // not ready for this yet
+
             ServerContext ctx_3 = new ServerContext();
-            ctx_3.server_guid = "guid" + rnd.Next();
+            ctx_3.server_guid = "guid3-" + rnd.Next();
             ctx_3.prefix_hack = ctx_2.server_guid + "/repl";
             ctx_3.connector = connector;
             ReplHandler repl_3 = ReplHandler.InitJoin(db, ctx_3, ctx_2.server_guid);            
