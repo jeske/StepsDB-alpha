@@ -94,6 +94,9 @@ namespace Bend.ReplTest1 {
             db.debugDump();
 
 
+            Thread.Sleep(10000);
+
+            db.debugDump();
 
             Environment.Exit(1);
 

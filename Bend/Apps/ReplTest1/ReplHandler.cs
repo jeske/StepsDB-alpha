@@ -182,6 +182,41 @@ namespace Bend {
             // someday this might be an MVCC abort/rollback
         }
 
+        private void worker_logResume() {
+
+            // (1) see if we can resume from our commit_head pointers                    
+            var our_log_status_dict = new Dictionary<string, LogStatus>();
+            foreach (var ls in this.getStatusForLogs()) {
+                our_log_status_dict[ls.server_guid] = ls;
+            }
+
+            ReplHandler srvr = pusher.getRandomSeed();
+            List<LogStatus> srvr_log_status = srvr.getStatusForLogs().ToList();
+            foreach (var ls in srvr_log_status) {
+                if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
+                    // we are missing an entire log, we need a full rebuild!
+
+                    Console.WriteLine("** logs don't match, in theory we should do full rebuild;");
+                    // this.state = ReplState.rebuild;
+                    // return;
+                }
+            }
+            // (3) replay from the commit heads
+
+            foreach (var ls in srvr_log_status) {
+                string log_start_key = "";
+                if (our_log_status_dict.ContainsKey(ls.server_guid)) {
+                    log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
+                }
+                byte[] data = srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head);
+                BlockAccessor ba = new BlockAccessor(data);
+                ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
+                foreach (var kv in decoder.sortedWalk()) {
+
+                }
+            }
+        }
+
         private void workerFunc() {
             if (state != ReplState.active) {
                 // be sure to pull us out of the connector registry!!
@@ -190,50 +225,17 @@ namespace Bend {
 
             // Make sure we try to stay connnected to all seeds so we can push writes to them
             // as fast as possible.
-            pusher.scanSeeds();
-
+            pusher.scanSeeds();            
                 
             if (this.state == ReplState.init) {
                 // we are initializing.... check our log state and see if we need a full rebuild                    
-
-                // (1) see if we can resume from our commit_head pointers                    
-                var our_log_status_dict = new Dictionary<string, LogStatus>();
-                foreach (var ls in this.getStatusForLogs()) {
-                    our_log_status_dict[ls.server_guid] = ls;
-                }
-                    
-                ReplHandler srvr = pusher.getRandomSeed();
-                List<LogStatus> srvr_log_status = srvr.getStatusForLogs().ToList();
-                foreach (var ls in srvr_log_status) {
-                    if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
-                        // we are missing an entire log, we need a full rebuild!
-
-                        Console.WriteLine("** logs don't match, in theory we should do full rebuild;");
-                        // this.state = ReplState.rebuild;
-                        // return;
-                    }
-                }
 
                 // (2) erase our pending entries (those newer than commit heads)
                 //     TODO: check them instead of erasing
 
                 this.erasePendingLogEntries();
 
-                // (3) replay from the commit heads
-
-                foreach (var ls in srvr_log_status) {
-                    string log_start_key="";
-                    if (our_log_status_dict.ContainsKey(ls.server_guid)) {
-                        log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
-                    }
-                    byte[] data = srvr.fetchLogEntries(ls.server_guid,log_start_key, ls.log_commit_head);
-                    BlockAccessor ba = new BlockAccessor(data);
-                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
-                    foreach (var kv in decoder.sortedWalk()) {
-
-                    }
-                }
-
+                worker_logResume();
                 Console.WriteLine("** Server {0} becoming ACTIVE!!", ctx.server_guid);
                 state = ReplState.active;  // we are up to date and online!! 
             } else if (this.state == ReplState.rebuild) {
@@ -242,6 +244,9 @@ namespace Bend {
             } else {
                 // we are just running!! 
                 ctx.connector.registerServer(ctx.server_guid, this);
+                
+                // pop back to init to check log tails
+                worker_logResume();
             }
         }
 
@@ -428,12 +433,17 @@ namespace Bend {
                         RecordKey.AfterPrefix(seed_key_prefix), null))) {
                     string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
 
-                    Console.WriteLine("** seed scan {0} row: {1}", myhandler.ctx.server_guid, row);
+                    if (sname == myhandler.ctx.server_guid) {
+                        continue; // ignore our own guid!!
+                    }
+
+                    // Console.WriteLine("** seed scan {0} row: {1}", myhandler.ctx.server_guid, row);
+                    
                     if (!servers.Contains(sname))
                         try {
                             ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);
                             this.addServer(sname);
-                            Console.WriteLine("Server {0} pusher, added seed {1}", myhandler.ctx.server_guid,
+                            Console.WriteLine("** scan seed, server {0} pusher, added seed {1}", myhandler.ctx.server_guid,
                                 sname);
                         } catch (KeyNotFoundException) {
                         }
@@ -447,7 +457,9 @@ namespace Bend {
                         ReplHandler srvr = myhandler.ctx.connector.getServerHandle(server_guid);
                         srvr.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
                     } catch (KeyNotFoundException) {
-                        Console.WriteLine("couldn't push to server: " + server_guid);
+                        Console.WriteLine("Server {0}, couldn't push to server {1}",
+                            myhandler.ctx.server_guid,server_guid);
+                        myhandler.state = ReplState.init; // force us to reinit
                     }
                 }
             }
