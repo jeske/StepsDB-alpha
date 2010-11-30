@@ -34,7 +34,7 @@ namespace BendTests
 
 
         [Test]
-        public void T000_WorkingSegmentReadWrite() {
+        public void T001_WorkingSegmentReadWrite() {
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\3");
 
             var rk = new RecordKey().appendParsedKey(".a");
@@ -74,6 +74,64 @@ namespace BendTests
 
 
         }
+
+        [Test]
+        public void T002_ScanDirections() {
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\3");
+
+            var rk_a = new RecordKey().appendParsedKey(".a");
+            var rk_b = new RecordKey().appendParsedKey(".b");
+            string[] keys = { ".a", ".b" };
+            foreach (var key in keys) {
+                db.setValueParsed(key, "valueof:" + key);
+            }
+
+            {
+                var rec = db.FindNext(rk_a, false);
+                Assert.AreEqual(rk_b, rec.Key);
+            }
+
+            {
+                var rec = db.FindPrev(rk_b, false);
+                Assert.AreEqual(rk_a, rec.Key);
+            }
+
+
+            var scan_range = new ScanRange<RecordKey>(rk_a, rk_b, null);
+
+            // scan forward
+            int count = 0;
+            foreach (var row in db.scanForward(scan_range)) {
+                Console.WriteLine("forward scan: " + row);
+                if (count == keys.Length) {
+                    Assert.Fail("too many keys returned in scan");
+                }
+                Assert.AreEqual(keys[count], row.Key.key_parts[0], "forward scan mistake");
+                count++;
+            }
+            if (count != keys.Length) {
+                Assert.Fail("not enough keys returned in scan");
+            }
+
+
+            // scan backward
+
+            count = keys.Length;
+            foreach (var row in db.scanBackward(scan_range)) {
+                Console.WriteLine("backward scan: " + row);
+                if (count == 0) {
+                    Assert.Fail("too many keys returned in scan backward");
+                }
+                count--;
+                Assert.AreEqual(keys[count], row.Key.key_parts[0], "backward scan mistake");
+            }
+            if (count != 0) {
+                Assert.Fail("not enough keys returned in scan");
+            }
+
+
+        }
+
 
         [Test]
         public void T01_LayerTxnLogResume() {

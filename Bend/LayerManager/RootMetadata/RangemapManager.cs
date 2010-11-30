@@ -223,14 +223,21 @@ namespace Bend
 
         // ------------[ public segmentWalkForKey ] --------------
 
-
-        public GetStatus getNextRecord(IComparable<RecordKey> lowkey, ref RecordKey key, ref RecordData record,
+        public GetStatus getNextRecord(
+            IComparable<RecordKey> lowkey, 
+            ref RecordKey key, 
+            ref RecordData record,
             bool equal_ok) {
-                return getNextRecord_LowLevel(lowkey, ref key, ref record, equal_ok, false);
+                return getNextRecord_LowLevel(lowkey, true, ref key, ref record, equal_ok, false);
         }
 
-        public GetStatus getNextRecord_LowLevel(IComparable<RecordKey> lowkey, ref RecordKey key, ref RecordData record, 
-            bool equal_ok, bool tombstone_ok) {
+        public GetStatus getNextRecord_LowLevel(
+            IComparable<RecordKey> lowkey, 
+            bool direction_is_forward, 
+            ref RecordKey key, 
+            ref RecordData record, 
+            bool equal_ok, 
+            bool tombstone_ok) {
 
             BDSkipList<RecordKey, RecordData> handledIndexRecords = new BDSkipList<RecordKey,RecordData>();
             BDSkipList<RecordKey, RecordData> recordsBeingAssembled = new BDSkipList<RecordKey, RecordData>();
@@ -251,6 +258,7 @@ namespace Bend
                                 num_generations);
                 INTERNAL_segmentWalkForNextKey(
                     lowkey,
+                    direction_is_forward,
                     layer,
                     segrk,
                     handledIndexRecords,
@@ -260,8 +268,15 @@ namespace Bend
             }
 
             // now check the assembled records list
-            try {                
-                foreach (var kvp in recordsBeingAssembled) {
+            try {
+                IEnumerable<KeyValuePair<RecordKey, RecordData>> assembled_candidates;
+                if (direction_is_forward) {
+                    assembled_candidates = recordsBeingAssembled.scanForward(null);
+                } else {
+                    assembled_candidates = recordsBeingAssembled.scanBackward(null);
+                }
+
+                foreach (var kvp in assembled_candidates) {
 
                     if (kvp.Value.State == RecordDataState.FULL) {
                         key = kvp.Key;
@@ -399,10 +414,11 @@ namespace Bend
             }
 
             
-        }
+        }        
         
         private void INTERNAL_segmentWalkForNextKey(
             IComparable<RecordKey> startkeytest,
+            bool direction_is_forward,
             ISortedSegment curseg_raw,
             RangeKey curseg_rangekey,
             IScannableDictionary<RecordKey, RecordData> handledIndexRecords,
@@ -417,9 +433,21 @@ namespace Bend
             if (curseg_rangekey.directlyContainsKey(startkeytest)) {
                 // we need to keep looking until we find a live record, as we need all the deletion tombstones
                 // between startkey and the next live record.
-                foreach(var kvp in curseg.scanForward(new ScanRange<RecordKey>(startkeytest, 
-                                                      new ScanRange<RecordKey>.maxKey(),
-                                                      null))) {
+                IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> seg_scanner;
+                if (direction_is_forward) {
+                    seg_scanner = curseg.scanForward(
+                        new ScanRange<RecordKey>(
+                            startkeytest, 
+                            new ScanRange<RecordKey>.maxKey(),
+                            null));
+                } else {
+                    seg_scanner = curseg.scanBackward(
+                        new ScanRange<RecordKey>(
+                            new ScanRange<RecordKey>.minKey(), 
+                            startkeytest,
+                            null));
+                }
+                foreach(var kvp in seg_scanner) {
 
                     if (!equal_ok) { // have ">" test vs ">="
                         if (kvp.Key.Equals(startkeytest)) {
@@ -479,6 +507,7 @@ namespace Bend
                 // RECURSE
                 INTERNAL_segmentWalkForNextKey(
                     startkeytest,
+                    direction_is_forward,
                     next_seg,
                     next_seg_rangekey,
                     handledIndexRecords,
@@ -489,9 +518,6 @@ namespace Bend
             }
             // now repeat the walk of range references in this segment, this time actually descending
         }
-        
-
-
 
     }
 

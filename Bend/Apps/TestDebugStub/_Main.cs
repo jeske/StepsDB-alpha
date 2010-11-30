@@ -10,8 +10,13 @@ namespace MyTestStub {
     class _Main {
         static void Main(string[] args) {
 
+            // var testclass = new A03_LayerManagerTests();
+            // testclass.T000_WorkingSegmentReadWrite();
+
+
             var testclass = new A03_LayerManagerTests();
-            testclass.T000_WorkingSegmentReadWrite();
+            testclass.T002_ScanDirections();
+
         }
     }
 }

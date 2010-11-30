@@ -583,24 +583,39 @@ namespace Bend
 
         }
 
-        // TBD
-        
-        // KeyValuePair<K, V> FindPrev(IComparable<K> keytest, bool equal_ok);        
-        // IEnumerable<KeyValuePair<K, V>> scanBackward(IScanner<K> scanner);
 
         public KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
             RecordKey found_key = new RecordKey();
             RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-            if (rangemapmgr.getNextRecord(keytest, ref found_key, ref record,equal_ok) == GetStatus.PRESENT) {
+            if (rangemapmgr.getNextRecord_LowLevel(keytest, true, ref found_key, ref record,equal_ok, false) == GetStatus.PRESENT) {
                 return new KeyValuePair<RecordKey,RecordData>(found_key,record);
             }
             throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
 
         }
 
+        public KeyValuePair<RecordKey, RecordData> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
+            RecordKey found_key = new RecordKey();
+            RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
+
+            if (rangemapmgr.getNextRecord_LowLevel(keytest, false,ref found_key, ref record, equal_ok, false) == GetStatus.PRESENT) {
+                return new KeyValuePair<RecordKey, RecordData>(found_key, record);
+            }
+            throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
+
+        }        
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
+            return scan(scanner,true);
+        }
+
+        public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner) {
+            return scan(scanner, false);
+        }
+
+
+        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan(IScanner<RecordKey> scanner, bool direction_is_forward) {
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
             if (scanner != null) {
@@ -615,15 +630,24 @@ namespace Bend
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-            IComparable<RecordKey> cursor_key = lowestKeyTest;
+            IComparable<RecordKey> cursor_key;
+            if (direction_is_forward) {
+                cursor_key = lowestKeyTest;
+            } else {
+                cursor_key = highestKeyTest;
+            }
 
             // get the first key
-            if (rangemapmgr.getNextRecord(cursor_key, ref found_key, ref found_record, true) == GetStatus.MISSING) {
+            if (rangemapmgr.getNextRecord_LowLevel(cursor_key, direction_is_forward, ref found_key, ref found_record, true, false) == GetStatus.MISSING) {
                 yield break; // no keys
             }
             while (true) {                
                 // System.Console.WriteLine("highkeytest = " + highestKeyTest + " found_key " + found_key + " result: " + highestKeyTest.CompareTo(found_key));
-                if ((highestKeyTest.CompareTo(found_key) >= 0)) {
+                
+                if (
+                    (direction_is_forward && (highestKeyTest.CompareTo(found_key) >= 0)) ||   // forward scan end test
+                    (!direction_is_forward && (lowestKeyTest.CompareTo(found_key) <= 0))      // backward scan end test
+                   ) {
                     if ((scanner == null) || scanner.MatchTo(found_key)) {
                         cursor = new KeyValuePair<RecordKey, RecordData>(found_key, found_record);
                         yield return cursor;
@@ -636,7 +660,7 @@ namespace Bend
                 found_key = new RecordKey();
                 found_record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-                if (rangemapmgr.getNextRecord(cursor_key, ref found_key, ref found_record, false) == GetStatus.MISSING) {
+                if (rangemapmgr.getNextRecord_LowLevel(cursor_key, direction_is_forward,ref found_key, ref found_record, false, false) == GetStatus.MISSING) {
                     yield break; // no keys
                 }
             }
