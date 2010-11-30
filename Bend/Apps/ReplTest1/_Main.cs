@@ -38,6 +38,10 @@ namespace Bend.ReplTest1 {
                 if (srvr.State == ReplHandler.ReplState.active) {
                     break;
                 }
+                if (srvr.State == ReplHandler.ReplState.shutdown) {
+                    Console.WriteLine("waiting for ({0}) to become active.. and he shutdown!!! quitting");
+                    Environment.Exit(1);
+                }
                 Console.WriteLine("waiting for ({0}) to become active.. (currently: {1})", 
                     srvr.ToString(),srvr.State);
                 db.debugDump();

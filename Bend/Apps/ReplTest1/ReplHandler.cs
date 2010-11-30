@@ -206,8 +206,10 @@ namespace Bend {
                 foreach (var ls in srvr.getStatusForLogs()) {
                     if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
                         // we are missing an entire log, we need a full rebuild!
-                        this.state = ReplState.rebuild;
-                        return;
+
+                        Console.WriteLine("** logs don't match, in theory we should do full rebuild;");
+                        // this.state = ReplState.rebuild;
+                        // return;
                     }
                 }
 
@@ -218,6 +220,8 @@ namespace Bend {
 
                 // (3) replay from the commit heads
 
+
+                state = ReplState.shutdown;
             } else if (this.state == ReplState.rebuild) {
                 // we need a FULL rebuild
                 Console.WriteLine("TODO: do full rebuild");                    
@@ -232,6 +236,10 @@ namespace Bend {
             while (true) {
                 try {
                     workerFunc();
+                    if (state == ReplState.shutdown) {
+                        Console.WriteLine("worker ending..");
+                        return;
+                    }
                 } catch (Exception e) {
                     error_count++;
                     Console.WriteLine("Server ({0}) exception {1}:\n{2}",
@@ -367,7 +375,7 @@ namespace Bend {
             }
 
             public void scanSeeds() {
-                Console.WriteLine("** seed scan");
+                // Console.WriteLine("** seed scan {0}", myhandler.ctx.server_guid);
                 var seed_key_prefix = new RecordKey()
                     .appendParsedKey(myhandler.ctx.prefix_hack)
                     .appendKeyPart("_config")
@@ -377,7 +385,7 @@ namespace Bend {
                         RecordKey.AfterPrefix(seed_key_prefix), null))) {
                     string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
 
-                    Console.WriteLine("** seed scan row: {0}", row);
+                    Console.WriteLine("** seed scan {0} row: {1}", myhandler.ctx.server_guid, row);
                     if (!servers.Contains(sname))
                         try {
                             ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);
