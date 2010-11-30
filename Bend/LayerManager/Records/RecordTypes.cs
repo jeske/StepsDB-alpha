@@ -375,6 +375,10 @@ namespace Bend
                 this.prefixkey = prefixkey;
             }
 
+
+            // < 0 this instance is less than target
+            // > 0 this instance is greater than target
+            // 0   this instance equals target
             public int CompareTo(RecordKey target) {
                 int pos = 0;
                 int cur_result = 0;

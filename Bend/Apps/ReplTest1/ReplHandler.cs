@@ -259,7 +259,7 @@ namespace Bend {
             // create and record a new instance ID
             db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_config")
-                .appendKeyPart("DATA-INSTANCE_ID"),
+                .appendKeyPart("DATA-INSTANCE-ID"),
                 RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
 
             ReplHandler repl = new ReplHandler(db, ctx);
@@ -283,7 +283,7 @@ namespace Bend {
             // record the join result
             db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_config")
-                .appendKeyPart("DATA_INSTANCE_ID"),
+                .appendKeyPart("DATA-INSTANCE-ID"),
                 RecordUpdate.WithPayload(join_info.data_instance_id));
 
             foreach (var seed_server in join_info.seed_servers) {
@@ -350,6 +350,7 @@ namespace Bend {
             }
             public ReplHandler getRandomSeed() {
                 List<ReplHandler> available_servers = new List<ReplHandler>();
+                this.scanSeeds();
                 foreach (var server_guid in servers) {
                     try {
                         available_servers.Add(myhandler.ctx.connector.getServerHandle(server_guid));
@@ -366,6 +367,7 @@ namespace Bend {
             }
 
             public void scanSeeds() {
+                Console.WriteLine("** seed scan");
                 var seed_key_prefix = new RecordKey()
                     .appendParsedKey(myhandler.ctx.prefix_hack)
                     .appendKeyPart("_config")
@@ -375,7 +377,7 @@ namespace Bend {
                         RecordKey.AfterPrefix(seed_key_prefix), null))) {
                     string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
 
-                    Console.WriteLine("seed scan row: {0}", row);
+                    Console.WriteLine("** seed scan row: {0}", row);
                     if (!servers.Contains(sname))
                         try {
                             ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);

@@ -623,7 +623,7 @@ namespace Bend
             }
             while (true) {                
                 // System.Console.WriteLine("highkeytest = " + highestKeyTest + " found_key " + found_key + " result: " + highestKeyTest.CompareTo(found_key));
-                if ((highestKeyTest.CompareTo(found_key) <= 0)) {
+                if ((highestKeyTest.CompareTo(found_key) >= 0)) {
                     if ((scanner == null) || scanner.MatchTo(found_key)) {
                         cursor = new KeyValuePair<RecordKey, RecordData>(found_key, found_record);
                         yield return cursor;

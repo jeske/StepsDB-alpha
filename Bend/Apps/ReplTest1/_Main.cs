@@ -64,12 +64,13 @@ namespace Bend.ReplTest1 {
             ctx_1.server_guid = ".guid1-" + rnd.Next();
             ctx_1.prefix_hack = ctx_1.server_guid + "/repl";
             ctx_1.connector = connector;
-            ReplHandler repl_1;
+            ReplHandler repl_1 = null;
             try {
                  repl_1 = ReplHandler.InitFresh(db, ctx_1);
             } catch (Exception e) {
                 db.debugDump();
-                throw new Exception();
+                Console.WriteLine(e);
+                Environment.Exit(1);
             }
 
             waitUntilActive(db, repl_1);

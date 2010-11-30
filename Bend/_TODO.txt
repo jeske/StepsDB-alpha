@@ -2,6 +2,7 @@
 
 ----[ TODO ]---------
   - FIX: the min-key max-key superhack in segment_walk
+  - FIX: directlyContainsKey should not return TRUE!! 
 
   - distributed datastore handler
      - add psudo connection handling
