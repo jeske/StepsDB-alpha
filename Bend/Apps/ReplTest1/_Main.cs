@@ -78,26 +78,25 @@ namespace Bend.ReplTest1 {
             }
 
             waitUntilActive(db, repl_1);
+            repl_1.setValueParsed("/a/1", "1");
+
 
             ServerContext ctx_2 = new ServerContext();
             ctx_2.server_guid = ".guid2-" + rnd.Next();
             ctx_2.prefix_hack = ctx_2.server_guid + "/repl";
             ctx_2.connector = connector;
             ReplHandler repl_2 = ReplHandler.InitJoin(db, ctx_2, ctx_1.server_guid);
-            
             waitUntilActive(db, repl_2);
-
-            repl_1.setValueParsed("/a/1", "1");
             repl_2.setValueParsed("/a/2", "5");
 
             Console.WriteLine("-----------------");
             db.debugDump();
 
-
-            Thread.Sleep(5000);
+            Thread.Sleep(7000);
 
             db.debugDump();
 
+            
             Console.WriteLine("-----------------[ remove one server, write some records ]----------------");
 
             repl_2.Shutdown();

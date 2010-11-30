@@ -155,22 +155,37 @@ namespace Bend {
             public string log_commit_head;
             public string oldest_entry_pointer;
             // public string newest_pending_entry_pointer;
+            public override string ToString() {
+                return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
+            }
         }
 
         private LogStatus _statusForLog(string server_guid) {
             var log_status = new LogStatus();
             log_status.server_guid = server_guid;
 
-
+            var log_prefix_key = new RecordKey()
+                .appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_logs")
+                .appendKeyPart(server_guid);
             // first log entry for this log
-            var oldestlogrow = db.FindNext(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                .appendKeyPart("_log").appendKeyPart(server_guid), false);
-            log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+            var oldestlogrow = db.FindNext(log_prefix_key, false);
+            if (oldestlogrow.Key.isSubkeyOf(log_prefix_key)) {
+                log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+            } else {
+                log_status.oldest_entry_pointer = "";
+            }
 
             // newest log entry for this log
-            var newestlogrow = db.FindPrev(RecordKey.AfterPrefix(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                .appendKeyPart("_log").appendKeyPart(server_guid)), false);
-            log_status.log_commit_head = newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+            var newestlogrow = db.FindPrev(RecordKey.AfterPrefix(log_prefix_key), false);
+            if (newestlogrow.Key.isSubkeyOf(log_prefix_key)) {
+                log_status.log_commit_head = newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+            } else {
+                log_status.log_commit_head = "";
+            }
+
+            Console.WriteLine("_statusForLog returning: " + log_status);
+
             return log_status;
         }
 
@@ -188,6 +203,10 @@ namespace Bend {
                 var server_guid = seed_row.Key.key_parts[seed_row.Key.key_parts.Count - 1];
 
                 if (server_guid.Equals(ctx.server_guid)) { continue; } // skip ourselves
+
+
+
+
                 yield return _statusForLog(server_guid);
             }
 
@@ -224,23 +243,32 @@ namespace Bend {
                 if (our_log_status_dict.ContainsKey(ls.server_guid)) {
                     log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
                 }
-                byte[] data = srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head);
+
+                foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
+                    // TODO: fix this junk conversion
+                    System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();                    
+                    byte[] logstamp = enc.GetBytes(logrow.Key.key_parts[logrow.Key.key_parts.Count - 1]);
+
+                    this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
+                }
+
+                /*
                 if (data.Length > 0) {
                     BlockAccessor ba = new BlockAccessor(data);
                     ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
                     foreach (var kv in decoder.sortedWalk()) {
-                        throw new Exception("NOT YET IMPLEMENTED");
+                        Console.WriteLine("log apply: " + kv);
                     }
+                    Environment.Exit(1);
+                    throw new Exception("NOT YET IMPLEMENTED");
                 }
+                 * */
+
+                // Environment.Exit(1);
             }
         }
 
         private void workerFunc() {
-            if (state != ReplState.active) {
-                // be sure to pull us out of the connector registry!!
-                ctx.connector.unregisterServer(ctx.server_guid);
-            }
-
             // Make sure we try to stay connnected to all seeds so we can push writes to them
             // as fast as possible.
             pusher.scanSeeds();            
@@ -268,7 +296,39 @@ namespace Bend {
             }
         }
 
-        private byte[] fetchLogEntries(string log_server_guid, string log_start_key, string log_end_key) {
+        private IEnumerable<KeyValuePair<RecordKey,RecordData>> fetchLogEntries(
+                        string log_server_guid, 
+                        string log_start_key, 
+                        string log_end_key) {
+
+            var rk_start = new RecordKey()
+                .appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_logs")
+                .appendKeyPart(log_server_guid);
+            
+            if (!log_start_key.Equals("")) {
+                rk_start.appendKeyPart(log_start_key);
+            }
+
+            var rk_end = new RecordKey()
+                .appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_logs")
+                .appendKeyPart(log_server_guid);
+            if (!log_start_key.Equals("")) {
+                rk_end.appendKeyPart(log_end_key);
+            }
+            
+            var scanrange = new ScanRange<RecordKey>(rk_start, RecordKey.AfterPrefix(rk_end), null);
+
+            Console.WriteLine(" fetchLogEntries: start {0}  end {1}", rk_start, rk_end);
+
+                foreach (var logrow in db.scanForward(scanrange)) {
+                    yield return logrow;                    
+                }
+        }
+
+
+        private byte[] fetchLogEntries_block(string log_server_guid, string log_start_key, string log_end_key) {
             var rk_start = new RecordKey()
                 .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_logs")
@@ -298,24 +358,31 @@ namespace Bend {
         }
 
         private void workerThread() {
+            ReplState last_state = this.state;
             int error_count = 0;
             while (true) {
                 try {
                     workerFunc();
-                    if (state == ReplState.shutdown) {
-                        Console.WriteLine("worker ending..");
-                        return;
-                    }
                 } catch (Exception e) {
                     error_count++;
                     Console.WriteLine("Server ({0}) exception {1}:\n{2}",
                         ctx.server_guid, error_count, e.ToString());
                     if (error_count > 5) {
                         Console.WriteLine("too many exceptions, shutting down");
+                        this.ctx.connector.unregisterServer(ctx.server_guid);
                         this.state = ReplState.shutdown;
                         return;
                     }
                 }
+                if (this.state != last_state) {
+                    Console.WriteLine("++ Server ({0}) changed state {1} -> {2}", ctx.server_guid, last_state, this.state);
+                    last_state = this.state;
+                }
+                if (state == ReplState.shutdown) {
+                    Console.WriteLine("worker ending..");
+                    return;
+                }
+
                 Thread.Sleep(1000);
             }
         }
@@ -474,7 +541,7 @@ namespace Bend {
                     try {
                         ReplHandler srvr = myhandler.ctx.connector.getServerHandle(server_guid);
                         srvr.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
-                    } catch (KeyNotFoundException) {
+                    } catch (Exception e) {
                         Console.WriteLine("Server {0}, couldn't push to server {1}",
                             myhandler.ctx.server_guid,server_guid);
                         myhandler.state = ReplState.init; // force us to reinit
@@ -509,9 +576,6 @@ namespace Bend {
                 }
                 db.setValue(local_data_key, kvp.Value);
             }
-
-            
-
         }
 
         private void checkActive() {

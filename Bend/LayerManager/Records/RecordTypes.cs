@@ -425,6 +425,11 @@ namespace Bend
             return new RecordKeyAfterPrefixComparable(prefixkey);
         }
 
+        /// <summary>
+        ///  determine if we are a subkey of the supplied potential prefix key.
+        /// </summary>
+        /// <param name="potential_parent_key"></param>
+        /// <returns>true if the supplied potential_parent_key is shorter and matches our prefix, false otherwise</returns>
         public bool isSubkeyOf(RecordKey potential_parent_key) {
             // we are a subkey of the other key we are longer AND 
             // and all their parts match our parts

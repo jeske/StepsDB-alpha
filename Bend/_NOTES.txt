@@ -22,3 +22,7 @@ http://www.codeguru.com/csharp/.net/net_debugging/tracing/article.php/c5919
 Solr + HBase + Avro = flexible searchable document store
 
 http://www.javarants.com/2010/06/30/havrobase-a-searchable-evolvable-entity-store-on-top-of-hbase-and-solr/
+
+doc generation
+
+http://www.codeproject.com/KB/cs/csharpcommentinganddocs.aspx
