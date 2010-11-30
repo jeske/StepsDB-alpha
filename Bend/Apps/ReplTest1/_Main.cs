@@ -93,7 +93,9 @@ namespace Bend.ReplTest1 {
             Console.WriteLine("-----------------");
             db.debugDump();
 
-            return;
+
+
+            Environment.Exit(1);
 
             Console.WriteLine("-----------------[ remove one server, write some records ]----------------");
 

@@ -203,7 +203,8 @@ namespace Bend {
                 }
                     
                 ReplHandler srvr = pusher.getRandomSeed();
-                foreach (var ls in srvr.getStatusForLogs()) {
+                List<LogStatus> srvr_log_status = srvr.getStatusForLogs().ToList();
+                foreach (var ls in srvr_log_status) {
                     if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
                         // we are missing an entire log, we need a full rebuild!
 
@@ -220,8 +221,21 @@ namespace Bend {
 
                 // (3) replay from the commit heads
 
+                foreach (var ls in srvr_log_status) {
+                    string log_start_key="";
+                    if (our_log_status_dict.ContainsKey(ls.server_guid)) {
+                        log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
+                    }
+                    byte[] data = srvr.fetchLogEntries(ls.server_guid,log_start_key, ls.log_commit_head);
+                    BlockAccessor ba = new BlockAccessor(data);
+                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
+                    foreach (var kv in decoder.sortedWalk()) {
 
-                state = ReplState.shutdown;
+                    }
+                }
+
+                Console.WriteLine("** Server {0} becoming ACTIVE!!", ctx.server_guid);
+                state = ReplState.active;  // we are up to date and online!! 
             } else if (this.state == ReplState.rebuild) {
                 // we need a FULL rebuild
                 Console.WriteLine("TODO: do full rebuild");                    
@@ -229,6 +243,35 @@ namespace Bend {
                 // we are just running!! 
                 ctx.connector.registerServer(ctx.server_guid, this);
             }
+        }
+
+        private byte[] fetchLogEntries(string log_server_guid, string log_start_key, string log_end_key) {
+            RecordKey rk_start = new RecordKey()
+                .appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_logs")
+                .appendKeyPart(log_server_guid)
+                .appendKeyPart(log_start_key);
+            RecordKey rk_end = new RecordKey()
+                .appendParsedKey(ctx.prefix_hack)
+                .appendKeyPart("_logs")
+                .appendKeyPart(log_server_guid)
+                .appendKeyPart(log_end_key);
+            var scanrange = new ScanRange<RecordKey>(rk_start,rk_end,null);
+
+            byte[] packed_log_records;
+            {
+                MemoryStream writer = new MemoryStream();
+                // TODO: this seems like a really inefficient way to write out a key
+                ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
+                encoder.setStream(writer);
+                foreach (var logrow in db.scanForward(scanrange)) {                    
+                    encoder.add(logrow.Key, RecordUpdate.WithPayload(logrow.Value.data));
+                }                
+                encoder.flush();
+                packed_log_records = writer.ToArray();
+            }
+
+            return packed_log_records;
         }
 
         private void workerThread() {
