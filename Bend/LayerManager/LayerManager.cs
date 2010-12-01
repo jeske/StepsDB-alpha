@@ -24,6 +24,10 @@ namespace Bend
 
     public class LayerManager : IDisposable 
     {
+
+        // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
+        private int SEGMENT_BLOCKSIZE = 512 * 1025;
+
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;
 
@@ -217,7 +221,7 @@ namespace Bend
             pending_txns.Add(new WeakReference<WriteGroup>(newtx));  // make sure we don't prevent collection
             return newtx;
         }
-        private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
+        
 
         private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records,int target_generation=-1) {
             // write the checkpoint segment and flush

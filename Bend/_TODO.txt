@@ -1,8 +1,21 @@
 
 
 ----[ TODO ]---------
-  - FIX: the min-key max-key superhack in segment_walk
+
+  PERF!!!!
+
   - FIX: directlyContainsKey should not return TRUE!! 
+  - FIX: only call findAllEligible range-rows for segments that actually could have range rows
+  - FIX: < > . hack
+  - FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
+
+  - FIX: add scanrange cache, use in segment walk
+
+  - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
+  - FIX: the min-key max-key superhack in segment_walk
+  
+  - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
+
 
   - distributed datastore handler
      - add psudo connection handling

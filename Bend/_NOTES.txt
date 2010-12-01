@@ -1,4 +1,12 @@
-﻿More design notes at:
+﻿
+
+Q: How can we make a 
+
+
+
+
+
+More design notes at:
 
 https://docs.google.com/Doc?docid=0AZBsc776AuokZGdndnFmZm5fNjNneDRjYzZmaw&hl=en
 

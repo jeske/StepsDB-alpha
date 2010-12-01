@@ -55,6 +55,20 @@ namespace Bend.EmailIndexerTest {
                 EmailInjector injector = new EmailInjector(db, window);
                 window.debugDump(db);
                 injector.indexer.find_email_test();
+            } else if (args[0].CompareTo("merge") == 0) {
+                LayerManager db = new LayerManager(InitMode.RESUME, @"c:\EmailTest\DB");
+                window.debugDump(db);
+                // be sure to flush and merge before we search...
+                db.flushWorkingSegment();
+                window.debugDump(db);
+                for (int x = 0; x < 5; x++) {
+                    var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                    window.debugDump(db, mc);
+                    if (mc == null) { break; }
+                    db.performMerge(mc);
+                    window.debugDump(db);
+                }                           
+
             }
             Console.WriteLine("done...press any key.");
             Console.ReadLine();
@@ -142,7 +156,7 @@ namespace Bend.EmailIndexerTest {
                                 gui.debugDump(db);
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
-                                for (int x = 0; x < 5; x++) {
+                                for (int x = 0; x < 20; x++) {
                                     var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                                     if (mc == null) { break; }
                                     if (mc.score() > (1.6 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {

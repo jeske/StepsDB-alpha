@@ -41,7 +41,7 @@ using System.Threading;
  *                             note tombstones have to be forced to live this long>
  *  _config/log_max_size = <max log size in approximate bytes>
  * 
- *  _config/seeds/<SERVER GUID>
+ *  _seeds/<SERVER GUID>
  *  
  *  _logs/<SERVER GUID>/<logid> -> [update info]
  *  
