@@ -252,11 +252,11 @@ namespace Bend {
                     // expand the start/end range based on the targetSegments if necessary
                     foreach (var seg in targetSegments) {
                         if (seg.start_key.CompareTo(key_start) < 0) {
-                            System.Console.WriteLine("*** extended keystart from: " + key_start + "  to: " + seg.start_key);
+                            // System.Console.WriteLine("*** extended keystart from: " + key_start + "  to: " + seg.start_key);
                             key_start = seg.start_key;
                         }
                         if (seg.end_key.CompareTo(key_end) > 0) {
-                            System.Console.WriteLine("*** extended keyend from: " + key_end + "  to: " + seg.end_key);
+                            // System.Console.WriteLine("*** extended keyend from: " + key_end + "  to: " + seg.end_key);
                             key_end = seg.end_key;
                         }
                     }

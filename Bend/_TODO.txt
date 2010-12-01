@@ -9,7 +9,10 @@
   - FIX: < > . hack
   - FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
 
-  - FIX: add scanrange cache, use in segment walk
+  - FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches
+  - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen
+
+  - MAKE: scanrange cache, use in segment walk
 
   - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
   - FIX: the min-key max-key superhack in segment_walk

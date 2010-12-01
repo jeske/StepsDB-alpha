@@ -54,10 +54,13 @@ namespace Bend
         }
 
         public void primeMergeManager() {
+            return;
+            Console.WriteLine("primeMergeManager(): start");
             foreach (var segdesc in store.listAllSegments()) {
                 // TODO: make sure these are in increasing generation order! 
                 mergeManager.notify_addSegment(segdesc);
             }
+            Console.WriteLine("primeMergeManager(): finished");
         }
 
         public static void Init(LayerManager store) {
@@ -252,10 +255,15 @@ namespace Bend
 
             // TODO: fix this super-hack to do "minKey/maxKey"
             foreach (SegmentMemoryBuilder layer in layers) {
+                if (layer.RowCount == 0) {
+                    continue;
+                }
+                // use the first and last records in the segment as the rangekeys
                 var segrk = RangeKey.newSegmentRangeKey(
-                                new RecordKey().appendKeyPart("<"),
-                                new RecordKey().appendKeyPart(">"),
+                                layer.FindNext(null, true).Key,
+                                layer.FindPrev(null, true).Key,
                                 num_generations);
+                
                 INTERNAL_segmentWalkForNextKey(
                     lowkey,
                     direction_is_forward,
@@ -304,6 +312,7 @@ namespace Bend
         }
 
 
+        // [DebuggerDisplay("RangeKey( {generation}:{lowkey} -> {highkey} )")]
         public class RangeKey 
         {
             RecordKey lowkey = null;
@@ -321,6 +330,13 @@ namespace Bend
                 return rk;
 
             }
+
+
+            public override String ToString() {
+                return String.Format("RangeKey( {0}:{1} -> {2} )", generation, this.lowkey, this.highkey);
+            }
+
+
             private static void verifyPart(string expected,string value) {
                 if (!expected.Equals(value)) {
                     throw new Exception(String.Format("verify failed on RangeKey decode ({0} != {1})", expected, value));
@@ -337,6 +353,13 @@ namespace Bend
                 rangekey.generation = (int)Lsd.lsdToNumber(enc.GetBytes(existingkey.key_parts[2]));
                 rangekey.lowkey = new RecordKey(enc.GetBytes(existingkey.key_parts[3]));
                 rangekey.highkey = new RecordKey(enc.GetBytes(existingkey.key_parts[4]));
+
+                if (rangekey.lowkey.CompareTo(rangekey.highkey) >= 0) {
+                    throw new Exception(
+                        String.Format("RangeKey.decodeFromRecordKey() decoded inverted endpoints ({0} -> {1})",
+                            rangekey.lowkey, rangekey.highkey));
+                }
+
                 return rangekey;
             }
             public RecordKey toRecordKey() {
@@ -383,7 +406,7 @@ namespace Bend
                 if (lowrk) {
                     return _eventuallyPastRangeKey(RangeKey.decodeFromRecordKey(top).lowkey, testkey);
                 } else {
-                    if (testkey.CompareTo(top) > 0) {
+                    if (testkey.CompareTo(top) >= 0) {
                         return true;
                     } else {
                         return false;
@@ -395,7 +418,7 @@ namespace Bend
                 if (highrk) {
                     return _eventuallyBeforeRangeKey(RangeKey.decodeFromRecordKey(bottom).highkey, testkey);
                 } else {
-                    if (testkey.CompareTo(bottom) > 0) {
+                    if (testkey.CompareTo(bottom) <= 0) {
                         return true;
                     } else {
                         return false;
@@ -408,36 +431,78 @@ namespace Bend
                 bool lowrk = RangeKey.isRangeKey(top);
                 bool highrk = RangeKey.isRangeKey(bottom);
 
+                // see if the key is between the two keys
+                if ((testkey.CompareTo(top) >= 0) &&
+                    (testkey.CompareTo(bottom) <= 0)) {
+                    return true;
+                }
+                // see if all range pointers are between them
+                RecordKey all_gen_keys = new RecordKey().appendParsedKey(".ROOT/GEN");
+                if ((all_gen_keys.CompareTo(top) >= 0) &&
+                    (all_gen_keys.CompareTo(bottom) <= 0)) {
+                    return true;
+                }
+
                 if (lowrk && highrk) {
                     // unpack both and recurse
-                    return _eventuallyBetweenRangeKeys(RangeKey.decodeFromRecordKey(top).lowkey,
+                    return _eventuallyBetweenRangeKeys(
+                        RangeKey.decodeFromRecordKey(top).lowkey,
                         RangeKey.decodeFromRecordKey(bottom).highkey, testkey);
-                } else if (lowrk && !highrk) {
+                } 
+                if (lowrk && !highrk) {                    
                     return _eventuallyPastRangeKey(RangeKey.decodeFromRecordKey(top).lowkey, testkey);
                 } else if (!lowrk && highrk) {
                     return _eventuallyBeforeRangeKey(RangeKey.decodeFromRecordKey(bottom).highkey, testkey);
                 } else {
-                    if ((testkey.CompareTo(top) < 0) ||
-                        (testkey.CompareTo(bottom) > 0)) {
-                        return false;
-                    } else {
-                        return true;
-                    }
+                    return false;
                 }        
             }
+
+
+            public static HashSet<string> unique_discards = new HashSet<string>();
             public bool eventuallyContainsKey(IComparable<RecordKey> testkey) {
-                // return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
+                if (this.lowkey.CompareTo(this.highkey) >= 0) {
+                    String.Format("eventuallyContainsKey called with inverted endpoints ({0} -> {1})",
+                            this.lowkey, this.highkey);
+                }
+                
+                // old converative hack... if we are ever thinking our walking logic is back, it's
+                // generally okay (but very slow) just to return true...
+                // return true;
+
+                // TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
                 // todo, recursively unpack the low-key/high-key until we no longer have a .ROOT/GEN formatted key
                 // then find out if the supplied testkey is present in the final range
-                return _eventuallyBetweenRangeKeys(this.lowkey,this.highkey,testkey);
+                bool contained = _eventuallyBetweenRangeKeys(this.lowkey,this.highkey,testkey);
+
+                /*
+                if (contained == false) {
+                    var miss = String.Format("{0} not in {1} -> {2}", testkey, this.lowkey, this.highkey);
+                    if (!unique_discards.Contains(miss)) {
+                        unique_discards.Add(miss);
+                        Console.WriteLine(miss);
+                    }
+                }
+                 */
+                 
+
+                return contained;
 
             }
             
-            public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllElibibleRangeRows(
+            public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllEligibleRangeRows(
                 IScannable<RecordKey, RecordUpdate> in_segment,
                 IComparable<RecordKey> for_key,
                 int for_generation) {
-                // TODO: fix this prefix hack
+
+                // TODO: fix this to me more efficient.... we would like to:
+                // (1) look through anything that could be a direct range-row of "for_key"            
+                // (2) look through any "row range of row range" keys
+                //   ... HOWEVER, #1 is hard to do when for_key is a comparable, not a key
+                //   ... either need to switch it to an actual key, or make a composable
+                //       IComparable<RecordKey> so we can shove the .ROOT/GEN prefix before the
+                //       supplied IComparable
+                
                 RecordKey startrk = new RecordKey()
                     .appendParsedKey(".ROOT/GEN")
                     .appendKeyPart(Lsd.numberToLsd(for_generation,GEN_LSD_PAD));
@@ -457,8 +522,7 @@ namespace Bend
 
                 }
                 
-            }
-
+            }            
             
         }        
         
@@ -507,6 +571,9 @@ namespace Bend
                         recordsBeingAssembled[kvp.Key] = partial_record;
                     }
                     partial_record.applyUpdate(kvp.Value);
+                    
+                    // Console.WriteLine("add potential: {0} inseg:{1}", kvp, curseg_rangekey);
+
                     if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
                         // we found at least one live record, so stop adding potential records
                         break;
@@ -519,7 +586,7 @@ namespace Bend
             // .. make a note of which ones are "current" 
             List<KeyValuePair<RecordKey,RecordUpdate>> todo_list = new List<KeyValuePair<RecordKey,RecordUpdate>>();
             for (int i = maxgen - 1; i >= 0; i--) {
-                foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllElibibleRangeRows(curseg, startkeytest, i)) {
+                foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllEligibleRangeRows(curseg, startkeytest, i)) {
                     // see if it is new for our handledIndexRecords dataset
                     RecordData partial_rangedata;
                     if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
@@ -550,7 +617,11 @@ namespace Bend
                 SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
                 RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
-                // Debug.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
+                
+                // for (int depth = 10; depth > maxgen; depth--) { 
+                //    Console.Write("  "); 
+                // }
+                // Console.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
                 // RECURSE
                 INTERNAL_segmentWalkForNextKey(
                     startkeytest,

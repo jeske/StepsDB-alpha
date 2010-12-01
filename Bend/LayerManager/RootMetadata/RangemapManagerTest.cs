@@ -46,6 +46,22 @@ namespace BendTests {
                 new RecordKey().appendParsedKey("A"), 0);
 
             Assert.AreEqual(false,metasegptr2.eventuallyContainsKey(target), "should not be in metasegptr2");
+
+            // .zdata.index.jeske not in .ROOT.FREELIST.HEAD -> .zdata.index.</tr>.c:\EmailTest\Data\trakken-stats:6919.143
+           
+        }
+
+        [Test]
+        public void T001_RangeKey_Bug() {
+            // .zdata.index.jeske not in .ROOT.FREELIST.HEAD -> .zdata.index.</tr>.c:\EmailTest\Data\trakken-stats:6919.143
+
+            RecordKey target = new RecordKey().appendParsedKey(".zdata/index/jeske");
+            RecordKey lowkey = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
+            RecordKey highkey = new RecordKey().appendParsedKey(".zdata/index/<tr>");
+
+            RangemapManager.RangeKey segptr = RangemapManager.RangeKey.newSegmentRangeKey(
+                lowkey, highkey, 0);
+            Assert.AreEqual(true, segptr.eventuallyContainsKey(target), "bug failed");
         }
     }
 }
