@@ -304,7 +304,7 @@ namespace Bend
         }
 
 
-        class RangeKey 
+        public class RangeKey 
         {
             RecordKey lowkey = null;
             RecordKey highkey = null;
@@ -377,16 +377,59 @@ namespace Bend
                     return false;
                 }
             }
-            public bool eventuallyContainsKey(RecordKey testkey) {
-                return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
+
+            private static bool _eventuallyPastRangeKey(RecordKey top, IComparable<RecordKey> testkey) {
+                bool lowrk = RangeKey.isRangeKey(top);
+                if (lowrk) {
+                    return _eventuallyPastRangeKey(RangeKey.decodeFromRecordKey(top).lowkey, testkey);
+                } else {
+                    if (testkey.CompareTo(top) > 0) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            private static bool _eventuallyBeforeRangeKey(RecordKey bottom, IComparable<RecordKey> testkey) {
+                bool highrk = RangeKey.isRangeKey(bottom);
+                if (highrk) {
+                    return _eventuallyBeforeRangeKey(RangeKey.decodeFromRecordKey(bottom).highkey, testkey);
+                } else {
+                    if (testkey.CompareTo(bottom) > 0) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+
+            private static bool _eventuallyBetweenRangeKeys(RecordKey top, RecordKey bottom, 
+                    IComparable<RecordKey> testkey) {
+                bool lowrk = RangeKey.isRangeKey(top);
+                bool highrk = RangeKey.isRangeKey(bottom);
+
+                if (lowrk && highrk) {
+                    // unpack both and recurse
+                    return _eventuallyBetweenRangeKeys(RangeKey.decodeFromRecordKey(top).lowkey,
+                        RangeKey.decodeFromRecordKey(bottom).highkey, testkey);
+                } else if (lowrk && !highrk) {
+                    return _eventuallyPastRangeKey(RangeKey.decodeFromRecordKey(top).lowkey, testkey);
+                } else if (!lowrk && highrk) {
+                    return _eventuallyBeforeRangeKey(RangeKey.decodeFromRecordKey(bottom).highkey, testkey);
+                } else {
+                    if ((testkey.CompareTo(top) < 0) ||
+                        (testkey.CompareTo(bottom) > 0)) {
+                        return false;
+                    } else {
+                        return true;
+                    }
+                }        
+            }
+            public bool eventuallyContainsKey(IComparable<RecordKey> testkey) {
+                // return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
                 // todo, recursively unpack the low-key/high-key until we no longer have a .ROOT/GEN formatted key
                 // then find out if the supplied testkey is present in the final range
-                if ((this.lowkey.CompareTo(testkey) <= 0) &&
-                    (this.highkey.CompareTo(testkey) >= 0)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return _eventuallyBetweenRangeKeys(this.lowkey,this.highkey,testkey);
 
             }
             
@@ -406,8 +449,11 @@ namespace Bend
                         System.Console.WriteLine("INTERNAL error, RangeKey scan found non-range key: " 
                             + kvp.Key.ToString() + " claimed to be before " + endrk.ToString() );
                         break;
-                    }                    
-                    yield return kvp;
+                    }
+                    RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                    if (test_rk.eventuallyContainsKey(for_key)) {
+                        yield return kvp;
+                    }
 
                 }
                 
@@ -468,6 +514,7 @@ namespace Bend
                 }
             }
 
+            
             // find all generation range references that are relevant for this key
             // .. make a note of which ones are "current" 
             List<KeyValuePair<RecordKey,RecordUpdate>> todo_list = new List<KeyValuePair<RecordKey,RecordUpdate>>();

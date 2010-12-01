@@ -14,8 +14,14 @@ namespace MyTestStub {
             // testclass.T000_WorkingSegmentReadWrite();
 
 
-            var testclass = new A03_LayerManagerTests();
-            testclass.T002_ScanDirections();
+            // var testclass = new A03_LayerManagerTests();
+            // testclass.T002_ScanDirections();
+
+
+            var testclass = new A02_RangemapManagerTests();
+            testclass.T000_RangeKey();
+
+
 
         }
     }

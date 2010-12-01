@@ -87,8 +87,8 @@
     <Compile Include="DbgGUI\LayerVisualization.cs" />
     <Compile Include="LayerManager\MergeManagerTest.cs" />
     <Compile Include="LayerManager\MergeManager.cs" />
+    <Compile Include="LayerManager\RootMetadata\RangemapManagerTest.cs" />
     <Compile Include="LayerManager\RootMetadata\SegmentDescriptor.cs" />
-    <Compile Include="LayerManager\RootMetadata\RangemapManager2.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
