@@ -24,6 +24,8 @@
   - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
 
 
+  - FIX: gui debugger, so it computes the "number of segments per generation" then uses the max to compute segment height
+
   - distributed datastore handler
      - add psudo connection handling
 	 - add full-repl
