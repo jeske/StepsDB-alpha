@@ -194,6 +194,7 @@ namespace Bend
                     return -1;
                 }
                 compare_result = this.value[pos].CompareTo(conv_target.value[pos]);
+                pos++;
             }
             return compare_result;            
         }
