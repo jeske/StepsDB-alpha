@@ -222,12 +222,6 @@ namespace Bend
         public static char PRINTED_DELIMITER = '/';
         public static byte DELIMITER_B = 47;
 
-        private static RecordKeyEncoder encoder = new RecordKeyEncoderSimple();
-
-        abstract class RecordKeyEncoder {
-            public abstract byte[] encode(RecordKey key);
-            public abstract void decode(byte[] data, RecordKey key);
-        }
 
         public RecordKey()
         {
@@ -488,8 +482,51 @@ namespace Bend
 
         // -----------------------------------------------------------
         // encoding/decoding of keyparts
+        //
+        // switching between these is BINARY INCOMPATIBLE in the datafiles, so don't be doing it
+        // unless you know what you are doing!!! - jeske
 
-        
+        private static RecordKeyEncoder encoder = new RecordKeyEncoderBetter();
+
+        abstract class RecordKeyEncoder {
+            public abstract byte[] encode(RecordKey key);
+            public abstract void decode(byte[] data, RecordKey key);
+        }
+
+        class RecordKeyEncoderBetter : RecordKeyEncoder {
+            // [int16] number of fields
+            //   [int16 field length]
+            //   [field-length bytes]
+            
+            public override void decode(byte[] data, RecordKey key) {
+                key.key_parts.Clear();  // empty our keyparts
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                MemoryStream ms = new MemoryStream(data);
+                BinaryReader b = new BinaryReader(ms);
+                ushort num_fields = b.ReadUInt16();
+                for (ushort x = 0; x < num_fields; x++) {
+                    ushort field_len = b.ReadUInt16();
+                    byte[] field_data = b.ReadBytes(field_len);
+                    key.key_parts.Add(enc.GetString(field_data));
+                }
+
+            }
+            public override byte[] encode(RecordKey key) {
+                // approximate size
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+                MemoryStream ms = new MemoryStream();
+                BinaryWriter b = new BinaryWriter(ms);
+                b.Write((ushort)key.key_parts.Count);  // number of fields
+                foreach (var part in key.key_parts) {
+                    byte[] part_bytes = enc.GetBytes(part);
+                    b.Write((ushort)part_bytes.Length);  // field length
+                    b.Write(part_bytes);
+                }
+                b.Flush();
+                return ms.ToArray();
+            }
+        }
 
         class RecordKeyEncoderSimple : RecordKeyEncoder {
             static byte[] escape_list = { DELIMITER_B, 43 };
