@@ -21,10 +21,12 @@ namespace MyTestStub {
 
             // var testclass = new A02_RangemapManagerTests();
             // testclass.T001_RangeKey_Bug();
+            
+            
+            var testclass = new A02_RangemapManagerTests();
+            testclass.T000_RangeKey_EncodedSort();
 
-
-
-            fetchHitsTest();
+            // fetchHitsTest();
 
 
         }

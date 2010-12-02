@@ -2,6 +2,9 @@
 
 ----[ TODO ]---------
 
+  - extend RecordKey to be type-aware , see if we get back the proper number of search hits.
+      (string, int, RecordKey) to start
+
   PERF!!!!
 
   - FIX: directlyContainsKey should not return TRUE!! 

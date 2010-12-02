@@ -346,9 +346,9 @@ namespace Bend
         // [DebuggerDisplay("RangeKey( {generation}:{lowkey} -> {highkey} )")]
         public class RangeKey 
         {
-            RecordKey lowkey = null;
-            RecordKey highkey = null;
-            int generation;
+            public RecordKey lowkey = null;
+            public RecordKey highkey = null;
+            public int generation;
 
             private RangeKey() {
             }
@@ -385,7 +385,7 @@ namespace Bend
                 rangekey.lowkey = new RecordKey(enc.GetBytes(existingkey.key_parts[3]));
                 rangekey.highkey = new RecordKey(enc.GetBytes(existingkey.key_parts[4]));
 
-                if (rangekey.lowkey.CompareTo(rangekey.highkey) >= 0) {
+                if (rangekey.lowkey.CompareTo(rangekey.highkey) > 0) {
                     throw new Exception(
                         String.Format("RangeKey.decodeFromRecordKey() decoded inverted endpoints ({0} -> {1})",
                             rangekey.lowkey, rangekey.highkey));

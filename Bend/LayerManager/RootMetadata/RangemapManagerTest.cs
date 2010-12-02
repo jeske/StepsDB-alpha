@@ -19,7 +19,38 @@ namespace BendTests {
         }
 
         [Test]
-        public void T000_RangeKey() {
+        public void T000_RangeKey_EncodeDecode() {
+            RecordKey a_key = new RecordKey().appendParsedKey("AAAAAAAAAA/ZZZZZZZZZZZZZZ");
+            RecordKey b_key = new RecordKey().appendParsedKey("B/ZZ");
+
+            var rangekey_preencode = RangemapManager.RangeKey.newSegmentRangeKey(a_key, b_key, 0);
+            RecordKey a_range = rangekey_preencode.toRecordKey();
+
+            var rangekey = RangemapManager.RangeKey.decodeFromRecordKey(a_range);
+
+            Assert.AreEqual(rangekey.lowkey, a_key, "firstkey mismatch");
+            Assert.AreEqual(rangekey.highkey, b_key, "lastkey mismatch");            
+        }
+
+        [Test]
+        public void T000_RangeKey_EncodedSort() {
+            RecordKey a_key = new RecordKey().appendParsedKey("AAAAAAA/ZZZZZZZZZ/s/s/s/s/s");
+            RecordKey b_key = new RecordKey().appendParsedKey("B/ZZ");
+
+            Assert.True(a_key.CompareTo(b_key) < 0, "a key should be less than b key");
+
+            RecordKey a_range = RangemapManager.RangeKey.newSegmentRangeKey(a_key, a_key, 0).toRecordKey();
+            RecordKey b_range = RangemapManager.RangeKey.newSegmentRangeKey(b_key, b_key, 0).toRecordKey();
+
+            Console.WriteLine(Lsd.ToHexString(a_range.encode()));
+            Console.WriteLine(Lsd.ToHexString(b_range.encode()));
+
+            Assert.True(a_range.CompareTo(b_range) < 0, "a range should also be less than b range!!");
+            Assert.True(b_range.CompareTo(a_range) > 0, "b range should be greater than a range!!");
+        }
+
+        [Test]
+        public void T001_RangeKey_ContainmentTesting() {
             RecordKey target = new RecordKey().appendParsedKey("D");
 
             RangemapManager.RangeKey segptr = RangemapManager.RangeKey.newSegmentRangeKey(
