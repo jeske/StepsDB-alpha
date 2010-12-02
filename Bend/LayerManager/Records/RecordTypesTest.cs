@@ -139,17 +139,17 @@ namespace BendTests
         public void T03_RecordDataAssembly() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
             Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 1");
-            RecordUpdateResult result;
+            RecordDataUpdateResult result;
 
 
             result = data.applyUpdate(RecordUpdate.NoUpdate());
             Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 2");
-            Assert.AreEqual(result, RecordUpdateResult.SUCCESS, "apply result 2");
+            Assert.AreEqual(result, RecordDataUpdateResult.SUCCESS, "apply result 2");
             Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State, "apply state 2");
 
             result = data.applyUpdate(RecordUpdate.WithPayload("1"));
             Assert.AreEqual("1", data.ToString(), "apply 3");
-            Assert.AreEqual(result, RecordUpdateResult.FINAL, "apply result 3");
+            Assert.AreEqual(result, RecordDataUpdateResult.FINAL, "apply result 3");
             Assert.AreEqual(RecordDataState.FULL, data.State, "apply state 3");
 
             // if we already have a full update, it should be an error
@@ -184,9 +184,9 @@ namespace BendTests
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
             Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 1");
 
-            RecordUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());
+            RecordDataUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());
             Assert.AreEqual("[DELETED] ", data.ToString(), "tomb update 1"); 
-            Assert.AreEqual(RecordUpdateResult.FINAL,result, "tomb result 1");
+            Assert.AreEqual(RecordDataUpdateResult.FINAL,result, "tomb result 1");
             Assert.AreEqual(RecordDataState.DELETED, data.State, "tomb state 1");
 
             /* NOT ANYMORE
@@ -200,7 +200,7 @@ namespace BendTests
              * Assert.AreEqual(err, true);
              */
             // data after a tombstone should be ignored
-            Assert.AreEqual(RecordUpdateResult.FINAL, data.applyUpdate(RecordUpdate.WithPayload("1"))); 
+            Assert.AreEqual(RecordDataUpdateResult.FINAL, data.applyUpdate(RecordUpdate.WithPayload("1"))); 
             Assert.AreEqual("[DELETED] ", data.ToString(), "tomb after update 2"); // still empty...
             Assert.AreEqual(RecordDataState.DELETED, data.State);
 
