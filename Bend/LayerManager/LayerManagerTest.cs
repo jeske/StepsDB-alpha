@@ -43,7 +43,7 @@ namespace BendTests
 
             try {
                 record = db.FindNext(rk, true);
-                Assert.AreEqual(0, rk.CompareTo(record.Key), "fetched key does not match");
+                Assert.AreEqual(rk, record.Key, "fetched key does not match");
             } catch (KeyNotFoundException) {            
                 Assert.Fail("couldn't find 'a' record");
             }
@@ -60,7 +60,7 @@ namespace BendTests
 
             try {
                 record = db.FindNext(rk, true);
-                Assert.AreEqual(0, rk.CompareTo(record.Key), "fetched key does not match");
+                Assert.AreEqual(rk, record.Key, "fetched key does not match (after flush)");
             } catch (KeyNotFoundException) {
                 Assert.Fail("couldn't find 'a' record");
             }
@@ -88,12 +88,12 @@ namespace BendTests
 
             {
                 var rec = db.FindNext(rk_a, false);
-                Assert.AreEqual(rk_b, rec.Key);
+                Assert.AreEqual(rk_b, rec.Key, "simple FindNext");
             }
 
             {
                 var rec = db.FindPrev(rk_b, false);
-                Assert.AreEqual(rk_a, rec.Key);
+                Assert.AreEqual(rk_a, rec.Key, "simple FindPrev");
             }
 
 
@@ -106,7 +106,7 @@ namespace BendTests
                 if (count == keys.Length) {
                     Assert.Fail("too many keys returned in scan");
                 }
-                Assert.AreEqual(keys[count], row.Key.key_parts[0], "forward scan mistake");
+                Assert.AreEqual(new RecordKeyType_String(keys[count]), row.Key.key_parts[0], "forward scan mistake");
                 count++;
             }
             if (count != keys.Length) {
@@ -123,7 +123,7 @@ namespace BendTests
                     Assert.Fail("too many keys returned in scan backward");
                 }
                 count--;
-                Assert.AreEqual(keys[count], row.Key.key_parts[0], "backward scan mistake");
+                Assert.AreEqual(new RecordKeyType_String(keys[count]), row.Key.key_parts[0], "backward scan mistake");
             }
             if (count != 0) {
                 Assert.Fail("not enough keys returned in scan");

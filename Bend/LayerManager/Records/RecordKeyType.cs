@@ -36,8 +36,12 @@ namespace Bend
                 return subtyperesult;
             }
         }
-        public bool Equals(RecordKeyType target) {
-            return (this.CompareTo(target) == 0);
+        public override bool Equals(object target) {
+            if (target.GetType() != this.GetType()) {
+                return false;
+            } else {
+                return (this.CompareTo((RecordKeyType)target) == 0);
+            }
         }
 
         public abstract int CompareToPeer(RecordKeyType peer_target);  

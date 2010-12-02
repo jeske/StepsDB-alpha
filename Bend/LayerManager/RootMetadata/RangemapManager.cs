@@ -55,8 +55,10 @@ namespace Bend
             mergeManager = new MergeManager_Incremental(this);            
         }
 
-        public void primeMergeManager() {
-            return;
+        public void primeMergeManager() {         
+            // because we depend on the merge manager for all kinds of things now, we really
+            // MUST do this, or new segments will be allocated in the wrong generations! 
+
             Console.WriteLine("primeMergeManager(): start");
             foreach (var segdesc in store.listAllSegments()) {
                 // TODO: make sure these are in increasing generation order! 
@@ -416,8 +418,8 @@ namespace Bend
                     throw new Exception("isRangeKey() handed a key with null key_parts");
                 }
                 if ( (key.key_parts.Count == 5)  &&
-                     (key.key_parts[0].Equals(".ROOT")) &&
-                     (key.key_parts[1].Equals("GEN"))) {
+                     (key.key_parts[0].Equals(new RecordKeyType_String(".ROOT"))) &&
+                     (key.key_parts[1].Equals(new RecordKeyType_String("GEN")))) {
                     return true;
                 } else {
                     return false;

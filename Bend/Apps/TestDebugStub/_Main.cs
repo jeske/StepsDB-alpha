@@ -30,8 +30,13 @@ namespace MyTestStub {
             // var testclass = new A01_RecordTests();
             // testclass.T02b_RecordKeyNesting();
 
-            var testclass = new A02_SegmentDescriptorTests();
-            testclass.T02_DescriptorOverlapTests();
+            // var testclass = new A02_SegmentDescriptorTests();
+            // testclass.T02_DescriptorOverlapTests();
+
+            var testclass = new A03_LayerManagerTests();
+            // testclass.T001_WorkingSegmentReadWrite();
+            // testclass.T002_ScanDirections();
+            testclass.T04_SingleSegmentRootMetadataLogRecovery();
             // fetchHitsTest();
 
 
