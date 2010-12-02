@@ -277,6 +277,27 @@ namespace BendTests
 
         }
 
+        [Test]
+        public void T12_RecordKeyDecodePerfTest() {
+            RecordKey rk = new RecordKey().appendParsedKey(".data/test/unpack/with/lots/of/parts");
+
+            byte[] data = rk.encode();
+            int NUM_ITERATIONS = 100000;
+
+            DateTime start = DateTime.Now;
+            for (int x = 0; x < NUM_ITERATIONS; x++) {
+                RecordKey unpacked = new RecordKey(data);
+            }
+            DateTime end = DateTime.Now;
+            double elapsed_s = (end - start).TotalMilliseconds / 1000.0;
+            double rec_per_s = (double)NUM_ITERATIONS/elapsed_s;
+
+            Console.WriteLine("unpacked {0} record keys in {1} seconds, {2} keys/second",
+                NUM_ITERATIONS, elapsed_s, rec_per_s);
+
+            Assert.Less(500000, rec_per_s, "minimum records per second of unpack");
+        }
+
     }
 
 
