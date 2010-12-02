@@ -7,6 +7,8 @@ using System.Collections.Generic;
 
 using System.Diagnostics;
 
+using System.Reflection; // for SegmentWalkStats reflective printing
+
 
 namespace Bend
 {
@@ -234,6 +236,29 @@ namespace Bend
                 return getNextRecord_LowLevel(lowkey, true, ref key, ref record, equal_ok, false);
         }
 
+        
+        public class SegmentWalkStats {
+            public int segmentWalkInvocations;
+            public int segmentDeletionTombstonesSkipped;
+            public int segmentUpdatesApplied;
+            public int segmentRangeRowScansPerformed;
+            public int segmentRangeRowsConsidered;
+            public int rowUpdatesApplied;
+            public int rowDuplicatesAppeared;
+
+            public override String ToString() {
+                var string_lines = new List<string>();
+
+                Type otype = this.GetType();
+                // MemberInfo[] members = otype.GetMembers();
+                FieldInfo[] fields = otype.GetFields();
+                foreach (FieldInfo f in fields) {
+                    string_lines.Add(String.Format("{1,10} = {0}", f.Name, f.GetValue(this).ToString()));
+                }
+                return String.Join("\n", string_lines);
+            }
+        }
+
         public GetStatus getNextRecord_LowLevel(
             IComparable<RecordKey> lowkey, 
             bool direction_is_forward, 
@@ -241,6 +266,8 @@ namespace Bend
             ref RecordData record, 
             bool equal_ok, 
             bool tombstone_ok) {
+
+            SegmentWalkStats stats = new SegmentWalkStats();
 
             BDSkipList<RecordKey, RecordData> handledIndexRecords = new BDSkipList<RecordKey,RecordData>();
             BDSkipList<RecordKey, RecordData> recordsBeingAssembled = new BDSkipList<RecordKey, RecordData>();
@@ -272,8 +299,12 @@ namespace Bend
                     handledIndexRecords,
                     num_generations,
                     recordsBeingAssembled,
-                    equal_ok);
+                    equal_ok,
+                    stats:stats);
             }
+
+            //Console.WriteLine("getNextRecord({0})", lowkey);
+            //Console.WriteLine(stats);
 
             // now check the assembled records list
             try {
@@ -493,7 +524,8 @@ namespace Bend
             public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllEligibleRangeRows(
                 IScannable<RecordKey, RecordUpdate> in_segment,
                 IComparable<RecordKey> for_key,
-                int for_generation) {
+                int for_generation,
+                SegmentWalkStats stats) {
 
                 // TODO: fix this to me more efficient.... we would like to:
                 // (1) look through anything that could be a direct range-row of "for_key"            
@@ -510,6 +542,8 @@ namespace Bend
 
                 foreach (KeyValuePair<RecordKey, RecordUpdate> kvp 
                     in in_segment.scanForward(new ScanRange<RecordKey>(startrk, endrk, null))) {
+                    
+                    stats.segmentRangeRowsConsidered++;
                     if (!RangeKey.isRangeKey(kvp.Key)) {
                         System.Console.WriteLine("INTERNAL error, RangeKey scan found non-range key: " 
                             + kvp.Key.ToString() + " claimed to be before " + endrk.ToString() );
@@ -525,7 +559,8 @@ namespace Bend
             }            
             
         }        
-        
+        private static RecordKey GEN_KEY_PREFIX = new RecordKey().appendParsedKey(".ROOT/GEN");
+
         private void INTERNAL_segmentWalkForNextKey(
             IComparable<RecordKey> startkeytest,
             bool direction_is_forward,
@@ -534,10 +569,14 @@ namespace Bend
             IScannableDictionary<RecordKey, RecordData> handledIndexRecords,
             int maxgen,
             IScannableDictionary<RecordKey, RecordData> recordsBeingAssembled,
-            bool equal_ok) {
+            bool equal_ok,
+            SegmentWalkStats stats) {
 
             // TODO: convert all ISortedSegments to be IScannable
             IScannable<RecordKey, RecordUpdate> curseg = (IScannable<RecordKey, RecordUpdate>)curseg_raw;
+
+            stats.segmentWalkInvocations++;
+            
 
             // first look in this segment for a next-key **IF** it may contain one
             if (curseg_rangekey.directlyContainsKey(startkeytest)) {
@@ -569,8 +608,12 @@ namespace Bend
                     if (!recordsBeingAssembled.TryGetValue(kvp.Key, out partial_record)) {
                         partial_record = new RecordData(RecordDataState.NOT_PROVIDED, kvp.Key);
                         recordsBeingAssembled[kvp.Key] = partial_record;
+                        partial_record.applyUpdate(kvp.Value);
+                        stats.rowUpdatesApplied++;
+                    } else {
+                        stats.rowDuplicatesAppeared++;
                     }
-                    partial_record.applyUpdate(kvp.Value);
+                    
                     
                     // Console.WriteLine("add potential: {0} inseg:{1}", kvp, curseg_rangekey);
 
@@ -583,58 +626,65 @@ namespace Bend
 
             
             // find all generation range references that are relevant for this key
-            // .. make a note of which ones are "current" 
-            List<KeyValuePair<RecordKey,RecordUpdate>> todo_list = new List<KeyValuePair<RecordKey,RecordUpdate>>();
-            for (int i = maxgen - 1; i >= 0; i--) {
-                foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllEligibleRangeRows(curseg, startkeytest, i)) {
-                    // see if it is new for our handledIndexRecords dataset
-                    RecordData partial_rangedata;
-                    if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
-                        partial_rangedata = new RecordData(RecordDataState.NOT_PROVIDED, rangerow.Key);
-                        handledIndexRecords[rangerow.Key] = partial_rangedata;
-                    }                    
-                    if ((partial_rangedata.State == RecordDataState.INCOMPLETE) ||
-                        (partial_rangedata.State == RecordDataState.NOT_PROVIDED)) {
-                        // we're suppilying new data for this index record
-                        partial_rangedata.applyUpdate(rangerow.Value);
-                        // because we're suppilying new data, we should add this to our
-                        // private TODO list if it is a FULL update, NOT a tombstone
-                        if (rangerow.Value.type == RecordUpdateTypes.FULL) {
-                            todo_list.Add(rangerow);
+            // .. make a note of which ones are "current"             
+            if (curseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
+                List<KeyValuePair<RecordKey, RecordUpdate>> todo_list = new List<KeyValuePair<RecordKey, RecordUpdate>>();
+
+
+                for (int i = maxgen - 1; i >= 0; i--) {
+                    stats.segmentRangeRowScansPerformed++;
+                    foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllEligibleRangeRows(curseg, startkeytest, i, stats)) {
+                        // see if it is new for our handledIndexRecords dataset
+                        RecordData partial_rangedata;
+                        if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
+                            partial_rangedata = new RecordData(RecordDataState.NOT_PROVIDED, rangerow.Key);
+                            handledIndexRecords[rangerow.Key] = partial_rangedata;
+                        }
+                        if ((partial_rangedata.State == RecordDataState.INCOMPLETE) ||
+                            (partial_rangedata.State == RecordDataState.NOT_PROVIDED)) {
+                            // we're suppilying new data for this index record
+                            partial_rangedata.applyUpdate(rangerow.Value);
+                            stats.segmentUpdatesApplied++;
+                            // because we're suppilying new data, we should add this to our
+                            // private TODO list if it is a FULL update, NOT a tombstone
+                            if (rangerow.Value.type == RecordUpdateTypes.FULL) {
+                                todo_list.Add(rangerow);
+                            }
                         }
                     }
-                }                    
-            }
-
-
-            // now repeat the walk through our todo list:
-            foreach (KeyValuePair<RecordKey,RecordUpdate> rangepointer in todo_list) {
-                if (rangepointer.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
-                    // skip deletion tombstones
-                    
-                    continue; 
                 }
-                SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
-                RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
-                
-                // for (int depth = 10; depth > maxgen; depth--) { 
-                //    Console.Write("  "); 
-                // }
-                // Console.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
-                // RECURSE
-                INTERNAL_segmentWalkForNextKey(
-                    startkeytest,
-                    direction_is_forward,
-                    next_seg,
-                    next_seg_rangekey,
-                    handledIndexRecords,
-                    maxgen - 1,
-                    recordsBeingAssembled,
-                    equal_ok);
-                    
+
+                // now repeat the walk through our todo list:
+                foreach (KeyValuePair<RecordKey, RecordUpdate> rangepointer in todo_list) {
+                    if (rangepointer.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                        // skip deletion tombstones
+                        stats.segmentDeletionTombstonesSkipped++;
+                        continue;
+                    }
+                    SegmentReader next_seg = segmentReaderFromRow(rangepointer);
+
+                    RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
+
+                    // for (int depth = 10; depth > maxgen; depth--) { 
+                    //    Console.Write("  "); 
+                    // }
+                    // Console.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
+                    // RECURSE
+                    INTERNAL_segmentWalkForNextKey(
+                        startkeytest,
+                        direction_is_forward,
+                        next_seg,
+                        next_seg_rangekey,
+                        handledIndexRecords,
+                        maxgen - 1,
+                        recordsBeingAssembled,
+                        equal_ok,
+                        stats);
+
+                }
+                // now repeat the walk of range references in this segment, this time actually descending
             }
-            // now repeat the walk of range references in this segment, this time actually descending
         }
 
     }

@@ -11,6 +11,7 @@
 
   - FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches
   - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen
+  - FIX: make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
 
   - MAKE: scanrange cache, use in segment walk
 

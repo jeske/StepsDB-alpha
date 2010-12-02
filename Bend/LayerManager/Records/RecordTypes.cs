@@ -375,7 +375,9 @@ namespace Bend
                 this.prefixkey = prefixkey;
             }
 
-
+            public override String ToString() {
+                return "AfterPrefix(" + prefixkey.ToString() + ")";
+            }
             // < 0 this instance is less than target
             // > 0 this instance is greater than target
             // 0   this instance equals target
