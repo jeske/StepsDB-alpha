@@ -98,7 +98,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="RowPipe\Pipe.cs" />
-    <Compile Include="LayerManager\Records\RecordTypesTest.cs" />
+    <Compile Include="LayerManager\Records\_RecordTests.cs" />
     <Compile Include="RowPipe\PipeTest.cs" />
     <Compile Include="RowPipe\Qualifiers.cs" />
     <Compile Include="RowPipe\QualifiersTest.cs" />
@@ -118,7 +118,7 @@
     <Compile Include="Util\BinStruct.cs" />
     <Compile Include="Segment\SegmentBlockBasic.cs" />
     <Compile Include="Segment\SortedSegment.cs" />
-    <Compile Include="LayerManager\Records\RecordTypes.cs" />
+    <Compile Include="LayerManager\Records\RecordKeyType.cs" />
     <Compile Include="LayerManager\LayerManager.cs" />
     <Compile Include="Util\GenericWeakReference.cs" />
     <Compile Include="LayerManager\LayerManagerTest.cs" />

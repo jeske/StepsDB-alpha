@@ -14,7 +14,7 @@ namespace BendTests
 {
 
     [TestFixture]
-    public class A01_RecordTypesTest
+    public class A01_RecordTests
     {
         [Test]
         public void T00_RecordKeyEquality() {
