@@ -97,11 +97,19 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
-    <Compile Include="RowPipe\Pipe.cs" />
     <Compile Include="LayerManager\Records\_RecordTests.cs" />
-    <Compile Include="RowPipe\PipeTest.cs" />
-    <Compile Include="RowPipe\Qualifiers.cs" />
-    <Compile Include="RowPipe\QualifiersTest.cs" />
+    <Compile Include="RowPipe\Pipe.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RowPipe\PipeTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RowPipe\Qualifiers.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RowPipe\QualifiersTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Segment\SegmentBlockCompressed.cs" />
     <Compile Include="Segment\SegmentBlockCompressedTest.cs" />
     <Compile Include="Segment\_SegmentBlockTest.cs" />

@@ -368,7 +368,9 @@ namespace Bend
             }
 
 
-            private static void verifyPart(string expected,string value) {
+            private static void verifyPart(string expected,RecordKeyType part) {
+                RecordKeyType_String conv_part = (RecordKeyType_String)part;
+                string value = conv_part.GetString();
                 if (!expected.Equals(value)) {
                     throw new Exception(String.Format("verify failed on RangeKey decode ({0} != {1})", expected, value));
                 }
@@ -380,10 +382,10 @@ namespace Bend
                 // TODO, switch this to use a key PIPE!!
                 verifyPart(".ROOT", existingkey.key_parts[0]);
                 verifyPart("GEN", existingkey.key_parts[1]);
-                
-                rangekey.generation = (int)Lsd.lsdToNumber(enc.GetBytes(existingkey.key_parts[2]));
-                rangekey.lowkey = new RecordKey(enc.GetBytes(existingkey.key_parts[3]));
-                rangekey.highkey = new RecordKey(enc.GetBytes(existingkey.key_parts[4]));
+
+                rangekey.generation = (int)((RecordKeyType_Long)existingkey.key_parts[2]).GetLong();
+                rangekey.lowkey = ((RecordKeyType_RecordKey)existingkey.key_parts[3]).GetRecordKey();
+                rangekey.highkey = ((RecordKeyType_RecordKey)existingkey.key_parts[4]).GetRecordKey();
 
                 if (rangekey.lowkey.CompareTo(rangekey.highkey) > 0) {
                     throw new Exception(
@@ -399,9 +401,9 @@ namespace Bend
                 }
                 RecordKey key = new RecordKey();
                 key.appendParsedKey(".ROOT/GEN");
-                key.appendKeyPart(Lsd.numberToLsd(generation, GEN_LSD_PAD));
-                key.appendKeyPart(lowkey.encode());
-                key.appendKeyPart(highkey.encode());
+                key.appendKeyPart(new RecordKeyType_Long(generation));
+                key.appendKeyPart(new RecordKeyType_RecordKey(lowkey));
+                key.appendKeyPart(new RecordKeyType_RecordKey(highkey));
                 return key;
             }
 
@@ -537,7 +539,7 @@ namespace Bend
                 
                 RecordKey startrk = new RecordKey()
                     .appendParsedKey(".ROOT/GEN")
-                    .appendKeyPart(Lsd.numberToLsd(for_generation,GEN_LSD_PAD));
+                    .appendKeyPart(new RecordKeyType_Long(for_generation));                    
                 IComparable<RecordKey> endrk = RecordKey.AfterPrefix(startrk);
 
                 foreach (KeyValuePair<RecordKey, RecordUpdate> kvp 

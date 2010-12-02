@@ -28,9 +28,9 @@ namespace Bend {
             record_key = key;
 
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            generation = (uint)Lsd.lsdToNumber(enc.GetBytes(key.key_parts[2]));
-            start_key = new RecordKey(System.Text.ASCIIEncoding.ASCII.GetBytes(key.key_parts[3]));
-            end_key = new RecordKey(System.Text.ASCIIEncoding.ASCII.GetBytes(key.key_parts[4]));
+            generation = (uint)((RecordKeyType_Long)key.key_parts[2]).GetLong();
+            start_key = ((RecordKeyType_RecordKey)key.key_parts[3]).GetRecordKey();
+            end_key = ((RecordKeyType_RecordKey)key.key_parts[4]).GetRecordKey();
 
             {
                 var testkey = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
@@ -80,9 +80,9 @@ namespace Bend {
 
             RecordKey genkey = new RecordKey()
                 .appendParsedKey(".ROOT/GEN")
-                .appendKeyPart(Lsd.numberToLsd((int)generation, RangemapManager.GEN_LSD_PAD))
-                .appendKeyPart(start_key.encode())
-                .appendKeyPart(end_key.encode());
+                .appendKeyPart(new RecordKeyType_Long(generation))
+                .appendKeyPart(new RecordKeyType_RecordKey(start_key))
+                .appendKeyPart(new RecordKeyType_RecordKey(end_key));
 
             this.record_key = genkey;
             this.generation = generation;

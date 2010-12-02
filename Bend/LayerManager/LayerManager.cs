@@ -336,7 +336,10 @@ namespace Bend
         public List<SegmentDescriptor> listSegmentsForGen(int gen) {
             List<SegmentDescriptor> segs = new List<SegmentDescriptor>();
 
-            RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
+            RecordKey start_key = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(gen));
+                               
             RecordKey cur_key = start_key;
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
@@ -479,10 +482,14 @@ namespace Bend
             List<SegmentDescriptor> sub_segment_keys = new List<SegmentDescriptor>();
             int current_seg_count = 0;
 
-            RecordKey gen_key = new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD));
-            RecordKey search_key = new RecordKey().appendParsedKey(".ROOT/GEN").
-                appendKeyPart(Lsd.numberToLsd(gen, RangemapManager.GEN_LSD_PAD)).
-                appendKeyPart(start_key);
+            RecordKey gen_key = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(gen));                                
+            RecordKey search_key = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(gen))
+                .appendKeyPart(new RecordKeyType_RecordKey(start_key));
+
 
             RecordKey cur_key = search_key;
             RecordKey found_key = new RecordKey();

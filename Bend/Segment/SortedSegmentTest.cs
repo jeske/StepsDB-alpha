@@ -11,6 +11,8 @@ using Bend;
 
 namespace BendTests
 {
+
+
     #region TestHelpers
     // this class adapts our pipe-qualifier to be able to test against record key
     public class QualAdaptor : IScanner<RecordKey>
@@ -24,7 +26,7 @@ namespace BendTests
         }
         public bool MatchTo(RecordKey row_key) {
             IEnumerator<QualifierBase> qual_enum = qual.GetEnumerator();
-            IEnumerator<string> key_enum = row_key.GetEnumeratorForKeyparts();
+            IEnumerator<RecordKeyType> key_enum = row_key.GetEnumeratorForKeyparts();
 
             bool qual_hasmore = qual_enum.MoveNext();
             bool key_hasmore = key_enum.MoveNext();
@@ -32,9 +34,9 @@ namespace BendTests
             bool last_result = true;
             while (qual_hasmore && key_hasmore && (last_result == true)) {
                 QualifierBase q_part = qual_enum.Current;
-                string key_part = key_enum.Current;
+                RecordKeyType_String key_part = (RecordKeyType_String)key_enum.Current;
 
-                last_result = q_part.MatchTo(key_part);
+                last_result = q_part.MatchTo(key_part.GetString());
 
                 qual_hasmore = qual_enum.MoveNext();
                 key_hasmore = key_enum.MoveNext();
@@ -51,6 +53,8 @@ namespace BendTests
         }
     }
     #endregion
+
+
 
     // ----------------------------------------- A02_SortedSegmentTests -----------------------------
     [TestFixture]

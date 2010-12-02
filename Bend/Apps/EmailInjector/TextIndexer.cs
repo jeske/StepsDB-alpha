@@ -108,9 +108,9 @@ namespace Bend.Indexer {
 
                 int len_of_index_prefix = 2;  // ASSUME THIS FOR NOW
                 TermHit hit = new TermHit();
-                hit.word = hitrow.key_parts[len_of_index_prefix+0];
-                hit.docid = hitrow.key_parts[len_of_index_prefix + 1];
-                hit.position = hitrow.key_parts[len_of_index_prefix + 2];
+                hit.word = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 0]).GetString();
+                hit.docid = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 1]).GetString();
+                hit.position = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 2]).GetString();
                 return hit;
             }
             public TermHit advancePastDocid(IndexStats stats, string docid) {

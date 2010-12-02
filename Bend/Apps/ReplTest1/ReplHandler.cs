@@ -171,7 +171,8 @@ namespace Bend {
             // first log entry for this log
             var oldestlogrow = db.FindNext(log_prefix_key, false);
             if (oldestlogrow.Key.isSubkeyOf(log_prefix_key)) {
-                log_status.oldest_entry_pointer = oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+                log_status.oldest_entry_pointer =
+                    ((RecordKeyType_String)oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]).GetString();
             } else {
                 log_status.oldest_entry_pointer = "";
             }
@@ -179,7 +180,8 @@ namespace Bend {
             // newest log entry for this log
             var newestlogrow = db.FindPrev(RecordKey.AfterPrefix(log_prefix_key), false);
             if (newestlogrow.Key.isSubkeyOf(log_prefix_key)) {
-                log_status.log_commit_head = newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1];
+                log_status.log_commit_head =
+                    ((RecordKeyType_String)newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]).GetString();
             } else {
                 log_status.log_commit_head = "";
             }
@@ -200,12 +202,11 @@ namespace Bend {
             yield return _statusForLog(ctx.server_guid); // be sure to include myself
 
             foreach (var seed_row in db.scanForward(scanrange)) {
-                var server_guid = seed_row.Key.key_parts[seed_row.Key.key_parts.Count - 1];
+                RecordKeyType last_keypart = seed_row.Key.key_parts[seed_row.Key.key_parts.Count - 1];
+
+                string server_guid = ((RecordKeyType_String)last_keypart).GetString();
 
                 if (server_guid.Equals(ctx.server_guid)) { continue; } // skip ourselves
-
-
-
 
                 yield return _statusForLog(server_guid);
             }
@@ -245,10 +246,10 @@ namespace Bend {
                 }
 
                 foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
-                    // TODO: fix this junk conversion
-                    System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();                    
-                    byte[] logstamp = enc.GetBytes(logrow.Key.key_parts[logrow.Key.key_parts.Count - 1]);
+                    RecordKeyType last_keypart = logrow.Key.key_parts[logrow.Key.key_parts.Count - 1];
+                    RecordKeyType_RawBytes keypart = (RecordKeyType_RawBytes)last_keypart;
 
+                    byte[] logstamp = keypart.GetBytes();
                     this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
                 }
 
@@ -458,7 +459,8 @@ namespace Bend {
                 .appendKeyPart("_config")
                 .appendKeyPart("seeds");            
             foreach (var row in db.scanForward(new ScanRange<RecordKey>(seed_key_prefix,RecordKey.AfterPrefix(seed_key_prefix),null))) {
-                string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
+                string sname =
+                    ((RecordKeyType_String)row.Key.key_parts[row.Key.key_parts.Count - 1]).GetString();
                 ji.seed_servers.Add(sname);
             }
             // add ourself to the seed list! 
@@ -516,7 +518,8 @@ namespace Bend {
                 foreach (var row in myhandler.db.scanForward(
                     new ScanRange<RecordKey>(seed_key_prefix, 
                         RecordKey.AfterPrefix(seed_key_prefix), null))) {
-                    string sname = row.Key.key_parts[row.Key.key_parts.Count - 1];
+                            string sname =
+                                ((RecordKeyType_String)row.Key.key_parts[row.Key.key_parts.Count - 1]).GetString();
 
                     if (sname == myhandler.ctx.server_guid) {
                         continue; // ignore our own guid!!

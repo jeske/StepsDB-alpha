@@ -36,6 +36,9 @@ namespace Bend
                 return subtyperesult;
             }
         }
+        public bool Equals(RecordKeyType target) {
+            return (this.CompareTo(target) == 0);
+        }
 
         public abstract int CompareToPeer(RecordKeyType peer_target);  
         internal abstract void encodeSubtypeTo(BinaryWriter w);
@@ -51,8 +54,14 @@ namespace Bend
                 case RecordKeySubtype.LONG:
                     return RecordKeyType_Long.decodeSubtypeFrom(r);
                     break;
+                case RecordKeySubtype.RECORD_KEY:
+                    return RecordKeyType_RecordKey.decodeSubtypeFrom(r);
+                    break;
+                case RecordKeySubtype.RAW_BYTES:
+                    return RecordKeyType_RawBytes.decodeSubtypeFrom(r);
+                    break;
             }
-            throw new Exception("unknown subtype");
+            throw new Exception("RecordKeyType.decodeFrom: no decoder for subtype: " + subtype_enum.ToString());
         }
 
         public void encodeTo(BinaryWriter w) {

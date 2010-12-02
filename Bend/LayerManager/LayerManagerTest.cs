@@ -171,7 +171,7 @@ namespace BendTests
                 Assert.AreEqual(4, db.workingSegment.RowCount);
                 for (int i = 0; i < keys.Length; i++) {
                     RecordKey key = new RecordKey();
-                    key.appendKeyPart(keys[i]);
+                    key.appendKeyPart(new RecordKeyType_String(keys[i]));
 
                     // look directly in the working segment
                     {
@@ -232,8 +232,11 @@ namespace BendTests
                 RecordData data;
                 Assert.AreEqual(
                     GetStatus.PRESENT,
-                    db.getRecord(new RecordKey().appendParsedKey(".ROOT/GEN/000/</>"), out data),
-                    ".ROOT/GEN/000/</>  key is missing");
+                    db.getRecord(new RecordKey()
+                    .appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(new RecordKeyType_Long(0))
+                    .appendKeyPart("</>"), out data),
+                    ".ROOT/GEN/0/</>  key is missing");
             }
 
             // TODO: assure we subtracted the new range record from the freespace

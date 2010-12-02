@@ -20,13 +20,13 @@ namespace Bend {
     public class RecordKey : IComparable<RecordKey> {
         // TODO: key_parts really shouldn't be public, people should be using pipes to read keys
         // TODO: maybe key parts shouldn't be limited to strings
-        public List<String> key_parts;
+        public List<RecordKeyType> key_parts;
         public static char PRINTED_DELIMITER = '/';
         public static byte DELIMITER_B = 47;
 
 
         public RecordKey() {
-            key_parts = new List<String>();
+            key_parts = new List<RecordKeyType>();
         }
         public RecordKey(byte[] data)
             : this() {
@@ -50,7 +50,7 @@ namespace Bend {
 
             String[] keystring_parts = keyToParse.Split(delimiters);
             foreach (String keypart in keystring_parts) {
-                this.appendKeyPart(keypart);
+                this.appendKeyPart(new RecordKeyType_String(keypart));
             }
             return this;
         }
@@ -61,9 +61,9 @@ namespace Bend {
                     throw new Exception("appendKeyParts(params object[] args) handed null pointer");
                 }
                 if (arg.GetType() == typeof(String)) {
-                    this.appendKeyPart((String)arg);
+                    this.appendKeyPart(new RecordKeyType_String((string)arg));
                 } else if (arg.GetType() == typeof(byte[])) {
-                    this.appendKeyPart((byte[])arg);
+                    this.appendKeyPart(new RecordKeyType_RawBytes((byte[])arg));
                 } else {
                     throw new Exception("unknown argument type");
                 }
@@ -71,28 +71,31 @@ namespace Bend {
             return this;
         }
 
+
         public RecordKey appendKeyPart(String part) {
             if (part == null) {
                 throw new Exception("appendKeyPart(string part) handed null pointer");
             }
-            key_parts.Add(part);
+            key_parts.Add(new RecordKeyType_String(part));
             return this;
         }
+
         public RecordKey appendKeyPart(byte[] data) {
             if (data == null) {
                 throw new Exception("appendKeyPart(byte[] data) handed null pointer");
-            }
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            String keystring = enc.GetString(data);
-            key_parts.Add(keystring);
+            }            
+            key_parts.Add(new RecordKeyType_RawBytes(data));
             return this;
         }
 
-        public RecordKey appendKeyPart(RecordKey keydata) {
-            key_parts.Add(keydata.ToString());
+        public RecordKey appendKeyPart(RecordKey keydata) {            
+            key_parts.Add(new RecordKeyType_RecordKey(keydata));
             return this;
         }
-
+        public RecordKey appendKeyPart(RecordKeyType keypart) {
+            key_parts.Add(keypart);
+            return this;
+        }
 
         public int numParts() {
             return key_parts.Count;
@@ -241,7 +244,7 @@ namespace Bend {
             }
 
             for (int pos = 0; pos < potential_parent_key.key_parts.Count; pos++) {
-                if (potential_parent_key.key_parts[pos] != this.key_parts[pos]) {
+                if (this.key_parts[pos].CompareTo(potential_parent_key.key_parts[pos]) != 0) {
                     return false; // one of their parts didn't match
                 }
             }
@@ -257,7 +260,7 @@ namespace Bend {
         }
         public override int GetHashCode() {
             int hash_code = 0;
-            foreach (string part in key_parts) {
+            foreach (RecordKeyType part in key_parts) {
                 hash_code += part.GetHashCode();
             }
             return hash_code;
@@ -269,11 +272,11 @@ namespace Bend {
 
         public override string ToString() {
             // return String.Join(new String(DELIMITER, 1), key_parts.ToArray());
-            return String.Join(".", key_parts.ToArray());
+            return String.Join<RecordKeyType>(".", key_parts.ToArray());
         }
 
         // TODO: this is hacky, we should find a better abstraction to let people see our keyparts
-        public IEnumerator<string> GetEnumeratorForKeyparts() {
+        public IEnumerator<RecordKeyType> GetEnumeratorForKeyparts() {
             return this.key_parts.GetEnumerator();
         }
 
@@ -283,12 +286,47 @@ namespace Bend {
         // switching between these is BINARY INCOMPATIBLE in the datafiles, so don't be doing it
         // unless you know what you are doing!!! - jeske
 
-        private static RecordKeyEncoder encoder = new RecordKeyEncoderBetter();
-
+        public byte[] encode() {
+            return RecordKey.encoder.encode(this);
+        }
+        private static RecordKeyEncoder encoder = new RecordKeyEncoderKeyTypes();
         abstract class RecordKeyEncoder {
             public abstract byte[] encode(RecordKey key);
             public abstract void decode(byte[] data, RecordKey key);
         }
+
+        // ------
+        // actual encoders
+
+        class RecordKeyEncoderKeyTypes : RecordKeyEncoder {
+            public override void decode(byte[] data, RecordKey key) {
+                key.key_parts.Clear();  // empty our keyparts
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                MemoryStream ms = new MemoryStream(data);
+                BinaryReader b = new BinaryReader(ms);
+                ushort num_fields = b.ReadUInt16();
+                for (ushort x = 0; x < num_fields; x++) {
+                    key.key_parts.Add(RecordKeyType.decodeFrom(b));                    
+                }
+
+            }
+            public override byte[] encode(RecordKey key) {
+                // approximate size
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+                MemoryStream ms = new MemoryStream();
+                BinaryWriter b = new BinaryWriter(ms);
+                b.Write((ushort)key.key_parts.Count);  // number of fields
+                foreach (var part in key.key_parts) {
+                    part.encodeTo(b);
+                }
+                b.Flush();
+                return ms.ToArray();
+            }
+
+        }
+
+#if OLD_ENCODERS
 
         class RecordKeyEncoderBetter : RecordKeyEncoder {
             // [int16] number of fields
@@ -316,9 +354,7 @@ namespace Bend {
                 BinaryWriter b = new BinaryWriter(ms);
                 b.Write((ushort)key.key_parts.Count);  // number of fields
                 foreach (var part in key.key_parts) {
-                    byte[] part_bytes = enc.GetBytes(part);
-                    b.Write((ushort)part_bytes.Length);  // field length
-                    b.Write(part_bytes);
+                    part.encodeTo(b);
                 }
                 b.Flush();
                 return ms.ToArray();
@@ -368,9 +404,8 @@ namespace Bend {
             }
         }
 
-        public byte[] encode() {
-            return RecordKey.encoder.encode(this);
-        }
+#endif
+
 
     }
 }
