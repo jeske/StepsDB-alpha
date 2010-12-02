@@ -221,14 +221,21 @@ namespace Bend
         public List<String> key_parts;  
         public static char PRINTED_DELIMITER = '/';
         public static byte DELIMITER_B = 47;
-        
+
+        private static RecordKeyEncoder encoder = new RecordKeyEncoderSimple();
+
+        abstract class RecordKeyEncoder {
+            public abstract byte[] encode(RecordKey key);
+            public abstract void decode(byte[] data, RecordKey key);
+        }
+
         public RecordKey()
         {
             key_parts = new List<String>();
         }
         public RecordKey(byte[] data)
             : this() {
-            decode(data);
+            RecordKey.encoder.decode(data,this);
         }
 
         public RecordKey appendParsedKey(String keyToParse) {
@@ -482,58 +489,53 @@ namespace Bend
         // -----------------------------------------------------------
         // encoding/decoding of keyparts
 
-        // TODO: handle delimiters in the key
+        
 
+        class RecordKeyEncoderSimple : RecordKeyEncoder {
+            static byte[] escape_list = { DELIMITER_B, 43 };
+            static byte escape_char = 43;
+            SimpleEncoder kpenc = new SimpleEncoder(escape_list, escape_char);
 
-        static byte[] escape_list = {DELIMITER_B, 43};
-        static byte escape_char = 43;
-        SimpleEncoder kpenc = new SimpleEncoder(escape_list, escape_char);
+            public override void decode(byte[] data, RecordKey key) {
+                key.key_parts.Clear();  // empty our keyparts
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
-        void decode(byte[] data) {
-            key_parts.Clear();  // empty our keyparts
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-
-            int chpos = 0;
-            MemoryStream ms = new MemoryStream();
-            while (chpos < data.Length) {                
-                byte ch = data[chpos];
-                if (ch != DELIMITER_B) {
-                    ms.WriteByte(ch);
+                int chpos = 0;
+                MemoryStream ms = new MemoryStream();
+                while (chpos < data.Length) {
+                    byte ch = data[chpos];
+                    if (ch != DELIMITER_B) {
+                        ms.WriteByte(ch);
+                    }
+                    if (ch == DELIMITER_B || (chpos + 1 == data.Length)) {
+                        // handle the part
+                        byte[] decoded = kpenc.decode(ms.ToArray());
+                        String keystring = enc.GetString(decoded);
+                        key.key_parts.Add(keystring);
+                        ms = new MemoryStream();
+                    }
+                    chpos++;
                 }
-                if (ch == DELIMITER_B || (chpos+1 == data.Length)) {               
-                    // handle the part
-                    byte[] decoded = kpenc.decode(ms.ToArray());
-                    String keystring = enc.GetString(decoded);
-                    key_parts.Add(keystring);
-                    ms = new MemoryStream();
-                } 
-                chpos++;
+            }
+
+            // encode
+            public override byte[] encode(RecordKey key) {
+                MemoryStream ms = new MemoryStream();
+                String[] keypart_strings = key.key_parts.ToArray();
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
+                for (int x = 0; x < keypart_strings.Length; x++) {
+                    if (x != 0) { ms.WriteByte(DELIMITER_B); }
+                    String kp = keypart_strings[x];
+                    byte[] encodedform = kpenc.encode(enc.GetBytes(kp));
+                    ms.Write(encodedform, 0, encodedform.Length);
+                }
+                return ms.ToArray();
             }
         }
 
-        // decode
-        void decode2(byte[] data) {
-            char[] delimiters = { PRINTED_DELIMITER };
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            String keystring = enc.GetString(data);
-            String[] keystring_parts = keystring.Split(delimiters);
-            
-            key_parts.AddRange(keystring_parts);
-        }
-
-        // encode
         public byte[] encode() {
-            MemoryStream ms = new MemoryStream();
-            String[] keypart_strings = key_parts.ToArray();
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-
-            for(int x=0;x<keypart_strings.Length;x++) {
-                if (x != 0) { ms.WriteByte(DELIMITER_B); }
-                String kp = keypart_strings[x];
-                byte[] encodedform = kpenc.encode(enc.GetBytes(kp));
-                ms.Write(encodedform,0,encodedform.Length);                
-            }
-            return ms.ToArray();
+            return RecordKey.encoder.encode(this);
         }
         
     }
