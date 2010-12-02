@@ -55,15 +55,16 @@ namespace BendTests {
 
             RangemapManager.RangeKey segptr = RangemapManager.RangeKey.newSegmentRangeKey(
                 new RecordKey().appendParsedKey("A"),
-                new RecordKey().appendParsedKey("Z"), 0);
+                new RecordKey().appendParsedKey("G"), 0);
 
             Assert.AreEqual(true, segptr.eventuallyContainsKey(target), "should be in segptr");
 
             RangemapManager.RangeKey metasegptr = RangemapManager.RangeKey.newSegmentRangeKey(
                 segptr.toRecordKey(),
-                new RecordKey().appendParsedKey("A"), 0);
+                new RecordKey().appendParsedKey("Z"), 0);
 
-            Assert.AreEqual(true,metasegptr.eventuallyContainsKey(target), "should be in metasegptr");
+            Assert.AreEqual(true,metasegptr.eventuallyContainsKey(target), 
+                "{0} should be in metasegptr {1}", target, metasegptr);
 
 
             RangemapManager.RangeKey segptr2 = RangemapManager.RangeKey.newSegmentRangeKey(

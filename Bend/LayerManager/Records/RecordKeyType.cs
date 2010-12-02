@@ -112,7 +112,9 @@ namespace Bend
         public override int GetHashCode() {
             return value.GetHashCode();
         }
-    
+        public override string ToString() {
+            return String.Format("\"{0}\"", this.value);
+        }
     }
 
     public class RecordKeyType_Long : RecordKeyType {
@@ -136,6 +138,9 @@ namespace Bend
         }
         public override int GetHashCode() {
             return value.GetHashCode();
+        }
+        public override string ToString() {
+            return String.Format("{0}L", this.value);
         }
     }
 
@@ -165,6 +170,9 @@ namespace Bend
         }
         public override int GetHashCode() {
             return value.GetHashCode();
+        }
+        public override string ToString() {
+            return String.Format("({0})", this.value);
         }
     }
 
@@ -213,6 +221,9 @@ namespace Bend
         }
         public override int GetHashCode() {
             return value.GetHashCode();
+        }
+        public override string ToString() {
+            return String.Format("RawBytes:", Lsd.ToHexString(this.value.Take(10).ToArray()));
         }
     }
 }

@@ -272,7 +272,7 @@ namespace Bend {
 
         public override string ToString() {
             // return String.Join(new String(DELIMITER, 1), key_parts.ToArray());
-            return String.Join<RecordKeyType>(".", key_parts.ToArray());
+            return String.Format("RecordKey({0})", String.Join<RecordKeyType>(".", key_parts.ToArray()));
         }
 
         // TODO: this is hacky, we should find a better abstraction to let people see our keyparts

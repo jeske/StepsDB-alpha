@@ -23,9 +23,15 @@ namespace MyTestStub {
             // testclass.T001_RangeKey_Bug();
             
             
-            var testclass = new A02_RangemapManagerTests();
-            testclass.T000_RangeKey_EncodedSort();
+            // var testclass = new A02_RangemapManagerTests();
+            // testclass.T000_RangeKey_EncodedSort();
 
+
+            // var testclass = new A01_RecordTests();
+            // testclass.T02b_RecordKeyNesting();
+
+            var testclass = new A02_SegmentDescriptorTests();
+            testclass.T02_DescriptorOverlapTests();
             // fetchHitsTest();
 
 

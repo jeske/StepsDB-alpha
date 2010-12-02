@@ -168,8 +168,9 @@ namespace BendTests {
             Assert.AreEqual(false, b2.keyrangeOverlapsWith(b4));
         }
 
+#if OLD_TEST
         [Test]
-        public void T02_DescriptorOverlapTests() {
+        public void T02_DescriptorOverlapTests_OLD() {
             // BUG how did these overlappipng blocks ever get created?!?!? 
             // gen2 start(test/rnd/1988483319) end(test/rnd/254306374)
             // gen2 start(test/rnd/254612715)  end(test/rnd/678413856)
@@ -192,6 +193,32 @@ namespace BendTests {
             Assert.AreEqual(true, b2.keyrangeOverlapsWith(b3));
 
         }
+#endif
+        [Test]
+        public void T02_DescriptorOverlapTests() {
+            // BUG how did these overlappipng blocks ever get created?!?!? 
+            // gen2 start(test/rnd/1988483319) end(test/rnd/254306374)
+            // gen2 start(test/rnd/254612715)  end(test/rnd/678413856)
+            // gen2 start(test/rnd/272911872)  end(test/rnd/464592052)
+
+            var b1 = new SegmentDescriptor(0,
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd").appendKeyPart(new RecordKeyType_Long(198848331))),
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd").appendKeyPart(new RecordKeyType_Long(254606374))));
+
+            var b2 = new SegmentDescriptor(0,
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd").appendKeyPart(new RecordKeyType_Long(254312715))),
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd").appendKeyPart(new RecordKeyType_Long(678413856))));
+
+            var b3 = new SegmentDescriptor(0,
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd").appendKeyPart(new RecordKeyType_Long(198848331))),
+                                new RecordKey().appendKeyPart(new RecordKey().appendParsedKey("test/rnd").appendKeyPart(new RecordKeyType_Long(4645920520))));
+
+            Assert.AreEqual(true, b1.keyrangeOverlapsWith(b2), "b1 : b2");
+            Assert.AreEqual(true, b1.keyrangeOverlapsWith(b3), "b1 : b3");
+            Assert.AreEqual(true, b2.keyrangeOverlapsWith(b3), "b2 : b3");
+
+        }
+
 
         [Test]
         public void T05_DescriptorEncodeDecodeBugTests() {
