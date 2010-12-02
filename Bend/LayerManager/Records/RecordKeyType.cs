@@ -15,7 +15,9 @@ namespace Bend
     abstract public class RecordKeyType : IComparable<RecordKeyType> {
         internal enum RecordKeySubtype {
             LONG = 1,
-            STRING = 2
+            STRING = 2,
+            RECORD_KEY = 10,
+            RAW_BYTES = 11
         }
         internal RecordKeySubtype subtype;
        
@@ -37,6 +39,7 @@ namespace Bend
 
         public abstract int CompareToPeer(RecordKeyType peer_target);  
         internal abstract void encodeSubtypeTo(BinaryWriter w);
+        public abstract int GetHashCode();
 
         public static RecordKeyType decodeFrom(BinaryReader r) {
             byte subtype_byte = r.ReadByte();
@@ -56,6 +59,9 @@ namespace Bend
             w.Write((byte)this.subtype);
             this.encodeSubtypeTo(w);
         }
+
+        
+        
     }
 
 
@@ -91,6 +97,13 @@ namespace Bend
             w.Write( (int) str_bytes.Length);
             w.Write(str_bytes);            
         }
+        public string GetString() {
+            return value;
+        }
+        public override int GetHashCode() {
+            return value.GetHashCode();
+        }
+    
     }
 
     public class RecordKeyType_Long : RecordKeyType {
@@ -109,7 +122,89 @@ namespace Bend
         public static RecordKeyType decodeSubtypeFrom(BinaryReader r) {
             return new RecordKeyType_Long(r.ReadInt64());
         }
-    }    
+        public long GetLong() {
+            return value;
+        }
+        public override int GetHashCode() {
+            return value.GetHashCode();
+        }
+    }
+
+    public class RecordKeyType_RecordKey : RecordKeyType {
+        internal RecordKey value;
+        public RecordKeyType_RecordKey(RecordKey value) {
+            subtype = RecordKeySubtype.RECORD_KEY;
+            this.value = value;
+        }
+        public override int CompareToPeer(RecordKeyType peer_target) {
+            RecordKeyType_RecordKey converted_peer_target = (RecordKeyType_RecordKey)peer_target;
+            return this.value.CompareTo(converted_peer_target.value);
+        }
+        internal override void encodeSubtypeTo(BinaryWriter w) {
+            byte[] encoded_bytes = value.encode();
+            w.Write((int)encoded_bytes.Length);
+            w.Write(encoded_bytes);
+        }
+        public static RecordKeyType decodeSubtypeFrom(BinaryReader r) {
+            int num_bytes = r.ReadInt32();
+            byte[] encoded_bytes = r.ReadBytes(num_bytes);
+            RecordKey rk = new RecordKey(encoded_bytes);
+            return new RecordKeyType_RecordKey(rk);
+        }
+        public RecordKey GetRecordKey() {
+            return value;
+        }
+        public override int GetHashCode() {
+            return value.GetHashCode();
+        }
+    }
+
+
+    public class RecordKeyType_RawBytes : RecordKeyType {
+        internal byte[] value;
+        public RecordKeyType_RawBytes(byte[] value) {
+            subtype = RecordKeySubtype.RAW_BYTES;
+            this.value = value;
+        }
+        public override int CompareToPeer(RecordKeyType peer_target) {
+            RecordKeyType_RawBytes conv_target = (RecordKeyType_RawBytes)peer_target;
+
+            int compare_result = 0;
+            int pos = 0;
+            while (compare_result == 0) {
+                if ((pos == this.value.Length) && (pos == conv_target.value.Length)) {
+                    // equal length and equal
+                    return 0;
+                }
+                if ((pos > this.value.Length) && (pos == conv_target.value.Length)) {
+                    // equal and conv_target shorter, we're greater
+                    return 1;
+                }
+                if ((pos > conv_target.value.Length) && (pos == this.value.Length)) {
+                    // equal and we are shorter, we're less
+                    return -1;
+                }
+                compare_result = this.value[pos].CompareTo(conv_target.value[pos]);
+            }
+            return compare_result;            
+        }
+        internal override void encodeSubtypeTo(BinaryWriter w) {
+            
+            w.Write((int)value.Length);
+            w.Write(value);
+        }
+        public static RecordKeyType decodeSubtypeFrom(BinaryReader r) {
+            int num_bytes = r.ReadInt32();
+            byte[] raw_bytes = r.ReadBytes(num_bytes);           
+            return new RecordKeyType_RawBytes(raw_bytes);
+        }
+        public byte[] GetBytes() {
+            return value;
+        }
+        public override int GetHashCode() {
+            return value.GetHashCode();
+        }
+    }
 }
 
 
