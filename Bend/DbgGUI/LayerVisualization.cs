@@ -77,14 +77,10 @@ namespace Bend {
             }
 
 
-            // figure out what the "maximum number of segments in a column" is, so we can compute segment height
-            int max_segments_in_column = 1;
-            foreach (var generation in segments_by_generation.Keys) {
-                max_segments_in_column = Math.Max(max_segments_in_column, segments_by_generation[generation].Count);
-            }
+            // figure out what the "maximum number of segments in a column" is, so we can compute segment height            
             int segment_height = 50;
-            if (max_segments_in_column > 0) {
-                segment_height = Math.Max(1, regionsize.Height / max_segments_in_column); // make sure segment heights are at least 1
+            if (unique_keys.Count > 0) {
+                segment_height = Math.Max(1, regionsize.Height / unique_keys.Count); // make sure segment heights are at least 1
             }
 
 

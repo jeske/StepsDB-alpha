@@ -2,6 +2,8 @@
 
 ----[ TODO ]---------
 
+- FIX: gui debugger, so it uses "unique keys count" for segment height not the other junk
+
   - extend RecordKey to be type-aware , see if we get back the proper number of search hits.
       (string, int, RecordKey) to start
 
@@ -27,7 +29,7 @@
   - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
 
 
-  - FIX: gui debugger, so it computes the "number of segments per generation" then uses the max to compute segment height
+  
 
   - distributed datastore handler
      - add psudo connection handling
