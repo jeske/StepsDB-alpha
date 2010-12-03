@@ -289,7 +289,7 @@ namespace Bend
                 // allocate a new generation number
                 uint new_generation_number = (uint) rangemapmgr.allocNewGeneration(tx);
 
-                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(checkpointSegment.sortedWalk())); 
+                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(checkpointSegment.sortedWalk(),"checkpoint segment")); 
     
                 {
                     byte[] emptydata = new byte[0];
@@ -434,7 +434,8 @@ namespace Bend
                 target_generation = Math.Min(target_generation, segment.generation);
                     var seg = segment.getSegment(rangemapmgr);
 
-                var nextchain = seg.sortedWalk();
+                    var nextchain = SortedAscendingCheck.CheckAscending(seg.sortedWalk(),
+                        String.Format("merge-input: {0}", segment));
 
                 if (chain == null) {
                     chain = nextchain;
@@ -462,7 +463,7 @@ namespace Bend
                     
                 }
 
-                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(chain), (int)target_generation);
+                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(chain, "merge-final"), (int)target_generation);
 
                 // free the space from the old segments
 

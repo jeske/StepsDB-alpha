@@ -175,10 +175,10 @@ namespace Bend.EmailIndexerTest {
                                 gui.debugDump(db);
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
-                                for (int x = 0; x < 20; x++) {
+                                for (int x = 0; x < 30; x++) {
                                     var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                                     if (mc == null) { break; }
-                                    if (mc.score() > (1.4 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
+                                    if (mc.score() > (1.2 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
                                         System.Console.WriteLine("** best merge score too high: " + mc);
                                         break;
                                     }

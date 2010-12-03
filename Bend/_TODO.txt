@@ -7,6 +7,9 @@
 
   PERF!!!!
 
+  - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
+     - encode/decode before we put into the value? 
+
   - FIX: directlyContainsKey should not return TRUE!! 
   - FIX: only call findAllEligible range-rows for segments that actually could have range rows
   - FIX: < > . hack

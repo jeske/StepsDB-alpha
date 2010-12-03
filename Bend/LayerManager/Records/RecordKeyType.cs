@@ -97,15 +97,13 @@ namespace Bend
         public static RecordKeyType decodeSubtypeFrom(BinaryReader r) {
             int str_len = r.ReadInt32();
             byte[] str_bytes = r.ReadBytes(str_len);    
-            
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            String keystring = enc.GetString(str_bytes);
+                        
+            String keystring = System.Text.Encoding.UTF8.GetString(str_bytes);
             return new RecordKeyType_String(keystring);
         }
-
-        internal override void encodeSubtypeTo(BinaryWriter w) {
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            byte[] str_bytes = enc.GetBytes(this.value);
+        // TODO: how to we guarantee this encoding/decoding is symmetric?
+        internal override void encodeSubtypeTo(BinaryWriter w) {            
+            byte[] str_bytes = System.Text.Encoding.UTF8.GetBytes(this.value);            
 
             w.Write( (int) str_bytes.Length);
             w.Write(str_bytes);            

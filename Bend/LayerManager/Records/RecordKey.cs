@@ -300,8 +300,7 @@ namespace Bend {
 
         class RecordKeyEncoderKeyTypes : RecordKeyEncoder {
             public override void decode(byte[] data, RecordKey key) {
-                key.key_parts.Clear();  // empty our keyparts
-                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                key.key_parts.Clear();  // empty our keyparts                
                 MemoryStream ms = new MemoryStream(data);
                 BinaryReader b = new BinaryReader(ms);
                 ushort num_fields = b.ReadUInt16();
@@ -311,9 +310,6 @@ namespace Bend {
 
             }
             public override byte[] encode(RecordKey key) {
-                // approximate size
-                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-
                 MemoryStream ms = new MemoryStream();
                 BinaryWriter b = new BinaryWriter(ms);
                 b.Write((ushort)key.key_parts.Count);  // number of fields

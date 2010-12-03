@@ -179,6 +179,8 @@ namespace Bend.Indexer {
                     while (true) {
                         stats.comparisons++;
                         switch (hit1.docid.CompareTo(hit2.docid)) {
+
+                                // TODO fix this -1 crap, it's not valid, we need to check < 0 only
                             case -1:
                                 // System.Console.WriteLine("     advance1: {0} < {1}", hit1, hit2);
                                 hit1 = term1.advanceTo(stats, hit2);

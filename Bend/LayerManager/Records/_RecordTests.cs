@@ -33,6 +33,12 @@ namespace BendTests
             Assert.AreEqual(true, key3.Equals(key4), "null keys should match");
 
 
+            var key5 = new RecordKey().appendParsedKey(@".zdata/index/>you/c:\EmailTest\Data\saved_mail_2002:1407/182");
+            var key6 = new RecordKey().appendParsedKey(@".zdata/index/?/c:\EmailTest\Data\saved_mail_2002:908/184");
+
+            Assert.True('>'.CompareTo('?') < 0, "check char comparison");
+            Assert.True(">".CompareTo("?") < 0, "check string comparison");
+            Assert.True(key5.CompareTo(key6) < 0, " '>' should be < '?' ");
         }
 
         [Test]

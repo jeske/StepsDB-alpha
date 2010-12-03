@@ -8,7 +8,7 @@ namespace Bend {
     static class SortedAscendingCheck {
 
         public static IEnumerable<KeyValuePair<K, V>> CheckAscending<K, V>(
-            this IEnumerable<KeyValuePair<K, V>> one) where K : IComparable<K> {
+            this IEnumerable<KeyValuePair<K, V>> one, string debug_note = "") where K : IComparable<K> {
 
             IEnumerator<KeyValuePair<K, V>> oneenum = one.GetEnumerator();
 
@@ -18,9 +18,16 @@ namespace Bend {
             
             while (one_hasmore) {
                 if (has_first) {
-                    if (oneenum.Current.Key.CompareTo(last_value.Key) <= 0) {
-                        throw new Exception(String.Format("SortAscendingCheck found non-ascending Keys {0} {1}",
-                            last_value, oneenum.Current));
+                    int cmp_value = oneenum.Current.Key.CompareTo(last_value.Key);
+
+                    if (cmp_value == 0) {
+                        throw new Exception(String.Format("SortAscendingCheck found duplicate adjacent Keys prev:{0} cur:{1} - {2}",
+                            last_value, oneenum.Current, debug_note));
+
+                    }
+                    if (cmp_value < 0) {
+                        throw new Exception(String.Format("SortAscendingCheck found non-ascending Keys prev:{0} cur:{1} - {2}",
+                            last_value, oneenum.Current, debug_note));
                     }
                 }
 

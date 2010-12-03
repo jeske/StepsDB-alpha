@@ -43,25 +43,17 @@ namespace Bend {
         }
 
         public int CompareTo(SegmentDescriptor target) {
-            
-            switch(this.generation.CompareTo(target.generation)) {
-                case -1: 
-                    return -1;
-                case 1:
-                    return 1;
-                case 0:
-                    switch(this.start_key.CompareTo(target.start_key)) {
-                        case -1:
-                            return -1;
-                        case 1:
-                            return 1;
-                        case 0:
-                            return this.end_key.CompareTo(target.end_key);
-                    
-                    }
-                    break;
+            int cmpvalue = this.generation.CompareTo(target.generation);
+            if (cmpvalue != 0) { 
+                return cmpvalue; 
+            } else {
+                int subcmpvalue = this.start_key.CompareTo(target.start_key);
+                if (subcmpvalue != 0) {
+                    return subcmpvalue;
+                } else {
+                    return this.end_key.CompareTo(target.end_key);
+                }
             }
-            throw new Exception("invalid values in SegmentDescriptor.CompareTo()");
         }
 
         public bool keyrangeOverlapsWith(SegmentDescriptor target) {
