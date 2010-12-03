@@ -2,6 +2,8 @@
 
 ----[ TODO ]---------
 
+  - figure out why the TombstoneRemover caused output differences
+
 **** PERF!!!!  ****
   - switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
   - implement a new block format!!! 
