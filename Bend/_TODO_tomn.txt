@@ -6,7 +6,7 @@
 
 1) Text Indexer Test
    - bring up lucend based clone of email-indexer-test
-   - produce "golden" number of results and performance comparisons
+   - produce "golden" number of results and performance comparisons (indexing speed, retrieval speed)
 
 2) Thrift Network Test
    - bring up and check-in a thrift windows toolchain in ThirdParty to compile a ThriftIDL
