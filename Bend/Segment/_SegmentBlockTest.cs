@@ -32,7 +32,7 @@ namespace BendTests
             int[] value_sizes = { 4, 10, 30, 100, 1000, 10000 };
             int[] num_levels = { 2, 3, 4 };
             int[,] perf_results = new int[block_sizes.Length, value_sizes.Length];
-            int READ_COUNT = 1000;
+            int READ_COUNT = 10000;
 
             
             Random rnd = new Random((int)DateTime.Now.ToBinary());
@@ -42,38 +42,45 @@ namespace BendTests
                 foreach (int block_size in block_sizes) {
                     foreach (int value_size in value_sizes) {
                         System.GC.Collect();
-                        var sorted_input = new BDSkipList<RecordKey, RecordUpdate>();
-                        // first create the sorted input                        
-                        int curblock_size = 0;
-                        while (curblock_size < block_size) {
-                            // generate a random key
-                            RecordKey key = new RecordKey();
-                            for (int i = 0; i < key_part_count; i++) {
-                                key.appendParsedKey("" + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF));
-                            }
-
-                            // generate a random value
-                            byte[] data = new byte[value_size];
-                            for (int i = 0; i < value_size; i++) {
-                                data[i] = (byte)rnd.Next(40, 50);
-                            }
-                            RecordUpdate upd = RecordUpdate.WithPayload(data);
-                            curblock_size += key.encode().Length;
-                            curblock_size += value_size;
-
-                            sorted_input.Add(key, upd);
-                        }
-
                         // setup the block for encoding
-                        ISegmentBlockEncoder enc = factory.makeEncoder();                        
+                        ISegmentBlockEncoder enc = factory.makeEncoder();
                         MemoryStream ms = new MemoryStream();
                         enc.setStream(ms);
+                        int curblock_size = 0;
 
-                        // encode the block
-                        foreach(var kvp in sorted_input) {
-                            enc.add(kvp.Key, kvp.Value);
+                        // do the sorted block create.. we nest it so we can dispose the SkipList
+                        {
+                            var sorted_input = new BDSkipList<RecordKey, RecordUpdate>();
+                            // first create the sorted input                        
+                            
+                            while (curblock_size < block_size) {
+                                // generate a random key
+                                RecordKey key = new RecordKey();
+                                for (int i = 0; i < key_part_count; i++) {
+                                    key.appendParsedKey("" + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF));
+                                }
+
+                                // generate a random value
+                                byte[] data = new byte[value_size];
+                                for (int i = 0; i < value_size; i++) {
+                                    data[i] = (byte)rnd.Next(40, 50);
+                                }
+                                RecordUpdate upd = RecordUpdate.WithPayload(data);
+                                curblock_size += key.encode().Length;
+                                curblock_size += value_size;
+
+                                sorted_input.Add(key, upd);
+                            }
+
+                            
+
+                            // encode the block
+                            foreach (var kvp in sorted_input) {
+                                enc.add(kvp.Key, kvp.Value);
+                            }
+                            enc.flush();
+                            sorted_input = null;  // free the skiplist
                         }
-                        enc.flush();
 
                         // init the decoder
                         ISegmentBlockDecoder dec = factory.makeDecoder(new BlockAccessor(ms.ToArray()));
@@ -88,9 +95,8 @@ namespace BendTests
                             }
 
                             try {
-                                dec.FindNext(key, true);                                
-                            }
-                            catch (KeyNotFoundException) {
+                                dec.FindNext(key, true);
+                            } catch (KeyNotFoundException) {
                                 num_misses++;
                                 // System.Console.WriteLine("misfetch: {0}", key);
                                 // no problem, but this shouuld be small
@@ -98,9 +104,9 @@ namespace BendTests
                         }
                         double duration_ms = (DateTime.Now - start).TotalMilliseconds;
                         double reads_per_second = (READ_COUNT * 1000.0) / (duration_ms);
-                        System.Console.WriteLine("BlockSize src{0,10}  final{6,10}  ({7,10}), ValueSize {1,10}, Keyparts {5,10}, {2,10} reads in {3,10}ms,  {8} misses, {4,10} read/sec",
-                            curblock_size, value_size, READ_COUNT, duration_ms, reads_per_second, 
-                            key_part_count, ms.Length, ((double)ms.Length/(double)curblock_size)*(double)100.0, num_misses );
+                        System.Console.WriteLine("BlockSize src{0,10}  final{6,10}  ratio ({7:0.000}), ValueSize {1,6}, Keyparts {5,3}, {2,6} reads in {3:0.000}ms,  {8,6} misses, {4:0.00} read/sec",
+                            curblock_size, value_size, READ_COUNT, duration_ms, reads_per_second,
+                            key_part_count, ms.Length, ((double)ms.Length / (double)curblock_size) * (double)100.0, num_misses);
                     }
                 }
             }
