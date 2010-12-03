@@ -2,40 +2,29 @@
 
 ----[ TODO ]---------
 
-- FIX: gui debugger, so it uses "unique keys count" for segment height not the other junk
+**** PERF!!!!  ****
+  - switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
+  - implement a new block format!!! 
 
-  - extend RecordKey to be type-aware , see if we get back the proper number of search hits.
-      (string, int, RecordKey) to start
+  - put a counter in for every time we do FindNext/FindPrev trying to find a rangerow in findAllEligible..
+  - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
+  - ? FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
+  - ? FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches  
+  - FIX: make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
 
-  PERF!!!!
-
+********************
+  - gui: mark blocks which contain index (.ROOT/GEN) records  
+  - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
+     Don't we need to continue iterating in the next range of that generation?  How?
+  
+  - MAKE: scanrange cache, use in segment walk
+  - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
+  
   - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
      - encode/decode before we put into the value? 
 
-
-  - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
-     Don't we need to continue iterating in the next range of that generation?
-
-  - FIX: directlyContainsKey should not return TRUE!! 
-  - FIX: only call findAllEligible range-rows for segments that actually could have range rows
-  - FIX: < > . hack
-  - FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
-
-  - FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches
-  - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen
-  - FIX: make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
-
-  - MAKE: scanrange cache, use in segment walk
-
-  - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
-  - FIX: the min-key max-key superhack in segment_walk
-  
-  - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
-
-
-  
-
   - distributed datastore handler
+     - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
      - add psudo connection handling
 	 - add full-repl
 
@@ -191,7 +180,12 @@
 
 
 ------------[ DONE ]--------------------
-  
+12/2  - FIX: only call findAllEligible range-rows for segments that actually could have range rows
+12/2  - FIX: directlyContainsKey should not return TRUE!! 
+12/2  - FIX: the min-key max-key superhack in segment_walk
+12/2  - extend RecordKey to be type-aware , see if we get back the proper number of search hits.
+        (string, int, RecordKey) to start
+12/2  - FIX: gui debugger, so it uses "unique keys count" for segment height not the other junk  
 11/29 - FIX: text-indexer notify_removeSegment crash
 11/28 - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
 11/27 - basic text-indexer test with AND conjunction of terms is working

@@ -261,7 +261,7 @@ namespace Bend
             public int segmentDeletionTombstonesSkipped;
             public int segmentUpdatesApplied;
             public int segmentRangeRowScansPerformed;
-            public int segmentRangeRowsConsidered;
+            public int segmentRangeRowsConsidered;               
             public int segmentIndirectRangeRowsConsidered;
             public int rowUpdatesApplied;
             public int rowDuplicatesAppeared;
