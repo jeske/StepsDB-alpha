@@ -76,6 +76,15 @@ namespace Bend {
                 }
             }
 
+
+            // figure out what the "maximum number of segments in a column" is, so we can compute segment height
+            int max_segments_in_column = 1;
+            foreach (var generation in segments_by_generation.Keys) {
+                max_segments_in_column = Math.Max(max_segments_in_column, segments_by_generation[generation].Count);
+            }
+            int segment_height = Math.Max(1, regionsize.Height / unique_keys.Count); // make sure segment heights are at least 1
+
+
             // now draw stuff!             
             Pen BluePen = new Pen(Color.Blue, 1);
             Pen RangeLinePen = new Pen(Color.LightGray, 1);
@@ -91,7 +100,7 @@ namespace Bend {
             }
 
             int y_loc = 0;
-            int segment_height = regionsize.Height / unique_keys.Count;
+
 
             var key_to_position_map = new Dictionary<RecordKey, int>();
             foreach (var key in unique_keys.Keys) {
