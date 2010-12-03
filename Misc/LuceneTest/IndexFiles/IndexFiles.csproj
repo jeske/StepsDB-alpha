@@ -75,12 +75,11 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Lucene.Net, Version=2.9.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Lucene.Net\bin\Debug\Lucene.Net.dll</HintPath>
+    <Reference Include="Lucene.Net">
+      <HintPath>..\..\..\ThirdParty\Lib\Lucene.Net.dll</HintPath>
     </Reference>
     <Reference Include="SharpMimeTools">
-      <HintPath>..\..\..\..\..\..\..\..\Bend\ThirdParty\SharpMimeTools\bin\Release\SharpMimeTools.dll</HintPath>
+      <HintPath>..\..\..\ThirdParty\Lib\SharpMimeTools.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
