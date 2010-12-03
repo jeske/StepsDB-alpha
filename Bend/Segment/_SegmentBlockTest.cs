@@ -41,6 +41,11 @@ namespace BendTests
                 System.Console.WriteLine("--");
                 foreach (int block_size in block_sizes) {
                     foreach (int value_size in value_sizes) {
+                        if (value_size > (block_size / 8)) {
+                            // we want at least 8 values
+                            continue;
+                        }
+
                         System.GC.Collect();
                         // setup the block for encoding
                         ISegmentBlockEncoder enc = factory.makeEncoder();
@@ -104,7 +109,7 @@ namespace BendTests
                         }
                         double duration_ms = (DateTime.Now - start).TotalMilliseconds;
                         double reads_per_second = (READ_COUNT * 1000.0) / (duration_ms);
-                        System.Console.WriteLine("BlockSize src{0,10}  final{6,10}  ratio ({7:0.000}), ValueSize {1,6}, Keyparts {5,3}, {2,6} reads in {3:0.000}ms,  {8,6} misses, {4:0.00} read/sec",
+                        System.Console.WriteLine("BlockSize src{0,10}  final{6,10}  ratio ({7:0.000}), ValueSize {1,6}, Keyparts {5,3}, {2,6} reads in {3,10:0.0}ms,  {8,6} misses, {4,9:0.00} read/sec",
                             curblock_size, value_size, READ_COUNT, duration_ms, reads_per_second,
                             key_part_count, ms.Length, ((double)ms.Length / (double)curblock_size) * (double)100.0, num_misses);
                     }
