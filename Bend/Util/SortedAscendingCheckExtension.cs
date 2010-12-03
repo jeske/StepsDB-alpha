@@ -5,6 +5,12 @@ using System;
 using System.Collections.Generic;
 
 namespace Bend {
+
+    /*
+     * This class checks that the values fed through it are in strictly ascending order, and throws an
+     * exception if they are not.
+     */
+
     static class SortedAscendingCheck {
 
         public static IEnumerable<KeyValuePair<K, V>> CheckAscending<K, V>(
