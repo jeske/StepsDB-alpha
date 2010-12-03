@@ -2,10 +2,10 @@
 // All Rights Reserved.
 
 
-#define DEBUG_SEGMENT_WALK            // full segment walking debug
+// #define DEBUG_SEGMENT_WALK            // full segment walking debug
 // #define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
 // #define DEBUG_SEGMENT_ACCUMULATION   
-#define DEBUG_SEGMENT_RANGE_WALK
+// #define DEBUG_SEGMENT_RANGE_WALK
 
 #define DEBUG_USE_NEW_FINDALL
 
@@ -292,6 +292,10 @@ namespace Bend
             BDSkipList<RecordKey, RecordData> handledIndexRecords = new BDSkipList<RecordKey,RecordData>();
             BDSkipList<RecordKey, RecordData> recordsBeingAssembled = new BDSkipList<RecordKey, RecordData>();
 
+#if DEBUG_SEGMENT_WALK
+            Console.WriteLine("getNextRecord_LowLevel({0})", lowkey);
+#endif 
+
 
             SegmentMemoryBuilder[] layers;
             // snapshot the working segment layers
@@ -557,13 +561,19 @@ namespace Bend
                 IComparable<RecordKey> for_rangekey,
                 IComparable<RecordKey> for_key,
                 int for_generation) {
+                KeyValuePair<RecordKey, RecordUpdate> kvp;
 
                 // backward
                 {
                     bool have_non_deleted = false;
                     IComparable<RecordKey> cur_key = for_rangekey;
                     while (!have_non_deleted) {
-                        KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindPrev(cur_key, false);
+                        try {
+                            kvp = in_segment.FindPrev(cur_key, false);
+                        } catch (KeyNotFoundException) {
+                            // Console.WriteLine("checkForSegmentKeyAboveAndBelow: above ran out of keys!");
+                            break;
+                        }
                         cur_key = kvp.Key;
                         if (!RangeKey.isRangeKey(kvp.Key)) { break; }
                         RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
@@ -583,7 +593,12 @@ namespace Bend
                     bool have_non_deleted = false;
                     IComparable<RecordKey> cur_key = for_rangekey;
                     while (!have_non_deleted) {
-                        KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindNext(cur_key, false);
+                        try {
+                            kvp = in_segment.FindNext(cur_key, false);
+                        } catch (KeyNotFoundException) {
+                            // Console.WriteLine("checkForSegmentKeyAboveAndBelow: below ran out of keys!");
+                            break;
+                        }
                         cur_key = kvp.Key;
                         if (!RangeKey.isRangeKey(kvp.Key)) { break; }
                         RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
