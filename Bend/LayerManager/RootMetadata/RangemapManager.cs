@@ -261,10 +261,13 @@ namespace Bend
             public int segmentDeletionTombstonesSkipped;
             public int segmentUpdatesApplied;
             public int segmentRangeRowScansPerformed;
+            public int segmentRangeRow_FindCalls;
             public int segmentRangeRowsConsidered;               
             public int segmentIndirectRangeRowsConsidered;
+            public int segmentAccumulate_TryGet;
             public int rowUpdatesApplied;
             public int rowDuplicatesAppeared;
+            public int rowAccumulate_TryGet;
 
             public override String ToString() {
                 var string_lines = new List<string>();
@@ -561,62 +564,49 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> in_segment,
                 IComparable<RecordKey> for_rangekey,
                 IComparable<RecordKey> for_key,
-                int for_generation) {
-                KeyValuePair<RecordKey, RecordUpdate> kvp;
+                int for_generation,
+                SegmentWalkStats stats) {
 
                 // backward
                 {
-                    bool have_non_deleted = false;
-                    IComparable<RecordKey> cur_key = for_rangekey;
-                    while (!have_non_deleted) {
-                        try {
-                            kvp = in_segment.FindPrev(cur_key, false);
-                        } catch (KeyNotFoundException) {
-                            // Console.WriteLine("checkForSegmentKeyAboveAndBelow: above ran out of keys!");
-                            break;
-                        }
-                        cur_key = kvp.Key;
+                    stats.segmentRangeRow_FindCalls++;
+                    var seg_scanner = in_segment.scanBackward(
+                       new ScanRange<RecordKey>(
+                           new ScanRange<RecordKey>.minKey(),
+                           for_rangekey,
+                           null));
+                    foreach (var kvp in seg_scanner) {
                         if (!RangeKey.isRangeKey(kvp.Key)) { break; }
                         RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
                         if (test_rk.generation != for_generation) { break; }
-                        if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                            have_non_deleted = true;
-                        }                        
-                                                
                         if (test_rk.eventuallyContainsKey(for_key)) {
                             yield return kvp;
-                        }                        
+                        }
+                        if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                            break;
+                        }
                     }
                 }
-
-                // backward
+                   // forward
                 {
-                    bool have_non_deleted = false;
-                    IComparable<RecordKey> cur_key = for_rangekey;
-                    while (!have_non_deleted) {
-                        try {
-                            kvp = in_segment.FindNext(cur_key, false);
-                        } catch (KeyNotFoundException) {
-                            // Console.WriteLine("checkForSegmentKeyAboveAndBelow: below ran out of keys!");
-                            break;
-                        }
-                        cur_key = kvp.Key;
+                    stats.segmentRangeRow_FindCalls++;
+                    var seg_scanner = in_segment.scanForward(
+                        new ScanRange<RecordKey>(
+                            for_rangekey, 
+                            new ScanRange<RecordKey>.maxKey(),
+                            null));
+                    foreach (var kvp in seg_scanner) {
                         if (!RangeKey.isRangeKey(kvp.Key)) { break; }
                         RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
                         if (test_rk.generation != for_generation) { break; }
-                        if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                            have_non_deleted = true;
-                        }
-                        
-
                         if (test_rk.eventuallyContainsKey(for_key)) {
                             yield return kvp;
                         }
+                        if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                            break;
+                        }
                     }
                 }
-
-
-
             }
                 
 #if DEBUG_USE_NEW_FINDALL
@@ -635,7 +625,8 @@ namespace Bend
                         .appendKeyPart(new RecordKeyType_Long(for_generation))
                         .appendKeyPart(for_key);
 
-                    foreach (var kvp in RangeKey.checkForSegmentKeyAboveAndBelow(in_segment, startrk, for_key, for_generation)) {
+                    foreach (var kvp in RangeKey.checkForSegmentKeyAboveAndBelow(in_segment, 
+                            startrk, for_key, for_generation, stats)) {
                         stats.segmentRangeRowsConsidered++;
                         if (RangeKey.isRangeKey(kvp.Key)) {
                             RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
@@ -658,7 +649,8 @@ namespace Bend
                         .appendKeyPart(new RecordKeyType_Long(for_generation))
                         .appendKeyPart(new RecordKey().appendParsedKey(".ROOT/GEN"));
 
-                    foreach (var kvp in RangeKey.checkForSegmentKeyAboveAndBelow(in_segment, startrk, for_key, for_generation)) {
+                    foreach (var kvp in RangeKey.checkForSegmentKeyAboveAndBelow(in_segment, 
+                            startrk, for_key, for_generation, stats)) {
                         stats.segmentRangeRowsConsidered++;
                         if (RangeKey.isRangeKey(kvp.Key)) {
                             RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
@@ -765,6 +757,7 @@ namespace Bend
                     }
 
                     RecordData partial_record;
+                    stats.rowAccumulate_TryGet++;
                     if (!recordsBeingAssembled.TryGetValue(kvp.Key, out partial_record)) {
                         partial_record = new RecordData(RecordDataState.NOT_PROVIDED, kvp.Key);
                         recordsBeingAssembled[kvp.Key] = partial_record;                        
@@ -799,6 +792,7 @@ namespace Bend
                     foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllEligibleRangeRows(curseg, startkeytest, i, stats)) {
                         // see if it is new for our handledIndexRecords dataset
                         RecordData partial_rangedata;
+                        stats.segmentAccumulate_TryGet++;
                         if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
                             partial_rangedata = new RecordData(RecordDataState.NOT_PROVIDED, rangerow.Key);
                             handledIndexRecords[rangerow.Key] = partial_rangedata;

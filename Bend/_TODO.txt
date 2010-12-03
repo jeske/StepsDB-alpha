@@ -6,7 +6,7 @@
   - switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
   - implement a new block format!!! 
 
-  - put a counter in for every time we do FindNext/FindPrev trying to find a rangerow in findAllEligible..
+
   - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
   - ? FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
   - ? FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches  
@@ -180,6 +180,7 @@
 
 
 ------------[ DONE ]--------------------
+12/3  - put a counter in for every time we do FindNext/FindPrev trying to find a rangerow in findAllEligible..
 12/2  - FIX: only call findAllEligible range-rows for segments that actually could have range rows
 12/2  - FIX: directlyContainsKey should not return TRUE!! 
 12/2  - FIX: the min-key max-key superhack in segment_walk
