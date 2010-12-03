@@ -305,8 +305,8 @@ namespace Bend
                     stats:stats);
             }
 
-            //Console.WriteLine("getNextRecord({0})", lowkey);
-            //Console.WriteLine(stats);
+            // Console.WriteLine("getNextRecord({0})", lowkey);
+            // Console.WriteLine(stats);
 
             // now check the assembled records list
             try {
@@ -611,12 +611,12 @@ namespace Bend
                     RecordData partial_record;
                     if (!recordsBeingAssembled.TryGetValue(kvp.Key, out partial_record)) {
                         partial_record = new RecordData(RecordDataState.NOT_PROVIDED, kvp.Key);
-                        recordsBeingAssembled[kvp.Key] = partial_record;
-                        partial_record.applyUpdate(kvp.Value);
-                        stats.rowUpdatesApplied++;
+                        recordsBeingAssembled[kvp.Key] = partial_record;                        
                     } else {
                         stats.rowDuplicatesAppeared++;
                     }
+                    partial_record.applyUpdate(kvp.Value);
+                    stats.rowUpdatesApplied++;
                     
                     
                     // Console.WriteLine("add potential: {0} inseg:{1}", kvp, curseg_rangekey);
