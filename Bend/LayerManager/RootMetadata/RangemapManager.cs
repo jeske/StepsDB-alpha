@@ -302,8 +302,8 @@ namespace Bend
             lock (this.store.segmentlayers) {
                  layers = this.store.segmentlayers.ToArray();
             }
-            
 
+            DateTime start = DateTime.Now;
             // TODO: fix this super-hack to do "minKey/maxKey"
             foreach (SegmentMemoryBuilder layer in layers) {
                 if (layer.RowCount == 0) {
@@ -326,11 +326,12 @@ namespace Bend
                     equal_ok,
                     stats:stats);
             }
-
+            DateTime end = DateTime.Now;
 
 #if DEBUG_SEGMENT_WALK_COUNTERS
-            Console.WriteLine("getNextRecord({0})", lowkey);
+            Console.WriteLine("getNextRecord({0}) took {1}ms", lowkey, (((end-start).TotalMilliseconds)));
             Console.WriteLine(stats);
+            
 #endif
 
             // now check the assembled records list
@@ -458,7 +459,7 @@ namespace Bend
             }
 
             public bool directlyContainsKey(IComparable<RecordKey> testkey) {
-                return true; //   TODO: fix the datavalues to all use "=" prefix encoding so our <> range tests work
+                // return true; 
                 if ((testkey.CompareTo(this.lowkey) >= 0) &&
                     (testkey.CompareTo(this.highkey) <= 0)) {
                     return true;
