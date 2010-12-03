@@ -1,6 +1,22 @@
 ﻿
 
 
-todo file for tomn.
+------[ TODO file for tomn ]------------
 
 
+1) Text Indexer Test
+   - bring up lucend based clone of email-indexer-test
+   - produce "golden" number of results and performance comparisons
+
+2) Thrift Network Test
+   - bring up and check-in a thrift windows toolchain in ThirdParty to compile a ThriftIDL
+   - make a new "App" that starts up a Thrift Network Socket and offers a "get/set" api for the database
+
+
+3) Avro Network Test
+
+   - bring up and check-in a windows toolchain in ThirdParty to compile an AvroIDL
+   - make a new "App" that starts up an Avro Network Socket and offers a "get/set" api for the database
+
+
+------[ done ]-----------------
