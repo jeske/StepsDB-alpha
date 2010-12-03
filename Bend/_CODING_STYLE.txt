@@ -15,12 +15,30 @@
    reader/writer methods which must be manually kept in Sync. INSTEAD, use a method to assure
    that the serialization defintion is specified ONCE and the reader/writer operations automatically
    share that single configuration definition. For example, Util/BinStruct.cs or 
+
+-) Avoid creating "stub methods" that 90% of the time have no behavior, because the one time someone
+   puts behavior in there, it will be a surprise. For example, a settings system could use
+   methods or Properties to typecheck settings (i.e. getFooSetting() getBarSetting()) this method could
+   later introduce code behavior that's not obvious. Unless there is a reason to introduce code behavior
+   try to use either static strings (static string FooSetting = "FooSetting") or enums. 
    
 -) Use defensive coding. Engineer for safe future changes. If code is dependent on an invariant
    being held, and future work on that code must make sure to keep the invariant true, then write code
    or tests which cause the system to BREAK/FAIL when the invariant is violated. Do NOT expect
    the future programmer to know your pattern or conventions of use. 
    
+-) Use of C# "var" keyword. Var is acceptable in the following scenerios. (a) to avoid repitition
+   anytime you are allocating a new type on the right hand side:
+
+       var foo = new List<Foo,Bar>();
+
+   (b) within "apps", or "scripts" or unit tests, it's generally okay to use var just to make things
+   easier to read or a little less fragile to change.
+
+   Var should *NOT* be used within the main code in any situations other than (a). For example, when
+   accepting a return value, the main code should not use "var", because this will potentially trigger
+   copiler warnings on differnt places in the code, which will make errors hard to track down.
+
 --------[ Backward and Forward Encoding Compatibility ]--------   
    
 -) Unit test for backward and forward compatibility. In most cases we wish to retain 100% 
@@ -50,9 +68,14 @@
 
    SegmentBlockCompressed, SegmentBlockBasic, not BasicBlockSegment, CompressedBlockSegment
    
--) Unit tests should either be in the same file, in a test namespace, or in a file a "Test" suffix.
+-) Unit tests should always be in a test namespace. They should either be in the same file with
+   the class under test, OR in a file with the same name and a "Test" suffix.
 
-   SegmentBlockBasic, SegmentBlockBasicTest
+   SegmentBlockBasic.cs, SegmentBlockBasicTest.cs
+
+   OR, in a file in the same directory, with an _ prefix and Test suffix.
+
+   _RecordTests.cs
 
 -) Files should be placed in directories to indicate their dependence (or lack of dependence) with
    other components. Ideally files in a "library module" directory should only reference items 
