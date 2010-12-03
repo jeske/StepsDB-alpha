@@ -261,6 +261,7 @@ namespace Bend
         }
 
         public void flushWorkingSegment() {
+            Console.WriteLine("=====================================[ Flush Working Segment ]=================================");
             // create a new working segment            
             SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
             SegmentMemoryBuilder checkpointSegment;
@@ -288,7 +289,7 @@ namespace Bend
                 // allocate a new generation number
                 uint new_generation_number = (uint) rangemapmgr.allocNewGeneration(tx);
 
-                this._writeSegment(tx, checkpointSegment.sortedWalk()); 
+                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(checkpointSegment.sortedWalk())); 
     
                 {
                     byte[] emptydata = new byte[0];
@@ -397,6 +398,9 @@ namespace Bend
         }
 
         public void mergeSegments(IEnumerable<SegmentDescriptor> segs) {
+
+            Console.WriteLine("=====================================[ Merge Segments ]=================================");
+
             // TODO: assure this is a valid merge
             // TODO: change this to map/unmap segments as an atomic operation at the end
             // TODO: assure we don't have the same segment listed twice
@@ -458,7 +462,7 @@ namespace Bend
                     
                 }
 
-                this._writeSegment(tx, chain, (int)target_generation);
+                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(chain), (int)target_generation);
 
                 // free the space from the old segments
 

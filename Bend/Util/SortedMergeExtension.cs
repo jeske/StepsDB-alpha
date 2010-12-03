@@ -6,7 +6,6 @@ using System.Collections.Generic;
 
 namespace Bend
 {
-
     static class SortedMergeExtension
     {
 
