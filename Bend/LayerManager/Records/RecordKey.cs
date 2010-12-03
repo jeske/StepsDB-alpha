@@ -404,4 +404,91 @@ namespace Bend {
 
 
     }
+
+
+    public class RecordKeyComparator : IComparable<RecordKey> {
+        List<IComparable<RecordKeyType>> cmp_parts;
+        public RecordKeyComparator() {
+            cmp_parts = new List<IComparable<RecordKeyType>>();
+        }
+
+        public class RecordKey_to_RecordKeyType_IComparable : IComparable<RecordKeyType> {
+            IComparable<RecordKey> key_cmp;
+            public RecordKey_to_RecordKeyType_IComparable(IComparable<RecordKey> key_comparable) {
+                this.key_cmp = key_comparable;
+            }
+            public int CompareTo(RecordKeyType target) {
+                if (target.GetType() == typeof(RecordKeyType_RecordKey)) {
+                    RecordKeyType_RecordKey conv_target = (RecordKeyType_RecordKey)target;
+                    return this.key_cmp.CompareTo(conv_target.value);
+                } else {
+                    // we need to use RecordKeyType's concept of subtype sorting! 
+                    return RecordKeyType.RecordKeySubtype.RECORD_KEY.CompareTo(target.subtype);
+                }
+            }
+        }
+
+        public RecordKeyComparator appendParsedKey(string parsed_key) {
+            RecordKey key = new RecordKey().appendParsedKey(parsed_key);
+            foreach (RecordKeyType field in key.key_parts) {
+                this.cmp_parts.Add(field);
+            }
+            return this;
+        }
+
+        public RecordKeyComparator appendKeyPart(IComparable<RecordKeyType> part) {
+            this.cmp_parts.Add(part);
+            return this;
+        }
+
+        public RecordKeyComparator appendKeyPart(IComparable<RecordKey> part) {
+            this.cmp_parts.Add(new RecordKey_to_RecordKeyType_IComparable(part));
+            return this;
+        }
+
+
+        public int CompareTo(RecordKey target) {
+            int pos = 0;
+            int cur_result = 0;
+
+            int thislen = this.cmp_parts.Count;
+            int objlen = target.key_parts.Count;
+
+            while (cur_result == 0)  // while equal
+            {
+
+                // if the objects were equal, and have no more parts
+                if ((pos == thislen) &&
+                     (pos == objlen)) {
+                    // equal and at the end
+                    return 0; // equal
+                }
+                    // if the objects are equal so far, but one is done
+                else {
+                    if ((pos == thislen) &&
+                        (pos < objlen)) {
+                        // equal and 'target' longer
+                        return -1; // target longer, so we're less than target
+                    }
+                    if ((pos == objlen) &&
+                        (pos < thislen)) {
+                        // equal and 'this' longer
+                        return 1; // this longer, we're greater than target
+                    }
+                }
+
+                // CompareTo()  this keypart with target keypart
+                // TODO: consider making singleton keypart objects so we can do
+                //    MUCH faster equality testing for each part (a common case)
+                cur_result = this.cmp_parts[pos].CompareTo(target.key_parts[pos]);
+
+                pos++; // move pointer to next
+            }
+
+
+            return cur_result;
+        }
+
+    }
+
 }

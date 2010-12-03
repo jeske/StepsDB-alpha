@@ -39,7 +39,8 @@ namespace MyTestStub {
             // testclass.T04_SingleSegmentRootMetadataLogRecovery();
 
             var testclass = new A01_RecordTests();
-            testclass.T00_RecordKeyEquality();
+            // testclass.T00_RecordKeyEquality();
+            testclass.T11_RecordKey_ComposableIComparableTest();
 
 
             // fetchHitsTest();

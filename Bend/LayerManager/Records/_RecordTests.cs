@@ -279,6 +279,35 @@ namespace BendTests
                 
             }
         }
+
+        [Test]
+        public void T11_RecordKey_ComposableIComparableTest() {
+
+            IComparable<RecordKey> start_keytest = new RecordKeyComparator()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(1))
+                .appendKeyPart(RecordKey.AfterPrefix(new RecordKey().appendParsedKey("B")));
+
+            var range_a = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(1))
+                .appendKeyPart(new RecordKey().appendKeyPart("A"));
+
+            var range_c = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(1))
+                .appendKeyPart(new RecordKey().appendKeyPart("C"));
+
+            Assert.True(start_keytest.CompareTo(range_a) > 0, "after range a");
+            Assert.True(start_keytest.CompareTo(range_c) < 0, "before range c");
+
+            var random_key = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(1))
+                .appendParsedKey("a");                            
+
+            Assert.True(start_keytest.CompareTo(random_key) > 0, "should be after this random_key");
+        }
     }
 
 
