@@ -82,7 +82,10 @@ namespace Bend {
             foreach (var generation in segments_by_generation.Keys) {
                 max_segments_in_column = Math.Max(max_segments_in_column, segments_by_generation[generation].Count);
             }
-            int segment_height = Math.Max(1, regionsize.Height / unique_keys.Count); // make sure segment heights are at least 1
+            int segment_height = 50;
+            if (max_segments_in_column > 0) {
+                segment_height = Math.Max(1, regionsize.Height / max_segments_in_column); // make sure segment heights are at least 1
+            }
 
 
             // now draw stuff!             
