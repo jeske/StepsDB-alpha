@@ -28,11 +28,11 @@ namespace BendTests
             // iterate through blocksizes, randomly generating input data, and then doing some
             // random key queries to see how fast retrieval is
 
-            int[] block_sizes = { 2 * 1024, 40 * 1024, 100 * 1024, 2 * 1024 * 1024 };
-            int[] value_sizes = { 4, 10, 30, 100, 1000, 10000 };
+            int[] block_sizes = { 2 * 1024, 40 * 1024, 100 * 1024, 512 * 1025, 2 * 1024 * 1024 };
+            int[] value_sizes = { 10, 30, 100, 1000, 10000 };
             int[] num_levels = { 2, 3, 4 };
             int[,] perf_results = new int[block_sizes.Length, value_sizes.Length];
-            int READ_COUNT = 10000;
+            int READ_COUNT = 3000;
 
             
             Random rnd = new Random((int)DateTime.Now.ToBinary());
