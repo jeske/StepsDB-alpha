@@ -397,6 +397,25 @@ namespace Bend
             }           
         }
 
+        public static IEnumerable<KeyValuePair<K, V>> RemoveTombstones<K, V>(
+            IEnumerable<KeyValuePair<K, V>> input)             
+            where K : RecordKey
+            where V : RecordUpdate {           
+
+            IEnumerator<KeyValuePair<K, V>> oneenum = input.GetEnumerator();            
+            
+            bool one_hasmore = oneenum.MoveNext();            
+            
+            while (one_hasmore) {
+                KeyValuePair<K, V> curval = oneenum.Current;
+                // output anything that is not a deletion tombstone
+                if (curval.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                    yield return curval; 
+                }
+                one_hasmore = oneenum.MoveNext();
+            }
+        }
+
         public void mergeSegments(IEnumerable<SegmentDescriptor> segs) {
 
             Console.WriteLine("=====================================[ Merge Segments ]=================================");
@@ -459,11 +478,17 @@ namespace Bend
                 // remove the old segment mappings
                 foreach (SegmentDescriptor segment in segs) {
                     // TODO: it's not safe to free this space yet!
-                    rangemapmgr.unmapSegment(tx, segment);  
-                    
+                    rangemapmgr.unmapSegment(tx, segment);
+
+                }
+                IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain_head = SortedAscendingCheck.CheckAscending(chain, "merge-final");
+
+                // remove tombstones if we need to        
+                if (target_generation == 0) {
+                    // chain_head = LayerManager.RemoveTombstones(chain_head);
                 }
 
-                this._writeSegment(tx, SortedAscendingCheck.CheckAscending(chain, "merge-final"), (int)target_generation);
+                this._writeSegment(tx, chain_head , (int)target_generation);
 
                 // free the space from the old segments
 
@@ -471,7 +496,7 @@ namespace Bend
 
                 tx.finish();                             // commit the freespace and rangemap transaction
 
-                rangemapmgr.clearSegmentCacheHack();                
+                rangemapmgr.clearSegmentCacheHack();
             }
         }
 
