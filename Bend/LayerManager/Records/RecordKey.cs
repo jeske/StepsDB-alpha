@@ -426,6 +426,9 @@ namespace Bend {
                     return RecordKeyType.RecordKeySubtype.RECORD_KEY.CompareTo(target.subtype);
                 }
             }
+            public override string ToString() {
+                return "&" + key_cmp.ToString();
+            }
         }
 
         public RecordKeyComparator appendParsedKey(string parsed_key) {
@@ -488,7 +491,9 @@ namespace Bend {
 
             return cur_result;
         }
-
+        public override string ToString() {
+            return String.Format("RecordKeyComparator({0})", String.Join(",", cmp_parts));                
+        }
     }
 
 }

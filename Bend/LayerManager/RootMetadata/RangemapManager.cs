@@ -2,8 +2,12 @@
 // All Rights Reserved.
 
 
-// #define DEBUG_SEGMENT_WALK            // full segment walking debug
-#define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
+#define DEBUG_SEGMENT_WALK            // full segment walking debug
+// #define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
+// #define DEBUG_SEGMENT_ACCUMULATION   
+#define DEBUG_SEGMENT_RANGE_WALK
+
+#define DEBUG_USE_NEW_FINDALL
 
 
 using System;
@@ -547,7 +551,59 @@ namespace Bend
                 return contained;
 
             }
-            
+
+            public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> checkForSegmentKeyAboveAndBelow(
+                IScannable<RecordKey, RecordUpdate> in_segment,
+                IComparable<RecordKey> for_rangekey,
+                IComparable<RecordKey> for_key,
+                int for_generation) {
+
+                // backward
+                {
+                    bool have_non_deleted = false;
+                    IComparable<RecordKey> cur_key = for_rangekey;
+                    while (!have_non_deleted) {
+                        KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindPrev(cur_key, false);
+                        cur_key = kvp.Key;
+                        if (!RangeKey.isRangeKey(kvp.Key)) { break; }
+                        RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                        if (test_rk.generation != for_generation) { break; }
+                        if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                            have_non_deleted = true;
+                        }                        
+                                                
+                        if (test_rk.eventuallyContainsKey(for_key)) {
+                            yield return kvp;
+                        }                        
+                    }
+                }
+
+                // backward
+                {
+                    bool have_non_deleted = false;
+                    IComparable<RecordKey> cur_key = for_rangekey;
+                    while (!have_non_deleted) {
+                        KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindNext(cur_key, false);
+                        cur_key = kvp.Key;
+                        if (!RangeKey.isRangeKey(kvp.Key)) { break; }
+                        RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                        if (test_rk.generation != for_generation) { break; }
+                        if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                            have_non_deleted = true;
+                        }
+                        
+
+                        if (test_rk.eventuallyContainsKey(for_key)) {
+                            yield return kvp;
+                        }
+                    }
+                }
+
+
+
+            }
+                
+#if DEBUG_USE_NEW_FINDALL
             public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllEligibleRangeRows(
                 IScannable<RecordKey, RecordUpdate> in_segment,
                 IComparable<RecordKey> for_key,
@@ -563,12 +619,13 @@ namespace Bend
                         .appendKeyPart(new RecordKeyType_Long(for_generation))
                         .appendKeyPart(for_key);
 
-                    KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindPrev(startrk, true);
-                    stats.segmentRangeRowsConsidered++; 
-                    if (RangeKey.isRangeKey(kvp.Key)) {
-                        RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);                        
-                        if (test_rk.generation == for_generation && test_rk.eventuallyContainsKey(for_key)) {
-                            yield return kvp;
+                    foreach (var kvp in RangeKey.checkForSegmentKeyAboveAndBelow(in_segment, startrk, for_key, for_generation)) {
+                        stats.segmentRangeRowsConsidered++;
+                        if (RangeKey.isRangeKey(kvp.Key)) {
+                            RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                            if (test_rk.generation == for_generation && test_rk.eventuallyContainsKey(for_key)) {
+                                yield return kvp;
+                            }
                         }
                     }
                 }
@@ -584,19 +641,66 @@ namespace Bend
                         .appendParsedKey(".ROOT/GEN")
                         .appendKeyPart(new RecordKeyType_Long(for_generation))
                         .appendKeyPart(new RecordKey().appendParsedKey(".ROOT/GEN"));
-                    KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindPrev(startrk, true);
-                    stats.segmentRangeRowsConsidered++;
-                    if (RangeKey.isRangeKey(kvp.Key)) {
-                        RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
-                        if (test_rk.generation == for_generation && test_rk.eventuallyContainsKey(for_key)) {
-                            yield return kvp;
+
+                    foreach (var kvp in RangeKey.checkForSegmentKeyAboveAndBelow(in_segment, startrk, for_key, for_generation)) {
+                        stats.segmentRangeRowsConsidered++;
+                        if (RangeKey.isRangeKey(kvp.Key)) {
+                            RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                            if (test_rk.generation == for_generation && test_rk.eventuallyContainsKey(for_key)) {
+                                yield return kvp;
+                            }
                         }
                     }
+
                 }
                 
-            }            
-            
+            }
+
+#else
+            public static IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> findAllEligibleRangeRows(
+               IScannable<RecordKey, RecordUpdate> in_segment,
+               IComparable<RecordKey> for_key,
+               int for_generation,
+               SegmentWalkStats stats) {
+
+                // TODO: fix this to me more efficient.... we would like to:
+                // (1) look through anything that could be a direct range-row of "for_key"            
+                // (2) look through any "row range of row range" keys
+                //   ... HOWEVER, #1 is hard to do when for_key is a comparable, not a key
+                //   ... either need to switch it to an actual key, or make a composable
+                //       IComparable<RecordKey> so we can shove the .ROOT/GEN prefix before the
+                //       supplied IComparable
+
+                RecordKey startrk = new RecordKey()
+                    .appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(new RecordKeyType_Long(for_generation));
+                IComparable<RecordKey> endrk = RecordKey.AfterPrefix(startrk);
+
+                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp
+                    in in_segment.scanForward(new ScanRange<RecordKey>(startrk, endrk, null))) {
+
+                    stats.segmentRangeRowsConsidered++;
+                    if (!RangeKey.isRangeKey(kvp.Key)) {
+                        System.Console.WriteLine("INTERNAL error, RangeKey scan found non-range key: "
+                            + kvp.Key.ToString() + " claimed to be before " + endrk.ToString());
+                        break;
+                    }
+                    RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                    if (test_rk.eventuallyContainsKey(for_key)) {
+                        yield return kvp;
+                    }
+
+                }
+
+            }
+#endif
+
+
         }
+
+        
+            
+                
         
 
         private static RecordKey GEN_KEY_PREFIX = new RecordKey().appendParsedKey(".ROOT/GEN");
@@ -654,7 +758,7 @@ namespace Bend
                     partial_record.applyUpdate(kvp.Value);
                     stats.rowUpdatesApplied++;
 
-#if DEBUG_SEGMENT_WALK
+#if DEBUG_SEGMENT_ACCUMULATION
                     for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
                     Console.WriteLine("accumulated update: {0}", kvp);
 #endif
@@ -691,6 +795,11 @@ namespace Bend
                             // because we're suppilying new data, we should add this to our
                             // private TODO list if it is a FULL update, NOT a tombstone
                             if (rangerow.Value.type == RecordUpdateTypes.FULL) {
+#if DEBUG_SEGMENT_RANGE_WALK
+                                for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
+                                Console.WriteLine("adding SegmentRangeRow: {0}", rangerow);
+#endif
+
                                 todo_list.Add(rangerow);
                             }
                         }
