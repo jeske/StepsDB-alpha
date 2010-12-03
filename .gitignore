@@ -5,5 +5,7 @@ Bend/Apps/*/obj/*
 Bend/Apps/*/bin/*
 Bend/ThirdParty/*/obj/*
 Bend/ThirdParty/*/bin/*
+Misc/LuceneTest/*/bin/*
+Misc/LuceneTest/*/obj/*
 *.suo
 *.user
