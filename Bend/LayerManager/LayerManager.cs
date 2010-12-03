@@ -352,7 +352,7 @@ namespace Bend
                     } else if (found_record.State != RecordDataState.FULL) {
                         throw new Exception("can't handle incomplete segment record");
                     } else {
-                        segs.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(found_key));
+                        segs.Add(rangemapmgr.getSegmentDescriptorFromRecordKey(found_key));                        
                     }
                 } else {
                     // we're done matching the generation records
@@ -386,6 +386,7 @@ namespace Bend
                     } else if (found_record.State != RecordDataState.FULL) {
                         throw new Exception("can't handle incomplete segment record");
                     } else {
+                        Console.WriteLine("listAllSegments: {0} => {1}", found_key, found_record);
                         yield return rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
                     }             
                 } else {

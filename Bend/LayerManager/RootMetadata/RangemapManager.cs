@@ -235,7 +235,13 @@ namespace Bend
             ref RecordKey key, 
             ref RecordData record,
             bool equal_ok) {
-                return getNextRecord_LowLevel(lowkey, true, ref key, ref record, equal_ok, false);
+                return getNextRecord_LowLevel(
+                    lowkey, 
+                    true, 
+                    ref key, 
+                    ref record, 
+                    equal_ok:equal_ok, 
+                    tombstone_ok:false);
         }
 
         
@@ -603,7 +609,7 @@ namespace Bend
                 foreach(var kvp in seg_scanner) {
 
                     if (!equal_ok) { // have ">" test vs ">="
-                        if (kvp.Key.Equals(startkeytest)) {
+                        if (startkeytest.CompareTo(kvp.Key) == 0) {                        
                             continue; 
                         }
                     }
@@ -617,12 +623,15 @@ namespace Bend
                     }
                     partial_record.applyUpdate(kvp.Value);
                     stats.rowUpdatesApplied++;
-                    
-                    
-                    // Console.WriteLine("add potential: {0} inseg:{1}", kvp, curseg_rangekey);
 
-                    if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                        // we found at least one live record, so stop adding potential records
+#if SEGMENT_WALK_DEBUG
+                    for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
+                    Console.WriteLine("accumulated update: {0}", kvp);
+#endif
+
+
+                    if (partial_record.State != RecordDataState.DELETED) {
+                        // we accumulated to at least one live record, so stop adding potential records
                         break;
                     }
                 }
@@ -669,11 +678,10 @@ namespace Bend
                     SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
                     RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
-
-                    // for (int depth = 10; depth > maxgen; depth--) { 
-                    //    Console.Write("  "); 
-                    // }
-                    // Console.WriteLine("..WalkForNextKey descending to: " + rangepointer.Key);
+#if SEGMENT_WALK_DEBUG
+                    for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
+                    Console.WriteLine("..WalkForNextKey descending to: {0}", rangepointer);
+#endif
                     // RECURSE
                     INTERNAL_segmentWalkForNextKey(
                         startkeytest,

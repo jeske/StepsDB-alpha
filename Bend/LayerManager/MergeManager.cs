@@ -29,12 +29,14 @@ namespace Bend {
             int fast_answer = minSafeGenerationForKeyRange2(start_key, end_key);
 
             Console.WriteLine("** minsafeGenerationForKeyrange(" + start_key + "," + end_key + ")");
+            /*
             foreach (var seg in segmentInfo) {
                 Console.WriteLine("gen{0} start {1} end {2}",
                     seg.Key.generation,
                     seg.Key.start_key,
                     seg.Key.end_key);
             }
+            */
 
             foreach (var seginfo in segmentInfo.scanBackward(null)) {
                 if (seginfo.Key.keyrangeOverlapsWith(start_key, end_key)) {

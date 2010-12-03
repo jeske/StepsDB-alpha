@@ -257,6 +257,14 @@ namespace BendTests
             var str_value = new RecordKeyType_String("12131");
 
             Assert.True(num_value.CompareTo(str_value) < 0, "long value should always be less");
+
+
+
+            var rk_1 = new RecordKeyType_RecordKey(new RecordKey().appendParsedKey("1/2/3"));
+            var rk_2 = new RecordKeyType_RecordKey(new RecordKey().appendParsedKey("1/2/3"));
+
+            Assert.True(rk_1.Equals(rk_2), "record key equals");
+
             
         }
 

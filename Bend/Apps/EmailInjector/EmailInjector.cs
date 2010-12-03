@@ -58,17 +58,36 @@ namespace Bend.EmailIndexerTest {
             } else if (args[0].CompareTo("merge") == 0) {
                 LayerManager db = new LayerManager(InitMode.RESUME, @"c:\EmailTest\DB");
                 window.debugDump(db);
-                // be sure to flush and merge before we search...
-                db.flushWorkingSegment();
-                window.debugDump(db);
+                // merge before we search...                
                 for (int x = 0; x < 5; x++) {
                     var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                     window.debugDump(db, mc);
                     if (mc == null) { break; }
                     db.performMerge(mc);
                     window.debugDump(db);
-                }                           
+                }
+            } else if (args[0].CompareTo("test") == 0) {
+                LayerManager db = new LayerManager(InitMode.RESUME, @"c:\EmailTest\DB");
+                window.debugDump(db);
+                var key1 = new RecordKey()
+                    .appendParsedKey(@".zdata/index/which/c:\EmailTest\Data\Sent:5441/10");
+                var key2 = new RecordKey()
+                    .appendParsedKey(@".zdata/index/zzn/c:\EmailTest\Data\saved_mail_2003:4962/385");
 
+                var segkey = new RecordKey()
+                    .appendParsedKey(".ROOT/GEN")
+                    .appendKeyPart(new RecordKeyType_Long(1))
+                    .appendKeyPart(key1)
+                    .appendKeyPart(key2);
+
+                var nextrow = db.FindNext(segkey,false);                
+
+                Console.WriteLine("next: {0}",nextrow);
+
+                var exactRow = db.FindNext(nextrow.Key, true);
+
+                Console.WriteLine("refind: {0}", exactRow);
+                    
             }
             Console.WriteLine("done...press any key.");
             Console.ReadLine();
