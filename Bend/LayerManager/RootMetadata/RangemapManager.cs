@@ -3,7 +3,7 @@
 
 
 // #define DEBUG_SEGMENT_WALK            // full segment walking debug
-// #define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
+#define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
 // #define DEBUG_SEGMENT_ACCUMULATION   
 // #define DEBUG_SEGMENT_RANGE_WALK
 
@@ -259,15 +259,17 @@ namespace Bend
         public class SegmentWalkStats {
             public int segmentWalkInvocations;
             public int segmentDeletionTombstonesSkipped;
+            public int segmentDeletionTombstonesAccumulated;
             public int segmentUpdatesApplied;
             public int segmentRangeRowScansPerformed;
             public int segmentRangeRow_FindCalls;
             public int segmentRangeRowsConsidered;               
             public int segmentIndirectRangeRowsConsidered;
-            public int segmentAccumulate_TryGet;
+            public int segmentAccumulate_TryGet;            
             public int rowUpdatesApplied;
             public int rowDuplicatesAppeared;
             public int rowAccumulate_TryGet;
+            public int rowDeletionTombstonesSkipped;
 
             public override String ToString() {
                 var string_lines = new List<string>();
@@ -581,9 +583,11 @@ namespace Bend
                         if (test_rk.generation != for_generation) { break; }
                         if (test_rk.eventuallyContainsKey(for_key)) {
                             yield return kvp;
-                        }
+                        }                        
                         if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
                             break;
+                        } else {
+                            stats.segmentDeletionTombstonesAccumulated++;
                         }
                     }
                 }
@@ -604,6 +608,8 @@ namespace Bend
                         }
                         if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
                             break;
+                        } else {
+                            stats.segmentDeletionTombstonesAccumulated++;
                         }
                     }
                 }
