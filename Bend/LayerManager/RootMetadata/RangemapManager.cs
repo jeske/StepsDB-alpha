@@ -2,12 +2,17 @@
 // All Rights Reserved.
 
 
+// #define DEBUG_SEGMENT_WALK            // full segment walking debug
+#define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
+
+
 using System;
 using System.Collections.Generic;
 
 using System.Diagnostics;
 
 using System.Reflection; // for SegmentWalkStats reflective printing
+
 
 
 namespace Bend
@@ -60,11 +65,13 @@ namespace Bend
             // MUST do this, or new segments will be allocated in the wrong generations! 
 
             Console.WriteLine("primeMergeManager(): start");
+            int seg_count = 0;
             foreach (var segdesc in store.listAllSegments()) {
                 // TODO: make sure these are in increasing generation order! 
                 mergeManager.notify_addSegment(segdesc);
-            }
-            Console.WriteLine("primeMergeManager(): finished");
+                seg_count++;
+            }            
+            Console.WriteLine("primeMergeManager(): finished. Loaded {0} segments.", seg_count);
         }
 
         public static void Init(LayerManager store) {
@@ -251,6 +258,7 @@ namespace Bend
             public int segmentUpdatesApplied;
             public int segmentRangeRowScansPerformed;
             public int segmentRangeRowsConsidered;
+            public int segmentIndirectRangeRowsConsidered;
             public int rowUpdatesApplied;
             public int rowDuplicatesAppeared;
 
@@ -311,8 +319,11 @@ namespace Bend
                     stats:stats);
             }
 
-            // Console.WriteLine("getNextRecord({0})", lowkey);
-            // Console.WriteLine(stats);
+
+#if DEBUG_SEGMENT_WALK_COUNTERS
+            Console.WriteLine("getNextRecord({0})", lowkey);
+            Console.WriteLine(stats);
+#endif
 
             // now check the assembled records list
             try {
@@ -543,38 +554,51 @@ namespace Bend
                 int for_generation,
                 SegmentWalkStats stats) {
 
+
                 // TODO: fix this to me more efficient.... we would like to:
-                // (1) look through anything that could be a direct range-row of "for_key"            
+                // (1) look through anything that could be a direct range-row of "for_key"                        
+                {
+                    RecordKeyComparator startrk = new RecordKeyComparator()
+                        .appendParsedKey(".ROOT/GEN")
+                        .appendKeyPart(new RecordKeyType_Long(for_generation))
+                        .appendKeyPart(for_key);
+
+                    KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindPrev(startrk, true);
+                    stats.segmentRangeRowsConsidered++; 
+                    if (RangeKey.isRangeKey(kvp.Key)) {
+                        RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);                        
+                        if (test_rk.generation == for_generation && test_rk.eventuallyContainsKey(for_key)) {
+                            yield return kvp;
+                        }
+                    }
+                }
+
+
                 // (2) look through any "row range of row range" keys
                 //   ... HOWEVER, #1 is hard to do when for_key is a comparable, not a key
                 //   ... either need to switch it to an actual key, or make a composable
                 //       IComparable<RecordKey> so we can shove the .ROOT/GEN prefix before the
                 //       supplied IComparable
-                
-                RecordKey startrk = new RecordKey()
-                    .appendParsedKey(".ROOT/GEN")
-                    .appendKeyPart(new RecordKeyType_Long(for_generation));                    
-                IComparable<RecordKey> endrk = RecordKey.AfterPrefix(startrk);
-
-                foreach (KeyValuePair<RecordKey, RecordUpdate> kvp 
-                    in in_segment.scanForward(new ScanRange<RecordKey>(startrk, endrk, null))) {
-                    
+                {
+                    RecordKey startrk = new RecordKey()
+                        .appendParsedKey(".ROOT/GEN")
+                        .appendKeyPart(new RecordKeyType_Long(for_generation))
+                        .appendKeyPart(new RecordKey().appendParsedKey(".ROOT/GEN"));
+                    KeyValuePair<RecordKey, RecordUpdate> kvp = in_segment.FindPrev(startrk, true);
                     stats.segmentRangeRowsConsidered++;
-                    if (!RangeKey.isRangeKey(kvp.Key)) {
-                        System.Console.WriteLine("INTERNAL error, RangeKey scan found non-range key: " 
-                            + kvp.Key.ToString() + " claimed to be before " + endrk.ToString() );
-                        break;
+                    if (RangeKey.isRangeKey(kvp.Key)) {
+                        RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
+                        if (test_rk.generation == for_generation && test_rk.eventuallyContainsKey(for_key)) {
+                            yield return kvp;
+                        }
                     }
-                    RangeKey test_rk = RangeKey.decodeFromRecordKey(kvp.Key);
-                    if (test_rk.eventuallyContainsKey(for_key)) {
-                        yield return kvp;
-                    }
-
                 }
                 
             }            
             
-        }        
+        }
+        
+
         private static RecordKey GEN_KEY_PREFIX = new RecordKey().appendParsedKey(".ROOT/GEN");
 
         private void INTERNAL_segmentWalkForNextKey(
@@ -630,7 +654,7 @@ namespace Bend
                     partial_record.applyUpdate(kvp.Value);
                     stats.rowUpdatesApplied++;
 
-#if SEGMENT_WALK_DEBUG
+#if DEBUG_SEGMENT_WALK
                     for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
                     Console.WriteLine("accumulated update: {0}", kvp);
 #endif
@@ -647,7 +671,7 @@ namespace Bend
             // find all generation range references that are relevant for this key
             // .. make a note of which ones are "current"             
             if (curseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
-                List<KeyValuePair<RecordKey, RecordUpdate>> todo_list = new List<KeyValuePair<RecordKey, RecordUpdate>>();
+                BDSkipList<RecordKey, RecordUpdate> todo_list = new BDSkipList<RecordKey, RecordUpdate>();
 
 
                 for (int i = maxgen - 1; i >= 0; i--) {
@@ -675,7 +699,7 @@ namespace Bend
 
 
                 // now repeat the walk through our todo list:
-                foreach (KeyValuePair<RecordKey, RecordUpdate> rangepointer in todo_list) {
+                foreach (KeyValuePair<RecordKey, RecordUpdate> rangepointer in todo_list.scanBackward(null)) {
                     if (rangepointer.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                         // skip deletion tombstones
                         stats.segmentDeletionTombstonesSkipped++;
@@ -684,7 +708,7 @@ namespace Bend
                     SegmentReader next_seg = segmentReaderFromRow(rangepointer);
 
                     RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
-#if SEGMENT_WALK_DEBUG
+#if DEBUG_SEGMENT_WALK
                     for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
                     Console.WriteLine("..WalkForNextKey descending to: {0}", rangepointer);
 #endif

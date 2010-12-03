@@ -58,11 +58,14 @@ namespace Bend.EmailIndexerTest {
             } else if (args[0].CompareTo("merge") == 0) {
                 LayerManager db = new LayerManager(InitMode.RESUME, @"c:\EmailTest\DB");
                 window.debugDump(db);
-                // merge before we search...                
-                for (int x = 0; x < 5; x++) {
+                // merge...                
+                for (int x = 0; x < 30; x++) {
                     var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                     window.debugDump(db, mc);
-                    if (mc == null) { break; }
+                    if (mc == null) {
+                        Console.WriteLine("no more merge candidates.");
+                        break;                        
+                    }
                     db.performMerge(mc);
                     window.debugDump(db);
                 }
