@@ -12,6 +12,10 @@
   - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
      - encode/decode before we put into the value? 
 
+
+  - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
+     Don't we need to continue iterating in the next range of that generation?
+
   - FIX: directlyContainsKey should not return TRUE!! 
   - FIX: only call findAllEligible range-rows for segments that actually could have range rows
   - FIX: < > . hack
