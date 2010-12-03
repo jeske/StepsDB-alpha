@@ -178,7 +178,7 @@ namespace Bend.EmailIndexerTest {
                                 for (int x = 0; x < 20; x++) {
                                     var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                                     if (mc == null) { break; }
-                                    if (mc.score() > (1.6 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
+                                    if (mc.score() > (1.4 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
                                         System.Console.WriteLine("** best merge score too high: " + mc);
                                         break;
                                     }
@@ -200,7 +200,7 @@ namespace Bend.EmailIndexerTest {
                                 for (int x = 0; x < 5; x++) {
                                     var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                                     if (mc == null) { break; }
-                                    if (mc.score() > (1.6 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
+                                    if (mc.score() > (1.4 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
                                         System.Console.WriteLine("** best merge score too high: " + mc);
                                         break;
                                     }
@@ -225,7 +225,7 @@ namespace Bend.EmailIndexerTest {
             // be sure to flush and merge before we search...
             db.flushWorkingSegment();
             gui.debugDump(db);
-            for (int x = 0; x < 5; x++) {
+            for (int x = 0; x < 40; x++) {
                 var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                 gui.debugDump(db, mc);
                 if (mc == null) { break; }
