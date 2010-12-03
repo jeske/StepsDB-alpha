@@ -368,6 +368,12 @@ namespace Bend
                 rk.generation = generation;
                 return rk;
 
+                if (rk.lowkey.CompareTo(rk.highkey) > 0) {
+                    throw new Exception(
+                        String.Format("RangeKey.newSegmentRangeKey()  inverted endpoints ({0} -> {1})",
+                            rk.lowkey, rk.highkey));
+                }
+
             }
 
 
