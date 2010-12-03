@@ -92,8 +92,8 @@ namespace Bend.EmailIndexerTest {
                 Console.WriteLine("refind: {0}", exactRow);
                     
             }
-            Console.WriteLine("done...press any key.");
-            Console.ReadLine();
+            Console.WriteLine("done....");
+            Environment.Exit(0);
         }
 
         public EmailInjector(LayerManager db, DbgGUI gui) {
