@@ -2,7 +2,11 @@
 
 ----[ TODO ]---------
 
+  - the merge extension needs to take a duplicate key resolver, which will handle things like
+    causing incremental updates to merge. 
+  - review and make sure merges are happening in the right precedence order
   - figure out why the TombstoneRemover caused output differences
+  
 
 **** PERF!!!!  ****
   - switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
@@ -12,10 +16,13 @@
   - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
   - ? FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
   - ? FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches  
-  - FIX: make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
+  - ? FIX: make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
+
+  - implement fast cursors! 
 
 ********************
   - gui: mark blocks which contain index (.ROOT/GEN) records  
+
   - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
      Don't we need to continue iterating in the next range of that generation?  How?
   
