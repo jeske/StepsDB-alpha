@@ -30,28 +30,26 @@ namespace BendTests
 
             int[] block_sizes = { 2 * 1024, 40 * 1024, 100 * 1024, 2 * 1024 * 1024 };
             int[] value_sizes = { 4, 10, 30, 100, 1000, 10000 };
-            int[] num_levels = { 2, 7, 15 };
+            int[] num_levels = { 2, 3, 4 };
             int[,] perf_results = new int[block_sizes.Length, value_sizes.Length];
             int READ_COUNT = 1000;
 
+            
             Random rnd = new Random((int)DateTime.Now.ToBinary());
 
             foreach (int key_part_count in num_levels) {
                 System.Console.WriteLine("--");
                 foreach (int block_size in block_sizes) {
                     foreach (int value_size in value_sizes) {
-                        ISegmentBlockEncoder enc = factory.makeEncoder();                        
-                        MemoryStream ms = new MemoryStream();
-                        enc.setStream(ms);
-
-                        // encode the block
+                        System.GC.Collect();
+                        var sorted_input = new BDSkipList<RecordKey, RecordUpdate>();
+                        // first create the sorted input                        
                         int curblock_size = 0;
                         while (curblock_size < block_size) {
                             // generate a random key
-
                             RecordKey key = new RecordKey();
                             for (int i = 0; i < key_part_count; i++) {
-                                key.appendParsedKey("" + rnd.Next(0xFFFFFF));
+                                key.appendParsedKey("" + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF));
                             }
 
                             // generate a random value
@@ -60,37 +58,49 @@ namespace BendTests
                                 data[i] = (byte)rnd.Next(40, 50);
                             }
                             RecordUpdate upd = RecordUpdate.WithPayload(data);
-                            curblock_size += key.encode().Length; 
+                            curblock_size += key.encode().Length;
                             curblock_size += value_size;
 
-                            enc.add(key, upd);
+                            sorted_input.Add(key, upd);
+                        }
+
+                        // setup the block for encoding
+                        ISegmentBlockEncoder enc = factory.makeEncoder();                        
+                        MemoryStream ms = new MemoryStream();
+                        enc.setStream(ms);
+
+                        // encode the block
+                        foreach(var kvp in sorted_input) {
+                            enc.add(kvp.Key, kvp.Value);
                         }
                         enc.flush();
 
                         // init the decoder
-                        ISegmentBlockDecoder dec = factory.makeDecoder(new BlockAccessor(ms.ToArray()));                        
-
+                        ISegmentBlockDecoder dec = factory.makeDecoder(new BlockAccessor(ms.ToArray()));
+                        int num_misses = 0;
                         System.GC.Collect();  // force GC so it may not happen during the test                    
                         // perform random access test
                         DateTime start = DateTime.Now;
                         for (int i = 0; i < READ_COUNT; i++) {
                             RecordKey key = new RecordKey();
                             for (int ki = 0; ki < key_part_count; ki++) {
-                                key.appendParsedKey("" + rnd.Next(0xFFFFFF));
+                                key.appendParsedKey("" + rnd.Next(8) + rnd.Next(0xFFFFFF) + rnd.Next(0xFFFFFF));
                             }
 
                             try {
-                                dec.FindNext(key, true);
+                                dec.FindNext(key, true);                                
                             }
                             catch (KeyNotFoundException) {
-                                // no problem
+                                num_misses++;
+                                // System.Console.WriteLine("misfetch: {0}", key);
+                                // no problem, but this shouuld be small
                             }
                         }
                         double duration_ms = (DateTime.Now - start).TotalMilliseconds;
                         double reads_per_second = (READ_COUNT * 1000.0) / (duration_ms);
-                        System.Console.WriteLine("BlockSize src{0,10}  final{6,10}  ({7,10}), ValueSize {1,10}, Keyparts {5,10}, {2,10} reads in {3,10}ms,  {4,10} read/sec",
+                        System.Console.WriteLine("BlockSize src{0,10}  final{6,10}  ({7,10}), ValueSize {1,10}, Keyparts {5,10}, {2,10} reads in {3,10}ms,  {8} misses, {4,10} read/sec",
                             curblock_size, value_size, READ_COUNT, duration_ms, reads_per_second, 
-                            key_part_count, ms.Length, ((double)ms.Length/(double)curblock_size)*(double)100.0 );
+                            key_part_count, ms.Length, ((double)ms.Length/(double)curblock_size)*(double)100.0, num_misses );
                     }
                 }
             }
