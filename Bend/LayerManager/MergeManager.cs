@@ -110,7 +110,7 @@ namespace Bend {
             // the histogram details provide a better merge ratio than the keyrange
             RecordKey found_key = new RecordKey();
             RecordData found_data = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            if (rangemapmgr.getNextRecord(segdesc.record_key, ref found_key, ref found_data, true) == GetStatus.PRESENT) {
+            if (rangemapmgr.getNextRecord(segdesc.record_key, true, ref found_key, ref found_data, true) == GetStatus.PRESENT) {
 
                 SegmentReader sr = rangemapmgr.segmentReaderFromRow(found_key, found_data);
                 int key_count = 0;

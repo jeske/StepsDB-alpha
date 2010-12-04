@@ -7,6 +7,8 @@
 // #define DEBUG_SEGMENT_ACCUMULATION   
 // #define DEBUG_SEGMENT_RANGE_WALK
 
+// #define DEBUG_CURSORS
+
 #define DEBUG_USE_NEW_FINDALL
 
 
@@ -242,17 +244,19 @@ namespace Bend
         // ------------[ public segmentWalkForKey ] --------------
 
         public GetStatus getNextRecord(
-            IComparable<RecordKey> lowkey, 
+            IComparable<RecordKey> startkey, 
+            bool direction_is_forward,
             ref RecordKey key, 
             ref RecordData record,
-            bool equal_ok) {
+            bool equal_ok,
+            bool tombstones_ok = false) {
 
                 foreach (var kvp in getRecord_LowLevel_Cursor(
-                        lowkey,
-                        null,
-                        true,
+                    direction_is_forward ? startkey : null,
+                    direction_is_forward ? null : startkey,
+                        direction_is_forward,
                         equal_ok: equal_ok,
-                        tombstone_ok: false)) {
+                        tombstone_ok: tombstones_ok)) {
                             key = kvp.Key;
                             record = kvp.Value;
                             return GetStatus.PRESENT;
@@ -289,7 +293,7 @@ namespace Bend
             }
         }
 
-        public GetStatus getNextRecord_LowLevel(
+        public GetStatus getNextRecord_LowLevel_OLD(
             IComparable<RecordKey> lowkey, 
             bool direction_is_forward, 
             ref RecordKey key, 
@@ -448,11 +452,17 @@ namespace Bend
                 // getting the next record from each, and merging. If any of them run out of keys, we have to
                 // throw an exception and re-trigger a fetch of the next segment for that generation. 
 
+                if (recordSegments.Count == 0) {
+                    // we have no qualifying segments, so we're done
+                    yield break;
+                }
 
                 // now scan the returned segments for records...
                 IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
                 foreach (var curseg_kvp in recordSegments.scanForward(null)) {
-                    Console.WriteLine("setup: " + curseg_kvp);
+#if DEBUG_SEGMENT_WALK
+                    Console.WriteLine("setup cursors: " + curseg_kvp);
+#endif
                     IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> seg_scanner;
                     if (direction_is_forward) {
                         seg_scanner = curseg_kvp.Value.scanForward(
@@ -498,33 +508,36 @@ namespace Bend
                         continue;
                     }
 
-                    var out_rec = chain_enum.Current;
-                        
-                    // end for past endkey
-                    if (highestKeyTest != null) {
+                    if (chain_hasmore) {
+                        var out_rec = chain_enum.Current;
+
+                        // end for past endkey                    
                         if (direction_is_forward) {
-                            if (highestKeyTest.CompareTo(out_rec.Key) < 0) {
+                            if (highestKeyTest != null && highestKeyTest.CompareTo(out_rec.Key) < 0) {
                                 yield break;
                             }
                         } else {
-                            if (lowestKeyTest.CompareTo(out_rec.Key) > 0) {
+                            if (lowestKeyTest != null && lowestKeyTest.CompareTo(out_rec.Key) > 0) {
                                 yield break;
                             }
                         }
-                    }
-                            
 
-                    if (out_rec.Value.type == RecordUpdateTypes.FULL) {
-                        if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
-                            var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
-                            record.applyUpdate(out_rec.Value);
 
-                            yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                                
+
+                        if (out_rec.Value.type == RecordUpdateTypes.FULL) {
+                            if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
+                                var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
+                                record.applyUpdate(out_rec.Value);
+
+                                yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);
+                            }
                         }
+                        cur_key = out_rec.Key;
+                        equal_ok = false;
+#if DEBUG_CURSORS
+                        Console.WriteLine("advance past. {0}", out_rec);
+#endif
                     }
-                    cur_key = out_rec.Key;
-                    equal_ok = false;
-                    Console.WriteLine("advance past. {0}", out_rec);
                 }
 
                 yield break;

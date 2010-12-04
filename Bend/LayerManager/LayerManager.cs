@@ -1,6 +1,8 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
+// #define DEBUG_FINDNEXT
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -344,7 +346,7 @@ namespace Bend
             RecordKey cur_key = start_key;
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+            while (rangemapmgr.getNextRecord(cur_key, true, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
                 cur_key = found_key;
                 // check that the first two keyparts match
                 if (found_key.isSubkeyOf(start_key)) {
@@ -362,7 +364,6 @@ namespace Bend
             }
             return segs;
         }
-
 
         public IEnumerable<SegmentDescriptor> listAllSegments() {                        
             RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
@@ -509,7 +510,7 @@ namespace Bend
             RecordKey cur_key = search_key;
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
+            while (rangemapmgr.getNextRecord(cur_key, true, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
                 cur_key = found_key;
 
                 // ignore deletion tombstones
@@ -549,7 +550,7 @@ namespace Bend
         public GetStatus getRecord(RecordKey key, out RecordData record) {
             RecordKey found_key = new RecordKey();
             record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
-            if (rangemapmgr.getNextRecord(key, ref found_key, ref record,true) == GetStatus.PRESENT) {
+            if (rangemapmgr.getNextRecord(key, true, ref found_key, ref record,true) == GetStatus.PRESENT) {
                 if (found_key.Equals(key)) {
                     return GetStatus.PRESENT;
                 }
@@ -559,7 +560,7 @@ namespace Bend
         }
 
         public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey found_key, ref RecordData found_record) {
-            return (rangemapmgr.getNextRecord(lowkey, ref found_key, ref found_record,false));
+            return (rangemapmgr.getNextRecord(lowkey, false, ref found_key, ref found_record,false));
         }
 
         public void debugDump()
@@ -614,7 +615,13 @@ namespace Bend
             RecordKey found_key = new RecordKey();
             RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-            if (rangemapmgr.getNextRecord_LowLevel(keytest, true, ref found_key, ref record,equal_ok, false) == GetStatus.PRESENT) {
+#if DEBUG_FINDNEXT
+            Console.WriteLine("FindNext({0})", keytest);
+#endif
+            if (rangemapmgr.getNextRecord(keytest, true, ref found_key, ref record,equal_ok, false) == GetStatus.PRESENT) {
+#if DEBUG_FINDNEXT
+                Console.WriteLine("FindNext returning: {0} -> {1}", found_key, record);
+#endif
                 return new KeyValuePair<RecordKey,RecordData>(found_key,record);
             }
             throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
@@ -625,7 +632,7 @@ namespace Bend
             RecordKey found_key = new RecordKey();
             RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-            if (rangemapmgr.getNextRecord_LowLevel(keytest, false,ref found_key, ref record, equal_ok, false) == GetStatus.PRESENT) {
+            if (rangemapmgr.getNextRecord(keytest, false,ref found_key, ref record, equal_ok, false) == GetStatus.PRESENT) {
                 return new KeyValuePair<RecordKey, RecordData>(found_key, record);
             }
             throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
@@ -684,7 +691,7 @@ namespace Bend
             }
 
             // get the first key
-            if (rangemapmgr.getNextRecord_LowLevel(cursor_key, direction_is_forward, ref found_key, ref found_record, true, false) == GetStatus.MISSING) {
+            if (rangemapmgr.getNextRecord(cursor_key, direction_is_forward, ref found_key, ref found_record, true, false) == GetStatus.MISSING) {
                 yield break; // no keys
             }
             while (true) {                
@@ -706,7 +713,7 @@ namespace Bend
                 found_key = new RecordKey();
                 found_record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-                if (rangemapmgr.getNextRecord_LowLevel(cursor_key, direction_is_forward,ref found_key, ref found_record, false, false) == GetStatus.MISSING) {
+                if (rangemapmgr.getNextRecord(cursor_key, direction_is_forward,ref found_key, ref found_record, false, false) == GetStatus.MISSING) {
                     yield break; // no keys
                 }
             }

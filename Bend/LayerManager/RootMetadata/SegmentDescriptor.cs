@@ -105,7 +105,7 @@ namespace Bend {
         public ISortedSegment getSegment(RangemapManager rmm) {
             RecordKey found_key = new RecordKey();
             RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            if (rmm.getNextRecord(this.record_key, ref found_key, ref found_record, true) == GetStatus.PRESENT) {
+            if (rmm.getNextRecord(this.record_key, true, ref found_key, ref found_record, true) == GetStatus.PRESENT) {
                 if (this.record_key.Equals(found_key) && found_record.State == RecordDataState.FULL) {
                     return rmm.getSegmentFromMetadata(found_record);
                 }
