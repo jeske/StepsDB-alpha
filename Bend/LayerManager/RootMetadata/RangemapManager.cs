@@ -453,19 +453,19 @@ namespace Bend
                         if (direction_is_forward) {
                             seg_scanner = curseg_kvp.Value.scanForward(
                                 new ScanRange<RecordKey>(
-                                    lowkey,
+                                    cur_key,
                                     new ScanRange<RecordKey>.maxKey(),
                                     null));
                         } else {
                             seg_scanner = curseg_kvp.Value.scanBackward(
                                 new ScanRange<RecordKey>(
                                     new ScanRange<RecordKey>.minKey(),
-                                    lowkey,
+                                    cur_key,
                                     null));
                         }
 
                         // add the exhausted check
-                        seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key);
+                        seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key, curseg_kvp);
 
                         if (chain == null) {
                             chain = seg_scanner;
@@ -476,23 +476,30 @@ namespace Bend
                     }
 
                     try {
-                        foreach (var out_rec in chain) {
-                            cur_key = out_rec.Key;
+                        foreach (var out_rec in chain) {                            
                             if (out_rec.Value.type == RecordUpdateTypes.FULL) {
-                                if (equal_ok || (lowkey.CompareTo(out_rec.Key)) != 0) {
+                                if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
                                     record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
                                     record.applyUpdate(out_rec.Value);
                                     key = out_rec.Key;
                                     return GetStatus.PRESENT;
                                 }
                             }
+                            cur_key = out_rec.Key;
                             equal_ok = false;
+                            Console.WriteLine("advance past. {0}", out_rec);
+                            
                         }
                     } catch (SortedSetExhaustedException e) {
                         Console.WriteLine("One ran out: " + e.ToString());
                         // we need to prime the next key properly
                         Console.WriteLine("lowkey: {0}  cur_key:{1}", lowkey, cur_key);
-                        throw new Exception(e.ToString());
+                        // throw new Exception(e.ToString());
+                        KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
+                            (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
+                        // set cur_key to the last key in the RangeKey?? 
+
+                        cur_key = RecordKey.AfterPrefix(seg_ranout.Key.highkey);
                         continue;
                     }
                     return GetStatus.MISSING;

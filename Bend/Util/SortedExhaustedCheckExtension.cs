@@ -11,16 +11,19 @@ namespace Bend {
      * SortedSetExhaustedException
      */
 
-    class SortedSetExhaustedException : Exception {
-        SortedSetExhaustedException(string note) : base(note){
-
+    public class SortedSetExhaustedException : Exception {
+        public object payload;
+        public SortedSetExhaustedException(string note, object payload) : base(note){
+            this.payload = payload;
         }
     }
 
     static class SortedExhaustedCheck {
 
         public static IEnumerable<KeyValuePair<K, V>> CheckExhausted<K, V>(
-            this IEnumerable<KeyValuePair<K, V>> one, string debug_note = "") where K : IComparable<K> {
+            this IEnumerable<KeyValuePair<K, V>> one, 
+            string debug_note = "", 
+            object payload = null) where K : IComparable<K> {
 
             IEnumerator<KeyValuePair<K, V>> oneenum = one.GetEnumerator();
             
@@ -30,7 +33,7 @@ namespace Bend {
                 yield return oneenum.Current;
                 one_hasmore = oneenum.MoveNext();
             }
-            throw new Exception("CheckExhausted ran out: " + debug_note);
+            throw new SortedSetExhaustedException("CheckExhausted ran out: " + debug_note, payload);
         }
     }
 
