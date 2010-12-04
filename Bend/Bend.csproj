@@ -122,6 +122,7 @@
     <Compile Include="LayerManager\RootMetadata\RangemapManager.cs" />
     <Compile Include="Segment\SegmentBlockBasicTest.cs" />
     <Compile Include="Util\Checksum.cs" />
+    <Compile Include="Util\SortedExhaustedCheckExtension.cs" />
     <Compile Include="Util\SortedAscendingCheckExtension.cs" />
     <Compile Include="Util\SortedIntersectExtension.cs" />
     <Compile Include="Util\FastScan.cs" />

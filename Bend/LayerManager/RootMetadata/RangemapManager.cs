@@ -3,7 +3,7 @@
 
 
 // #define DEBUG_SEGMENT_WALK            // full segment walking debug
-#define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
+// #define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
 // #define DEBUG_SEGMENT_ACCUMULATION   
 // #define DEBUG_SEGMENT_RANGE_WALK
 
@@ -241,12 +241,14 @@ namespace Bend
 
         // ------------[ public segmentWalkForKey ] --------------
 
+        
+
         public GetStatus getNextRecord(
             IComparable<RecordKey> lowkey, 
             ref RecordKey key, 
             ref RecordData record,
             bool equal_ok) {
-                return getNextRecord_LowLevel(
+                return getNextRecord_LowLevel_Cursor(
                     lowkey, 
                     true, 
                     ref key, 
@@ -375,9 +377,132 @@ namespace Bend
 
         }
 
+        public GetStatus getNextRecord_LowLevel_Cursor(
+            IComparable<RecordKey> lowkey,
+            bool direction_is_forward,
+            ref RecordKey key,
+            ref RecordData record,
+            bool equal_ok,
+            bool tombstone_ok) {
+
+
+                IComparable<RecordKey> cur_key = lowkey;
+                Console.WriteLine("getNextRecord_LowLevel_Cursor(lowkey={0})", lowkey);                    
+
+                while (true) {
+
+                    SegmentWalkStats stats = new SegmentWalkStats();
+
+                    var handledIndexRecords = new BDSkipList<RecordKey, RecordData>();
+                    var recordSegments = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
+
+#if DEBUG_SEGMENT_WALK
+                Console.WriteLine("getNextRecord_LowLevel({0})", lowkey);
+#endif
+
+
+                    SegmentMemoryBuilder[] layers;
+                    // snapshot the working segment layers
+                    lock (this.store.segmentlayers) {
+                        layers = this.store.segmentlayers.ToArray();
+                    }
+
+                    DateTime start = DateTime.Now;
+                    // TODO: fix this super-hack to do "minKey/maxKey"
+                    foreach (SegmentMemoryBuilder layer in layers) {
+                        if (layer.RowCount == 0) {
+                            continue;
+                        }
+                        // use the first and last records in the segment as the rangekeys
+                        var segrk = RangeKey.newSegmentRangeKey(
+                                        layer.FindNext(null, true).Key,
+                                        layer.FindPrev(null, true).Key,
+                                        num_generations);
+
+                        INTERNAL_segmentWalkCursorSetupForNextKey(
+                            cur_key,
+                            direction_is_forward,
+                            layer,
+                            segrk,
+                            handledIndexRecords,
+                            num_generations,
+                            recordSegments,
+                            equal_ok,
+                            stats: stats);
+                    }
+                    DateTime end = DateTime.Now;
+
+#if DEBUG_SEGMENT_WALK_COUNTERS
+                Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", lowkey, (((end - start).TotalMilliseconds)));
+                Console.WriteLine(stats);
+
+#endif
+
+                    // at this point we should have the "next segment that could contain the target" for
+                    // every generation. We only NEED to advance the ones whose rangekeys are lower than the 
+                    // "current" lowkey. However, we're going to start by doing the simpler loop of just 
+                    // getting the next record from each, and merging. If any of them run out of keys, we have to
+                    // throw an exception and re-trigger a fetch of the next segment for that generation. 
+
+
+                    // now scan the returned segments for records...
+                    IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
+                    foreach (var curseg_kvp in recordSegments.scanForward(null)) {
+                        Console.WriteLine("setup: " + curseg_kvp);
+                        IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> seg_scanner;
+                        if (direction_is_forward) {
+                            seg_scanner = curseg_kvp.Value.scanForward(
+                                new ScanRange<RecordKey>(
+                                    lowkey,
+                                    new ScanRange<RecordKey>.maxKey(),
+                                    null));
+                        } else {
+                            seg_scanner = curseg_kvp.Value.scanBackward(
+                                new ScanRange<RecordKey>(
+                                    new ScanRange<RecordKey>.minKey(),
+                                    lowkey,
+                                    null));
+                        }
+
+                        // add the exhausted check
+                        seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key);
+
+                        if (chain == null) {
+                            chain = seg_scanner;
+                        } else {
+                            chain = SortedMergeExtension.MergeSort(seg_scanner, chain,
+                            dropRightDuplicates: true, direction_is_forward: direction_is_forward);  // merge sort keeps keys on the left
+                        }
+                    }
+
+                    try {
+                        foreach (var out_rec in chain) {
+                            cur_key = out_rec.Key;
+                            if (out_rec.Value.type == RecordUpdateTypes.FULL) {
+                                if (equal_ok || (lowkey.CompareTo(out_rec.Key)) != 0) {
+                                    record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
+                                    record.applyUpdate(out_rec.Value);
+                                    key = out_rec.Key;
+                                    return GetStatus.PRESENT;
+                                }
+                            }
+                            equal_ok = false;
+                        }
+                    } catch (SortedSetExhaustedException e) {
+                        Console.WriteLine("One ran out: " + e.ToString());
+                        // we need to prime the next key properly
+                        Console.WriteLine("lowkey: {0}  cur_key:{1}", lowkey, cur_key);
+                        throw new Exception(e.ToString());
+                        continue;
+                    }
+                    return GetStatus.MISSING;
+                }
+        }
+
+
 
         // [DebuggerDisplay("RangeKey( {generation}:{lowkey} -> {highkey} )")]
-        public class RangeKey 
+        public class RangeKey : IComparable<RangeKey>
         {
             public RecordKey lowkey = null;
             public RecordKey highkey = null;
@@ -461,6 +586,16 @@ namespace Bend
                 } else {
                     return false;
                 }
+            }
+
+            public int CompareTo(RangeKey target) {
+                int cmpres = this.generation.CompareTo(target.generation);
+                if (cmpres != 0) { return cmpres; }
+                cmpres = this.lowkey.CompareTo(target.lowkey);
+                if (cmpres != 0) { return cmpres; }
+                cmpres = this.highkey.CompareTo(target.highkey);
+                return cmpres;
+
             }
 
             public bool directlyContainsKey(IComparable<RecordKey> testkey) {
@@ -853,6 +988,103 @@ namespace Bend
                 // now repeat the walk of range references in this segment, this time actually descending
             }
         }
+
+
+        // ---------------------------------------------------------
+
+        private void INTERNAL_segmentWalkCursorSetupForNextKey(
+            IComparable<RecordKey> startkeytest,
+            bool direction_is_forward,
+            ISortedSegment curseg_raw,
+            RangeKey curseg_rangekey,
+            IScannableDictionary<RecordKey, RecordData> handledIndexRecords,
+            int maxgen,
+            IScannableDictionary<RangeKey, IScannable<RecordKey, RecordUpdate>> segmentsWithRecords,
+            bool equal_ok,
+            SegmentWalkStats stats) {
+
+            // TODO: convert all ISortedSegments to be IScannable
+            IScannable<RecordKey, RecordUpdate> curseg = (IScannable<RecordKey, RecordUpdate>)curseg_raw;
+
+            stats.segmentWalkInvocations++;
+
+
+            // first look in this segment for a next-key **IF** it may contain one
+            if (curseg_rangekey.directlyContainsKey(startkeytest)) {
+                // add the current segment to the list of segments with records. 
+                segmentsWithRecords.Add(curseg_rangekey,curseg);                
+            }
+
+
+            // find all generation range references that are relevant for this key
+            // .. make a note of which ones are "current"             
+            if (curseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
+                BDSkipList<RecordKey, RecordUpdate> todo_list = new BDSkipList<RecordKey, RecordUpdate>();
+
+
+                for (int i = maxgen - 1; i >= 0; i--) {
+                    stats.segmentRangeRowScansPerformed++;
+                    foreach (KeyValuePair<RecordKey, RecordUpdate> rangerow in RangeKey.findAllEligibleRangeRows(curseg, startkeytest, i, stats)) {
+                        // see if it is new for our handledIndexRecords dataset
+                        RecordData partial_rangedata;
+                        stats.segmentAccumulate_TryGet++;
+                        if (!handledIndexRecords.TryGetValue(rangerow.Key, out partial_rangedata)) {
+                            partial_rangedata = new RecordData(RecordDataState.NOT_PROVIDED, rangerow.Key);
+                            handledIndexRecords[rangerow.Key] = partial_rangedata;
+                        }
+                        if ((partial_rangedata.State == RecordDataState.INCOMPLETE) ||
+                            (partial_rangedata.State == RecordDataState.NOT_PROVIDED)) {
+                            // we're suppilying new data for this index record
+                            partial_rangedata.applyUpdate(rangerow.Value);
+                            stats.segmentUpdatesApplied++;
+                            // because we're suppilying new data, we should add this to our
+                            // private TODO list if it is a FULL update, NOT a tombstone
+                            if (rangerow.Value.type == RecordUpdateTypes.FULL) {
+#if DEBUG_SEGMENT_RANGE_WALK
+                                for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
+                                Console.WriteLine("adding SegmentRangeRow: {0}", rangerow);
+#endif
+
+                                todo_list.Add(rangerow);
+                            }
+                        }
+                    }
+                }
+
+
+                // now repeat the walk through our todo list:
+                foreach (KeyValuePair<RecordKey, RecordUpdate> rangepointer in todo_list.scanBackward(null)) {
+                    if (rangepointer.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                        // skip deletion tombstones
+                        stats.segmentDeletionTombstonesSkipped++;
+                        continue;
+                    }
+                    SegmentReader next_seg = segmentReaderFromRow(rangepointer);
+
+                    RangeKey next_seg_rangekey = RangeKey.decodeFromRecordKey(rangepointer.Key);
+#if DEBUG_SEGMENT_WALK
+                    for (int depth = 10; depth > maxgen; depth--) { Console.Write("  "); }
+                    Console.WriteLine("..WalkForNextKey descending to: {0}", rangepointer);
+#endif
+                    // RECURSE
+                    INTERNAL_segmentWalkCursorSetupForNextKey(
+                        startkeytest,
+                        direction_is_forward,
+                        next_seg,
+                        next_seg_rangekey,
+                        handledIndexRecords,
+                        maxgen - 1,
+                        segmentsWithRecords,
+                        equal_ok,
+                        stats);
+
+                }
+                // now repeat the walk of range references in this segment, this time actually descending
+            }
+        }
+
+
+
 
     }
 
