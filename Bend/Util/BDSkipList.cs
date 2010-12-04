@@ -229,7 +229,7 @@ namespace Bend
 
                     // we used to just set the value
                     // next[0].right.value = value;
-                    throw new ArgumentException("BDSkipList, Add(" + key.ToString() + "," + value.ToString() +
+                    throw new ArgumentException("BDSkipList collision: Add(" + key.ToString() + "," + value.ToString() +
                                         ") collides with (" + next[0].right.key.ToString() + "," + next[0].right.value.ToString() + ")");
                 }
 
