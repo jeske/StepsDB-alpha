@@ -119,7 +119,8 @@ namespace BendTests {
         public static int intersectCompare(string v1,string v2) {
             return v1.Split('/')[1].CompareTo(v2.Split('/')[1]);
         }
-
+    }
+    public partial class ZZ_TODO_UtilTest {
         [Test]
         public void T00_SortedIntersectMatchFunc() {
             // make two sorted lists
