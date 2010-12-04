@@ -241,15 +241,13 @@ namespace Bend
 
         // ------------[ public segmentWalkForKey ] --------------
 
-        
-
         public GetStatus getNextRecord(
             IComparable<RecordKey> lowkey, 
             ref RecordKey key, 
             ref RecordData record,
             bool equal_ok) {
 
-                foreach (var kvp in getNextRecord_LowLevel_Cursor(
+                foreach (var kvp in getRecord_LowLevel_Cursor(
                         lowkey,
                         null,
                         true,
@@ -382,153 +380,155 @@ namespace Bend
 
         }
 
-        public IEnumerable<KeyValuePair<RecordKey, RecordData>> getNextRecord_LowLevel_Cursor(
-            IComparable<RecordKey> startkey,
-            IComparable<RecordKey> endkey,
+        public IEnumerable<KeyValuePair<RecordKey, RecordData>> getRecord_LowLevel_Cursor(
+            IComparable<RecordKey> lowestKeyTest,
+            IComparable<RecordKey> highestKeyTest,
             bool direction_is_forward,            
             bool equal_ok,
             bool tombstone_ok) {
+            
+            IComparable<RecordKey> cur_key;
 
-
-                IComparable<RecordKey> cur_key = startkey;
-                Console.WriteLine("getNextRecord_LowLevel_Cursor(lowkey={0})", startkey);                    
-
-                while (true) {
-
-                    SegmentWalkStats stats = new SegmentWalkStats();
-
-                    var handledIndexRecords = new BDSkipList<RecordKey, RecordData>();
-                    var recordSegments = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
+            if (direction_is_forward) {
+                cur_key = lowestKeyTest;
+            } else {
+                cur_key = highestKeyTest;
+            }
 
 #if DEBUG_SEGMENT_WALK
-                Console.WriteLine("getNextRecord_LowLevel({0})", lowkey);
+            Console.WriteLine("getNextRecord_LowLevel_Cursor(cur_key={0})", cur_key);                    
 #endif
+            while (true) {
 
+                SegmentWalkStats stats = new SegmentWalkStats();
 
-                    SegmentMemoryBuilder[] layers;
-                    // snapshot the working segment layers
-                    lock (this.store.segmentlayers) {
-                        layers = this.store.segmentlayers.ToArray();
+                var handledIndexRecords = new BDSkipList<RecordKey, RecordData>();
+                var recordSegments = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
+
+                SegmentMemoryBuilder[] layers;
+                // snapshot the working segment layers
+                lock (this.store.segmentlayers) {
+                    layers = this.store.segmentlayers.ToArray();
+                }
+
+                DateTime start = DateTime.Now;
+                // TODO: fix this super-hack for "minKey/maxKey"
+                foreach (SegmentMemoryBuilder layer in layers) {
+                    if (layer.RowCount == 0) {
+                        continue;
                     }
+                    // use the first and last records in the segment as the rangekeys
+                    var segrk = RangeKey.newSegmentRangeKey(
+                                    layer.FindNext(null, true).Key,
+                                    layer.FindPrev(null, true).Key,
+                                    num_generations);
 
-                    DateTime start = DateTime.Now;
-                    // TODO: fix this super-hack to do "minKey/maxKey"
-                    foreach (SegmentMemoryBuilder layer in layers) {
-                        if (layer.RowCount == 0) {
-                            continue;
-                        }
-                        // use the first and last records in the segment as the rangekeys
-                        var segrk = RangeKey.newSegmentRangeKey(
-                                        layer.FindNext(null, true).Key,
-                                        layer.FindPrev(null, true).Key,
-                                        num_generations);
-
-                        INTERNAL_segmentWalkCursorSetupForNextKey(
-                            cur_key,
-                            direction_is_forward,
-                            layer,
-                            segrk,
-                            handledIndexRecords,
-                            num_generations,
-                            recordSegments,
-                            equal_ok,
-                            stats: stats);
-                    }
-                    DateTime end = DateTime.Now;
+                    INTERNAL_segmentWalkCursorSetupForNextKey(
+                        cur_key,
+                        direction_is_forward,
+                        layer,
+                        segrk,
+                        handledIndexRecords,
+                        num_generations,
+                        recordSegments,
+                        equal_ok,
+                        stats: stats);
+                }
+                DateTime end = DateTime.Now;
 
 #if DEBUG_SEGMENT_WALK_COUNTERS
-                Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", lowkey, (((end - start).TotalMilliseconds)));
-                Console.WriteLine(stats);
+            Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", lowkey, (((end - start).TotalMilliseconds)));
+            Console.WriteLine(stats);
 
 #endif
 
-                    // at this point we should have the "next segment that could contain the target" for
-                    // every generation. We only NEED to advance the ones whose rangekeys are lower than the 
-                    // "current" lowkey. However, we're going to start by doing the simpler loop of just 
-                    // getting the next record from each, and merging. If any of them run out of keys, we have to
-                    // throw an exception and re-trigger a fetch of the next segment for that generation. 
+                // at this point we should have the "next segment that could contain the target" for
+                // every generation. We only NEED to advance the ones whose rangekeys are lower than the 
+                // "current" lowkey. However, we're going to start by doing the simpler loop of just 
+                // getting the next record from each, and merging. If any of them run out of keys, we have to
+                // throw an exception and re-trigger a fetch of the next segment for that generation. 
 
 
-                    // now scan the returned segments for records...
-                    IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
-                    foreach (var curseg_kvp in recordSegments.scanForward(null)) {
-                        Console.WriteLine("setup: " + curseg_kvp);
-                        IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> seg_scanner;
-                        if (direction_is_forward) {
-                            seg_scanner = curseg_kvp.Value.scanForward(
-                                new ScanRange<RecordKey>(
-                                    cur_key,
-                                    new ScanRange<RecordKey>.maxKey(),
-                                    null));
-                        } else {
-                            seg_scanner = curseg_kvp.Value.scanBackward(
-                                new ScanRange<RecordKey>(
-                                    new ScanRange<RecordKey>.minKey(),
-                                    cur_key,
-                                    null));
-                        }
-
-                        // add the exhausted check
-                        seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key, curseg_kvp);
-
-                        if (chain == null) {
-                            chain = seg_scanner;
-                        } else {
-                            chain = SortedMergeExtension.MergeSort(seg_scanner, chain,
-                            dropRightDuplicates: true, direction_is_forward: direction_is_forward);  // merge sort keeps keys on the left
-                        }
+                // now scan the returned segments for records...
+                IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
+                foreach (var curseg_kvp in recordSegments.scanForward(null)) {
+                    Console.WriteLine("setup: " + curseg_kvp);
+                    IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> seg_scanner;
+                    if (direction_is_forward) {
+                        seg_scanner = curseg_kvp.Value.scanForward(
+                            new ScanRange<RecordKey>(
+                                cur_key,
+                                new ScanRange<RecordKey>.maxKey(),
+                                null));
+                    } else {
+                        seg_scanner = curseg_kvp.Value.scanBackward(
+                            new ScanRange<RecordKey>(
+                                new ScanRange<RecordKey>.minKey(),
+                                cur_key,
+                                null));
                     }
 
-                    var chain_enum = chain.GetEnumerator();
-                    bool chain_hasmore = true;
+                    // add the exhausted check
+                    seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key, curseg_kvp);
 
-                    while (chain_hasmore) {
-                        try {
-                            chain_hasmore = chain_enum.MoveNext();
-                        } catch (SortedSetExhaustedException e) {
-                            Console.WriteLine("One ran out: " + e.ToString());
-                            // we need to prime the next key properly
-                            Console.WriteLine("lowkey: {0}  cur_key:{1}", startkey, cur_key);
-                            // throw new Exception(e.ToString());
-                            KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
-                                (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
-                            // set cur_key to the last key in the RangeKey?? 
+                    if (chain == null) {
+                        chain = seg_scanner;
+                    } else {
+                        chain = SortedMergeExtension.MergeSort(seg_scanner, chain,
+                        dropRightDuplicates: true, direction_is_forward: direction_is_forward);  // merge sort keeps keys on the left
+                    }
+                }
 
-                            cur_key = RecordKey.AfterPrefix(seg_ranout.Key.highkey);
-                            continue;
-                        }
+                var chain_enum = chain.GetEnumerator();
+                bool chain_hasmore = true;
 
-                        var out_rec = chain_enum.Current;
+                while (chain_hasmore) {
+                    try {
+                        chain_hasmore = chain_enum.MoveNext();
+                    } catch (SortedSetExhaustedException e) {
+                        Console.WriteLine("One ran out: " + e.ToString());
+                        // we need to prime the next key properly
+                        Console.WriteLine("lowkey: {0}  cur_key:{1}", lowestKeyTest, cur_key);
+                        // throw new Exception(e.ToString());
+                        KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
+                            (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
+                        // set cur_key to the last key in the RangeKey?? 
+
+                        cur_key = RecordKey.AfterPrefix(seg_ranout.Key.highkey);
+                        continue;
+                    }
+
+                    var out_rec = chain_enum.Current;
                         
-                        // end for past endkey
-                        if (endkey != null) {
-                            if (direction_is_forward) {
-                                if (endkey.CompareTo(out_rec.Key) < 0) {
-                                    yield break;
-                                }
-                            } else {
-                                if (endkey.CompareTo(out_rec.Key) > 0) {
-                                    yield break;
-                                }
+                    // end for past endkey
+                    if (highestKeyTest != null) {
+                        if (direction_is_forward) {
+                            if (highestKeyTest.CompareTo(out_rec.Key) < 0) {
+                                yield break;
+                            }
+                        } else {
+                            if (lowestKeyTest.CompareTo(out_rec.Key) > 0) {
+                                yield break;
                             }
                         }
+                    }
                             
 
-                        if (out_rec.Value.type == RecordUpdateTypes.FULL) {
-                            if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
-                                var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
-                                record.applyUpdate(out_rec.Value);
+                    if (out_rec.Value.type == RecordUpdateTypes.FULL) {
+                        if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
+                            var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
+                            record.applyUpdate(out_rec.Value);
 
-                                yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                                
-                            }
+                            yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                                
                         }
-                        cur_key = out_rec.Key;
-                        equal_ok = false;
-                        Console.WriteLine("advance past. {0}", out_rec);
                     }
-
-                    yield break;
+                    cur_key = out_rec.Key;
+                    equal_ok = false;
+                    Console.WriteLine("advance past. {0}", out_rec);
                 }
+
+                yield break;
+            }
         }
 
 
