@@ -46,7 +46,6 @@ namespace Bend
 
         public abstract int CompareToPeer(RecordKeyType peer_target);  
         internal abstract void encodeSubtypeTo(BinaryWriter w);
-        public abstract int GetHashCode();
 
         public static RecordKeyType decodeFrom(BinaryReader r) {
             byte subtype_byte = r.ReadByte();
