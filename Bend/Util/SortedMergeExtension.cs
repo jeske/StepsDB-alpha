@@ -11,13 +11,10 @@ namespace Bend
 
         public static IEnumerable<KeyValuePair<K, V>> MergeSort<K, V>(
             this IEnumerable<KeyValuePair<K, V>> one,
-            IEnumerable<KeyValuePair<K, V>> two) where K : IComparable<K> {
-            return MergeSort<K, V>(one, two, false);
-        }
-        public static IEnumerable<KeyValuePair<K, V>> MergeSort<K, V>(
-            this IEnumerable<KeyValuePair<K, V>> one,
-            IEnumerable<KeyValuePair<K, V>> two, bool dropRightDuplicates) where K : IComparable<K> {
-
+            IEnumerable<KeyValuePair<K, V>> two, 
+            bool dropRightDuplicates = true,
+            bool direction_is_forward = true) where K : IComparable<K> {
+            
             IEnumerator<KeyValuePair<K, V>> oneenum = one.GetEnumerator();
             IEnumerator<KeyValuePair<K, V>> twoenum = two.GetEnumerator();
 
@@ -25,8 +22,17 @@ namespace Bend
             bool one_hasmore = oneenum.MoveNext();
             bool two_hasmore = twoenum.MoveNext();
 
-            while (one_hasmore && two_hasmore) {
+            while (one_hasmore && two_hasmore) {                
                 int compareResult = oneenum.Current.Key.CompareTo(twoenum.Current.Key);
+                if (!direction_is_forward) {
+                    // flip the compare result
+                    if (compareResult < 0) {
+                        compareResult = 1;
+                    } else if (compareResult > 0) {
+                        compareResult = -1;
+                    }
+
+                }
                 KeyValuePair<K, V> val;
                 if (compareResult < 0) {
                     // one < two
