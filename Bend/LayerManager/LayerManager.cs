@@ -364,37 +364,21 @@ namespace Bend
         }
 
 
-        public IEnumerable<SegmentDescriptor> listAllSegments() {            
-            int gen_count = rangemapmgr.genCount();
-
-            if (gen_count < 1) {
-                // nothing to even reprocess
-                yield break;
-            }
-
-
+        public IEnumerable<SegmentDescriptor> listAllSegments() {                        
             RecordKey start_key = new RecordKey().appendParsedKey(".ROOT/GEN");
-            RecordKey cur_key = start_key;
-            RecordKey found_key = new RecordKey();
-            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
-            while (rangemapmgr.getNextRecord(cur_key, ref found_key, ref found_record, false) == GetStatus.PRESENT) {
-                cur_key = found_key;
-                // check that the first two keyparts match
-                if (found_key.isSubkeyOf(start_key)) {
-                    // TODO: why is getNextRecord returning deleted records?!?!? Is that correct?
-                    if (found_record.State == RecordDataState.DELETED) {
-                        continue; // ignore the tombstone
-                    } else if (found_record.State != RecordDataState.FULL) {
-                        throw new Exception("can't handle incomplete segment record");
-                    } else {
-                        Console.WriteLine("listAllSegments: {0} => {1}", found_key, found_record);
-                        yield return rangemapmgr.getSegmentDescriptorFromRecordKey(found_key);
-                    }             
-                } else {
-                    // we're done matching the generation records
-                    break;
-                }
-            }           
+            var end_key = RecordKey.AfterPrefix(start_key);
+            int seg_count = 0;
+            // int gen_count = rangemapmgr.genCount();            
+
+            DateTime start = DateTime.Now;
+            foreach (var kvp in rangemapmgr.getRecord_LowLevel_Cursor(start_key, end_key, true, true, false)) {
+                yield return rangemapmgr.getSegmentDescriptorFromRecordKey(kvp.Key);
+                seg_count++;
+            }
+            DateTime end = DateTime.Now;
+
+            Console.WriteLine("listAllSegments: {0} segments listed in {1} seconds",
+                seg_count, (end - start).TotalSeconds);
         }
 
         public static IEnumerable<KeyValuePair<K, V>> RemoveTombstones<K, V>(
@@ -658,6 +642,26 @@ namespace Bend
 
 
         private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan(IScanner<RecordKey> scanner, bool direction_is_forward) {
+            IComparable<RecordKey> lowestKeyTest = null;
+            IComparable<RecordKey> highestKeyTest = null;
+            if (scanner != null) {
+                lowestKeyTest = scanner.genLowestKeyTest();
+                highestKeyTest = scanner.genHighestKeyTest();
+            } else {
+                lowestKeyTest = new ScanRange<RecordKey>.minKey();
+                highestKeyTest = new ScanRange<RecordKey>.maxKey();
+            }
+
+            return rangemapmgr.getRecord_LowLevel_Cursor(
+                lowestKeyTest,
+                highestKeyTest,
+                direction_is_forward,
+                true,
+                false);
+
+        }
+
+        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan2(IScanner<RecordKey> scanner, bool direction_is_forward) {
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
             if (scanner != null) {
