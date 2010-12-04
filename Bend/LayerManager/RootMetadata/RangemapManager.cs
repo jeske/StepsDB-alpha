@@ -475,33 +475,42 @@ namespace Bend
                         }
                     }
 
-                    try {
-                        foreach (var out_rec in chain) {                            
-                            if (out_rec.Value.type == RecordUpdateTypes.FULL) {
-                                if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
-                                    record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
-                                    record.applyUpdate(out_rec.Value);
-                                    key = out_rec.Key;
-                                    return GetStatus.PRESENT;
-                                }
-                            }
-                            cur_key = out_rec.Key;
-                            equal_ok = false;
-                            Console.WriteLine("advance past. {0}", out_rec);
-                            
-                        }
-                    } catch (SortedSetExhaustedException e) {
-                        Console.WriteLine("One ran out: " + e.ToString());
-                        // we need to prime the next key properly
-                        Console.WriteLine("lowkey: {0}  cur_key:{1}", lowkey, cur_key);
-                        // throw new Exception(e.ToString());
-                        KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
-                            (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
-                        // set cur_key to the last key in the RangeKey?? 
+                    var chain_enum = chain.GetEnumerator();
+                    bool chain_hasmore = true;
 
-                        cur_key = RecordKey.AfterPrefix(seg_ranout.Key.highkey);
-                        continue;
+                    while (chain_hasmore) {
+                        try {
+                            chain_hasmore = chain_enum.MoveNext();
+                        } catch (SortedSetExhaustedException e) {
+                            Console.WriteLine("One ran out: " + e.ToString());
+                            // we need to prime the next key properly
+                            Console.WriteLine("lowkey: {0}  cur_key:{1}", lowkey, cur_key);
+                            // throw new Exception(e.ToString());
+                            KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
+                                (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
+                            // set cur_key to the last key in the RangeKey?? 
+
+                            cur_key = RecordKey.AfterPrefix(seg_ranout.Key.highkey);
+                            continue;
+                        }
+
+
+
+                        var out_rec = chain_enum.Current;
+                        if (out_rec.Value.type == RecordUpdateTypes.FULL) {
+                            if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
+                                record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
+                                record.applyUpdate(out_rec.Value);
+                                key = out_rec.Key;
+                                return GetStatus.PRESENT;
+                            }
+                        }
+                        cur_key = out_rec.Key;
+                        equal_ok = false;
+                        Console.WriteLine("advance past. {0}", out_rec);
                     }
+
+                    
                     return GetStatus.MISSING;
                 }
         }
