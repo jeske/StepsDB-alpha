@@ -31,14 +31,17 @@ namespace BendTests
             RecordKey key3 = new RecordKey().appendKeyPart(new RecordKeyType_RawBytes(new byte[0]));
             RecordKey key4 = new RecordKey().appendKeyPart(new byte[0]);
             Assert.AreEqual(true, key3.Equals(key4), "null keys should match");
+        }
 
-
+        [Test]
+        public void T12_RecordKeyStringCompBugTest() {
             var key5 = new RecordKey().appendParsedKey(@".zdata/index/>you/c:\EmailTest\Data\saved_mail_2002:1407/182");
             var key6 = new RecordKey().appendParsedKey(@".zdata/index/?/c:\EmailTest\Data\saved_mail_2002:908/184");
 
             Assert.True('>'.CompareTo('?') < 0, "check char comparison");
             Assert.True(">".CompareTo("?") < 0, "check string comparison");
             Assert.True(key5.CompareTo(key6) < 0, " '>' should be < '?' ");
+
         }
 
         [Test]
