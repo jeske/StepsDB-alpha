@@ -248,13 +248,18 @@ namespace Bend
             ref RecordKey key, 
             ref RecordData record,
             bool equal_ok) {
-                return getNextRecord_LowLevel_Cursor(
-                    lowkey, 
-                    true, 
-                    ref key, 
-                    ref record, 
-                    equal_ok:equal_ok, 
-                    tombstone_ok:false);
+
+                foreach (var kvp in getNextRecord_LowLevel_Cursor(
+                        lowkey,
+                        null,
+                        true,
+                        equal_ok: equal_ok,
+                        tombstone_ok: false)) {
+                            key = kvp.Key;
+                            record = kvp.Value;
+                            return GetStatus.PRESENT;
+                }
+                return GetStatus.MISSING;
         }
 
         
@@ -377,17 +382,16 @@ namespace Bend
 
         }
 
-        public GetStatus getNextRecord_LowLevel_Cursor(
-            IComparable<RecordKey> lowkey,
-            bool direction_is_forward,
-            ref RecordKey key,
-            ref RecordData record,
+        public IEnumerable<KeyValuePair<RecordKey, RecordData>> getNextRecord_LowLevel_Cursor(
+            IComparable<RecordKey> startkey,
+            IComparable<RecordKey> endkey,
+            bool direction_is_forward,            
             bool equal_ok,
             bool tombstone_ok) {
 
 
-                IComparable<RecordKey> cur_key = lowkey;
-                Console.WriteLine("getNextRecord_LowLevel_Cursor(lowkey={0})", lowkey);                    
+                IComparable<RecordKey> cur_key = startkey;
+                Console.WriteLine("getNextRecord_LowLevel_Cursor(lowkey={0})", startkey);                    
 
                 while (true) {
 
@@ -484,7 +488,7 @@ namespace Bend
                         } catch (SortedSetExhaustedException e) {
                             Console.WriteLine("One ran out: " + e.ToString());
                             // we need to prime the next key properly
-                            Console.WriteLine("lowkey: {0}  cur_key:{1}", lowkey, cur_key);
+                            Console.WriteLine("lowkey: {0}  cur_key:{1}", startkey, cur_key);
                             // throw new Exception(e.ToString());
                             KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
                                 (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
@@ -494,15 +498,28 @@ namespace Bend
                             continue;
                         }
 
-
-
                         var out_rec = chain_enum.Current;
+                        
+                        // end for past endkey
+                        if (endkey != null) {
+                            if (direction_is_forward) {
+                                if (endkey.CompareTo(out_rec.Key) < 0) {
+                                    yield break;
+                                }
+                            } else {
+                                if (endkey.CompareTo(out_rec.Key) > 0) {
+                                    yield break;
+                                }
+                            }
+                        }
+                            
+
                         if (out_rec.Value.type == RecordUpdateTypes.FULL) {
                             if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
-                                record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
+                                var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
                                 record.applyUpdate(out_rec.Value);
-                                key = out_rec.Key;
-                                return GetStatus.PRESENT;
+
+                                yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                                
                             }
                         }
                         cur_key = out_rec.Key;
@@ -510,8 +527,7 @@ namespace Bend
                         Console.WriteLine("advance past. {0}", out_rec);
                     }
 
-                    
-                    return GetStatus.MISSING;
+                    yield break;
                 }
         }
 
