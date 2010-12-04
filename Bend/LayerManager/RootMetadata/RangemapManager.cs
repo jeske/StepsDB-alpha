@@ -457,6 +457,9 @@ namespace Bend
                     yield break;
                 }
 
+
+                RecordKey segment_reload_at_key = null;
+
                 // now scan the returned segments for records...
                 IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
                 foreach (var curseg_kvp in recordSegments.scanForward(null)) {
@@ -479,7 +482,19 @@ namespace Bend
                     }
 
                     // add the exhausted check
-                    seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key, curseg_kvp);
+                    // seg_scanner = SortedExhaustedCheck.CheckExhausted(seg_scanner, "exhausted: " + curseg_kvp.Key, curseg_kvp);
+
+                    // check if this has the first segment end
+                    if (direction_is_forward) {
+                        if (segment_reload_at_key == null || segment_reload_at_key.CompareTo(curseg_kvp.Key.highkey) > 0) {
+                            segment_reload_at_key = curseg_kvp.Key.highkey;
+                        }
+                    } else {
+                        if (segment_reload_at_key == null || segment_reload_at_key.CompareTo(curseg_kvp.Key.lowkey) < 0) {
+                            segment_reload_at_key = curseg_kvp.Key.lowkey;
+                        }
+
+                    }
 
                     if (chain == null) {
                         chain = seg_scanner;
@@ -510,6 +525,21 @@ namespace Bend
 
                     if (chain_hasmore) {
                         var out_rec = chain_enum.Current;
+                        
+                        // check to see if we need to segment reload
+                        if (direction_is_forward) {
+                            if (segment_reload_at_key.CompareTo(out_rec.Key) < 0) {
+                                cur_key = out_rec.Key;
+                                equal_ok = true;
+                                continue;
+                            }
+                        } else {
+                            if (segment_reload_at_key.CompareTo(out_rec.Key) > 0) {
+                                cur_key = out_rec.Key;
+                                equal_ok = true;
+                                continue;
+                            }
+                        }
 
                         // end for past endkey                    
                         if (direction_is_forward) {
