@@ -58,7 +58,7 @@ namespace Bend.ReplTest1 {
 
         static void do_test() {
             Console.WriteLine("ReplTest1 startup...");
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, @"C:\BENDtest\repl");
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, @"C:\BENDtst\repl");
             Random rnd = new Random();
             ServerConnector connector = new ServerConnector();
 
