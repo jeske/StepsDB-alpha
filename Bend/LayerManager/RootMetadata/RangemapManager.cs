@@ -1139,7 +1139,8 @@ namespace Bend
                 stats.segmentWalkInvocations++; // really iterations
 
                 if (!startseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
-                    throw new Exception("why do we have a worklist item that's not an indirect segment?");
+                    // throw new Exception("why do we have a worklist item that's not an indirect segment?");
+                    return; // nothing to do here.                    
                 }
                 // for each generation, starting with maxgen
                 for (int i = maxgen - 1; i >= 0; i--) {
