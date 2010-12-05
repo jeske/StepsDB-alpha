@@ -447,6 +447,7 @@ namespace Bend
                 }
                 DateTime end = DateTime.Now;
 
+            Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
 #if DEBUG_CURSORS
             Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
             Console.WriteLine(stats);
@@ -1128,7 +1129,7 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
-                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
+//                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #if DEBUG_CURSORS
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif
@@ -1160,19 +1161,20 @@ namespace Bend
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                             
-                            if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                            if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) ||
+                                segmentsWithRecords.ContainsKey(rk)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 continue;
                             }
                             if (direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
-                                    segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                    segmentsWithRecords.Add(rk,
                                         this.segmentReaderFromRow(nextrec));
                                 }
                             } else {
                                 // really only need this if below doesn't find one?
-                                segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                segmentsWithRecords.Add(rk,
                                         this.segmentReaderFromRow(nextrec));
                             }
                             break; // stop once we found a real record
@@ -1188,19 +1190,20 @@ namespace Bend
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                             
-                            if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                            if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) ||
+                                segmentsWithRecords.ContainsKey(rk)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 continue;
                             }
                             if (!direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
-                                    segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                    segmentsWithRecords.Add(rk,
                                         this.segmentReaderFromRow(nextrec));
                                 }
                             } else {
                                 // really only need this if the above didn't find one?? 
-                                segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                segmentsWithRecords.Add(rk,
                                         this.segmentReaderFromRow(nextrec));
                             }
                             break; // stop once we found a real record
