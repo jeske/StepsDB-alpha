@@ -2,7 +2,7 @@
 
 ----[ TODO ]---------
 
-  - GUI: mark blocks which contain index (.ROOT/GEN) records  
+
   - GUI: repaint heap-memory and GC info on a timer
   - GUI: setup generic DB event listener concept and notify GUI through it
 
@@ -199,6 +199,7 @@
 
 ------------[ DONE ]--------------------
   
+12/5  - GUI: mark blocks which contain index (.ROOT/GEN) records  
 12/5  - MergeManager: add merge-priority boosts based on block's generation, whether it has rangekeys, etc.
 12/5  - cursor scan based TextIndexer has MUCH better performance!! 
 12/5  - CURSOR-V2!!!!  - implement fast cursors! 

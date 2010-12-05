@@ -15,6 +15,8 @@ namespace Bend {
         private List<SegmentDescriptor> segments = null;
         private MergeCandidate lastmerge = null;
 
+        static int BLOCK_WIDTH = 50;
+
         public void refreshFromDb(LayerManager db, MergeCandidate mc = null) {            
             var seg = new List<SegmentDescriptor>();
             // this is much faster than using listAllSegments
@@ -135,6 +137,8 @@ namespace Bend {
                     int mid_y = (y_top + y_bottom) / 2;
                     int y_mid_top = (int)(mid_y - (float)segment_height / 2);
 
+                    
+
 
                     // color the inside of the box. pseudorandom color based on a hash of the start/end keys of a block
                     {
@@ -143,7 +147,7 @@ namespace Bend {
 
                         // vary the alpha and colors based on key hashes %N+K makes sure alpha is in a good range
                         var fill = new SolidBrush(Color.FromArgb((h1 % 60) + 80, (h1 + h2) & 0xff, (h2 >> 8) & 0xff, h2 & 0xff));
-                        dc.FillRectangle(fill, cur_x, y_mid_top, 50, segment_height);
+                        dc.FillRectangle(fill, cur_x, y_mid_top, BLOCK_WIDTH, segment_height);
                     }
 
                     if (lastmerge != null) {
@@ -157,6 +161,10 @@ namespace Bend {
                             dc.FillRectangle(merge_brush, cur_x, y_mid_top, 5, segment_height);
                         }
                     }
+                    if (seg.keyrangeContainsSegmentPointers()) {                        
+                        dc.FillRectangle(new SolidBrush(Color.Black), cur_x+BLOCK_WIDTH-5, y_mid_top, 5, segment_height);
+                    }
+
 
                     // when we get a lot of blocks, the outline covers 100% of the inside color
                     //dc.DrawRectangle(BluePen, cur_x, y_mid_top, 50, segment_height);
@@ -168,7 +176,7 @@ namespace Bend {
                 }
 
                 // reset for next time through the loop
-                cur_x += 70;
+                cur_x += 20 + BLOCK_WIDTH;
             }
 
 
