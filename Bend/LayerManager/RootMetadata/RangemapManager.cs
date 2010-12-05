@@ -404,7 +404,7 @@ namespace Bend
             Console.WriteLine("getNextRecord_LowLevel_Cursor(cur_key={0})", cur_key);                    
 #endif
             while (true) {
-
+            reload_cursor:
                 SegmentWalkStats stats = new SegmentWalkStats();
                 stats.handlingGeneration = 100; // hack
 
@@ -529,15 +529,15 @@ namespace Bend
                         // check to see if we need to segment reload
                         if (direction_is_forward) {
                             if (segment_reload_at_key.CompareTo(out_rec.Key) < 0) {
-                                cur_key = out_rec.Key;
-                                equal_ok = true;
-                                continue;
+                                cur_key = segment_reload_at_key;
+                                equal_ok = false;
+                                goto reload_cursor;
                             }
                         } else {
                             if (segment_reload_at_key.CompareTo(out_rec.Key) > 0) {
-                                cur_key = out_rec.Key;
-                                equal_ok = true;
-                                continue;
+                                cur_key = segment_reload_at_key;
+                                equal_ok = false;
+                                goto reload_cursor;
                             }
                         }
 #if DEBUG_CURSORS
@@ -581,7 +581,7 @@ namespace Bend
                 } // while there are more keys in the merge-chain
 
                 equal_ok = false; // merge cursor ran out of keys, so be sure to restart without equal_ok
-
+            
 #if DEBUG_CURSORS
                 Console.WriteLine("cursor-merge ran out of keys");
 
