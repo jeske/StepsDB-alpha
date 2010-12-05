@@ -13,7 +13,7 @@
 
   - improve performance of mbox parser
   - ADD: record block-encoder registry, encoder-type "chain" and decode-setup (so it just auto-decodes whatever is there)
-  - MergeManager: notify_add should check for overlap! 
+  - MergeManager: notify_add should check for overlap within a generation!
   - LayerManager: merge should have a slow/safe mode to verify segments db vs merge-manager after every merge
   - PERF: experiment changing BDSkipList locks into SpinLocks
   - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
