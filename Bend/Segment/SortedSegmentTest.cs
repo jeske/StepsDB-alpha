@@ -195,7 +195,7 @@ namespace BendTests
             // segment readback
             {
                 TestRegionRead testregion = new TestRegionRead(databuffer);
-              
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
                 SegmentReader reader = new SegmentReader(testregion);
 
                 // test the length of the block 
@@ -204,7 +204,8 @@ namespace BendTests
                 RecordUpdate update;
                 GetStatus status = reader.getRecordUpdate(new RecordKey().appendParsedKey("test/1"), out update);
                 Assert.AreEqual(GetStatus.PRESENT, status);
-                Assert.AreEqual("3", update.ToString());
+                
+                Assert.AreEqual("3", enc.GetString(update.data));
             }
         }
 

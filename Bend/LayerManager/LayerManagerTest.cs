@@ -162,7 +162,8 @@ namespace BendTests
 
             {
                 LayerManager db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\4");
-                
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+
                 // assure we still have not committed any segments
                 Assert.AreEqual(1, db.segmentlayers.Count);
                 Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
@@ -175,18 +176,19 @@ namespace BendTests
 
                     // look directly in the working segment
                     {
+
                         RecordUpdate update;
                         GetStatus status = db.workingSegment.getRecordUpdate(key, out update);
-                        Assert.AreEqual(GetStatus.PRESENT, status);
-                        Assert.AreEqual(values[i], update.ToString(), "SegmentBuilder.getRecordUpdate()");
+                        Assert.AreEqual(GetStatus.PRESENT, status, "SegmentBuilder.getRecordUpdate({0})", key);
+                        Assert.AreEqual(values[i], enc.GetString(update.data), "SegmentBuilder.getRecordUpdate({0})",key);
                     }
 
                     // assure the global query interface finds it
                     {
                         RecordData data;
                         GetStatus status = db.getRecord(key, out data);
-                        Assert.AreEqual(GetStatus.PRESENT, status);
-                        Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord()");
+                        Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager.getRecord({0})", key);
+                        Assert.AreEqual(values[i], enc.GetString(data.data), "LayerManager.getRecord({0})",key);
                     }
                 }
 

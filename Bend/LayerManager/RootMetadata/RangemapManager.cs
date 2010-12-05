@@ -1101,11 +1101,13 @@ namespace Bend
             // (1) add working segment to the worklist
             workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
             if (direction_is_forward) {
-                if (startkeytest.CompareTo(startseg_rangekey.highkey) < 0) {
+                int cmpresult = startkeytest.CompareTo(startseg_rangekey.highkey);
+                if (cmpresult < 0 || (equal_ok && (cmpresult <= 0))) {
                     segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
                 }
             } else {
-                if (startkeytest.CompareTo(startseg_rangekey.lowkey) > 0) {
+                int cmpresult = startkeytest.CompareTo(startseg_rangekey.lowkey);
+                if (cmpresult > 0 || (equal_ok && (cmpresult >= 0))) {
                     segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
                 }
             }

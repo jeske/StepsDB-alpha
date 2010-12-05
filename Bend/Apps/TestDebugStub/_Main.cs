@@ -33,14 +33,17 @@ namespace MyTestStub {
             // var testclass = new A02_SegmentDescriptorTests();
             // testclass.T02_DescriptorOverlapTests();
 
-            // var testclass = new A03_LayerManagerTests();
+            var testclass = new A03_LayerManagerTests();
             // testclass.T001_WorkingSegmentReadWrite();
             // testclass.T002_ScanDirections();
             // testclass.T04_SingleSegmentRootMetadataLogRecovery();
+            testclass.T01_LayerTxnLogResume();
 
-            var testclass = new A01_RecordTests();
+            // var testclass = new A01_RecordTests();
             // testclass.T00_RecordKeyEquality();
-            testclass.T11_RecordKey_ComposableIComparableTest();
+            // testclass.T11_RecordKey_ComposableIComparableTest();
+
+
 
 
             // fetchHitsTest();
