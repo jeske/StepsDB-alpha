@@ -1132,8 +1132,9 @@ namespace Bend
                     Console.WriteLine("  handled: {0}  {1}",item,item.GetHashCode());
                 }
                 */
-#if DEBUG_CURSORS
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
+#if DEBUG_CURSORS
+                
 #endif
                 
 
@@ -1154,6 +1155,7 @@ namespace Bend
                             .appendParsedKey(".ROOT/GEN")
                             .appendKeyPart(new RecordKeyType_Long(i))
                             .appendKeyPart(startkeytest);
+                            
 
                         foreach (var nextrec in curseg.scanBackward(
                             new ScanRange<RecordKey>(
@@ -1161,7 +1163,7 @@ namespace Bend
                                 startrk,
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            handledIndexRecords.Add(nextrec.Key);
+                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 continue;
@@ -1180,7 +1182,7 @@ namespace Bend
                             break; // stop once we found a real record
                         }
 
-                        Console.WriteLine("segmentsWithRecords: {0}", segmentsWithRecords);
+                        Console.WriteLine("segmentsWithRecords: {0}", segmentsWithRecords);                        
 
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
@@ -1207,13 +1209,9 @@ namespace Bend
                             break; // stop once we found a real record
                         }
                     }
+                 
 
-
-
-
-
-
-                    // (2) find the range row above or below the indirect range record (.ROOT/GEN/##/{.ROOT/GEN...)
+                    // (3) find the range row above or below the indirect range record (.ROOT/GEN/##/{.ROOT/GEN...)
                     //     TODO: this really doesn't handle the recursive case, because these two records could both be here...
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{.ROOT/GEN/### 
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{Z
@@ -1229,33 +1227,31 @@ namespace Bend
                                 new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i)),
                                 startrk,
                                 null))) {
-                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            handledIndexRecords.Add(nextrec.Key);
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
+                                handledIndexRecords.Add(nextrec.Key);
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                             this.segmentReaderFromRow(nextrec));
                             }
                             break; // stop once we found a real record
                         }
 
-
-
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
                                 startrk,
                                 RecordKey.AfterPrefix(new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
                                 null))) {
-                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            handledIndexRecords.Add(nextrec.Key);
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
+                                handledIndexRecords.Add(nextrec.Key);
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                             this.segmentReaderFromRow(nextrec));
                             }

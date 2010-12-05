@@ -202,6 +202,7 @@ namespace BendTests
         public void T02_LayerSegmentFlushAndFreespaceModification() {
             String[] keys = { "test-1", "test-2", "test-3" };
             String[] values = { "a", "b", "c" };
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\5");
 
@@ -226,7 +227,7 @@ namespace BendTests
                 RecordUpdate update;
                 Assert.AreEqual(GetStatus.PRESENT,
                     db.workingSegment.getRecordUpdate(key, out update), "missing workingsegment numgenerations record");
-                    Assert.AreEqual("1", update.ToString(), "generation count");  
+                    Assert.AreEqual("1", enc.GetString(update.data), "generation count");  
             }
 
 
@@ -314,6 +315,7 @@ namespace BendTests
             {
                 String[] keys = { "test-1", "test-2", "test-3" };
                 String[] values = { "a-second", "b-second", "c-second" };
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
                 LayerManager.WriteGroup txn = db.newWriteGroup();
                 for (int i = 0; i < keys.Length; i++) {
@@ -333,7 +335,7 @@ namespace BendTests
                         GetStatus status =
                             db.workingSegment.getRecordUpdate(key, out update);
                         Assert.AreEqual(GetStatus.PRESENT, status, "working segment should have NEW VALUES");
-                        Assert.AreEqual(values[i], update.ToString(), "SegmentBuilder.getRecordUpdate should see NEW VALUES");
+                        Assert.AreEqual(values[i], enc.GetString(update.data), "SegmentBuilder.getRecordUpdate should see NEW VALUES");
                     }
 
                     // assure the global query interface finds the NEW VALUES
@@ -444,15 +446,15 @@ namespace BendTests
                             RecordUpdate update;
                             GetStatus status =
                                 db.workingSegment.getRecordUpdate(key, out update);
-                            Assert.AreEqual(GetStatus.MISSING, status, "working segment should be MISSING");
+                            Assert.AreEqual(GetStatus.MISSING, status, "working segment should be MISSING {0}", key);
                         }
 
                         // assure the global query interface finds the NEW VALUES
                         {
                             RecordData data;
                             GetStatus status = db.getRecord(key, out data);
-                            Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
-                            Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                            Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES : {0}", key);
+                            Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES : {0}", key);
                         }
                     }
                     db.debugDump();

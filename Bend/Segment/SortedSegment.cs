@@ -475,7 +475,7 @@ namespace Bend
         }
         public void fyiAddedRecord(RecordKey key, RecordUpdate update) {
             this.keys_since_last_block++;
-            this.bytes_since_last_block+= (key.ToString().Length + update.ToString().Length); // FIXME: this seems expensive!
+            this.bytes_since_last_block+= (key.ToString().Length + update.data.Length); // FIXME: this seems expensive!
         }
         public void fyiFinishedBlock() {
             this.keys_since_last_block = 0;
