@@ -131,6 +131,10 @@ namespace Bend.Indexer {
                     KeyValuePair<RecordKey,RecordData> row = hitlist.Current;
                     TermDocHit hit = unpackHit(row.Key);
 
+                    if (hit.word.CompareTo(this.word) != 0) {
+                        throw new Exception(String.Format("invalid hit returned. word({0}) hit({1})",
+                            this.word, hit));
+                    }
                     stats.entries_scanned++;
 
                     if (hit.docid.CompareTo(docid) > 0) {
@@ -151,6 +155,11 @@ namespace Bend.Indexer {
                 while (have_next) {
                     KeyValuePair<RecordKey, RecordData> row = hitlist.Current;
                     TermDocHit hit = unpackHit(row.Key);
+
+                    if (hit.word.CompareTo(this.word) != 0) {
+                        throw new Exception(String.Format("invalid hit returned. word({0}) hit({1})",
+                            this.word, hit));
+                    }
 
                     stats.entries_scanned++;
 
