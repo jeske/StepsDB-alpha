@@ -80,7 +80,7 @@ namespace Bend
         }
 
         public static void dumpSegmentList(LayerManager db) {
-            if (false) {
+            if (true) {
                 // this is the slow method
 
                 var walk = db.rangemapmgr.mergeManager.segmentInfo.GetEnumerator();
@@ -97,13 +97,13 @@ namespace Bend
                         }
                     } else { discrepancy = true; }
 
-                    System.Console.WriteLine("sgen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                    System.Console.WriteLine("db gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
                 }
 
                 if (discrepancy) {
                     foreach (var seginfo in db.rangemapmgr.mergeManager.segmentInfo) {
                         var seg = seginfo.Key;
-                        System.Console.WriteLine("fgen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                        System.Console.WriteLine("mm gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
                     }
                     throw new Exception("mergemanager and db.listAllSegments have different data!");
                 }

@@ -73,6 +73,7 @@ namespace Bend
             int seg_count = 0;
             foreach (var segdesc in store.listAllSegments()) {
                 // TODO: make sure these are in increasing generation order! 
+                Console.WriteLine("gen{0} {1} -> {2}", segdesc.generation, segdesc.start_key, segdesc.end_key);
                 mergeManager.notify_addSegment(segdesc);
                 seg_count++;
             }            
@@ -1101,6 +1102,7 @@ namespace Bend
 
             var workList = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
             var handledIndexRecords = new HashSet<RecordKey>();
+            var handledIndexGenerations = new HashSet<int>();
 
             // (1) add working segment to the worklist
             workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
@@ -1129,7 +1131,7 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
-//                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
+                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #if DEBUG_CURSORS
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif
@@ -1215,6 +1217,7 @@ namespace Bend
                     //     TODO: this really doesn't handle the recursive case, because these two records could both be here...
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{.ROOT/GEN/### 
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{Z
+                    // if (!handledIndexGenerations.Contains(i))
                     {
                         RecordKeyComparator startrk = new RecordKeyComparator()
                             .appendParsedKey(".ROOT/GEN")
@@ -1224,40 +1227,56 @@ namespace Bend
 
                         foreach (var nextrec in curseg.scanBackward(
                             new ScanRange<RecordKey>(
-                                new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i)),
+                                new ScanRange<RecordKey>.minKey(),
                                 startrk,
                                 null))) {
-                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
+                            if (!RangeKey.isRangeKey(nextrec.Key)) {
+                                break;
+                            }
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
+                                break;
+                            }
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 handledIndexRecords.Add(nextrec.Key);
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
-                                handledIndexRecords.Add(nextrec.Key);
+                                handledIndexRecords.Add(nextrec.Key);                                
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
-                                            this.segmentReaderFromRow(nextrec));
+                                            this.segmentReaderFromRow(nextrec));                                
+                                break; // stop once we found a real record
                             }
-                            break; // stop once we found a real record
+                            
                         }
 
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
                                 startrk,
-                                RecordKey.AfterPrefix(new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
+                                new ScanRange<RecordKey>.maxKey(),
                                 null))) {
-                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
+                            if (!RangeKey.isRangeKey(nextrec.Key)) {
+                                break;
+                            }
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
+                                break;
+                            }
+
+                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 handledIndexRecords.Add(nextrec.Key);
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
-                                handledIndexRecords.Add(nextrec.Key);
+                                handledIndexRecords.Add(nextrec.Key);                                
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                             this.segmentReaderFromRow(nextrec));
+                                break; // stop once we found a real record
                             }
-                            break; // stop once we found a real record
+                            
                         }
 
 
