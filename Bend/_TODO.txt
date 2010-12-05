@@ -6,6 +6,9 @@
   - GUI: repaint heap-memory and GC info on a timer
   - GUI: setup generic DB event listener concept and notify GUI through it
 
+  - MergeManager: build unit testcases for merge-manager merge-score (can we just build the function from test-cases?)
+  - MergeManager: move the "threshold for merge" logic into the merge manager
+
   - the merge extension needs to take a duplicate key resolver, which will handle things like
     causing incremental updates to merge. 
 

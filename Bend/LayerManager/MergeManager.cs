@@ -406,7 +406,7 @@ namespace Bend {
 
             this.merge_ratio =
                 ( (float)(target_segs.Count) / (float)source_segs.Count  )  -    // ratio of target to source
-                (target_segs.Count + source_segs.Count)/10.0f -                   // boost larger merges
+                (target_segs.Count + source_segs.Count)/12.0f -                   // boost larger merges
                 0.1f * (float) highest_generation; // boost based on block generation 
 
 
@@ -416,7 +416,7 @@ namespace Bend {
             }
 
             // boost when the merge spans multiple generations
-            this.merge_ratio -= 0.1f * (float)generation_span;        
+            this.merge_ratio -= 0.03f * (float)generation_span;        
             
 
         }
