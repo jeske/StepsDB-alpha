@@ -167,9 +167,6 @@ namespace Bend
             dumpAllDbRecords(db);
             dumpMergeCandidates(db);
 
-
-            Environment.Exit(1);
-
             System.Console.WriteLine("-------- draw graphical debug ---------------------");
             win.debugDump(db);
 

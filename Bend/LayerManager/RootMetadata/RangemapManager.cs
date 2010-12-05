@@ -1128,14 +1128,7 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
-                /*
-                Console.WriteLine("worklist: " + workList);
-
-                foreach (var hiitem in handledIndexRecords) {
-                    Console.WriteLine("  handled: {0}  {1}",item,item.GetHashCode());
-                }
-                */
-                
+                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #if DEBUG_CURSORS
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif
@@ -1234,6 +1227,7 @@ namespace Bend
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
+                                handledIndexRecords.Add(nextrec.Key);
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
@@ -1252,6 +1246,7 @@ namespace Bend
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
+                                handledIndexRecords.Add(nextrec.Key);
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
