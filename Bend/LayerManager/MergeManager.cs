@@ -383,7 +383,16 @@ namespace Bend {
             this.target_segs = target_segs.ToArray();
             this.is_histo_merge = histo_merge;
 
-            this.merge_ratio = ((float)(target_segs.Count) / (float)source_segs.Count)  - (target_segs.Count + source_segs.Count)/6.0f;
+            // find the highest source generation
+            long highest_generation = 0;
+            foreach (var source_seg in source_segs) {
+                highest_generation = Math.Max(highest_generation, source_seg.generation);
+            }
+
+            this.merge_ratio =
+                ( (float)(target_segs.Count) / (float)source_segs.Count  )  - 
+                (target_segs.Count + source_segs.Count)/6.0f +
+                0.1f * (float) highest_generation;
         }
 
         public float score() {

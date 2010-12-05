@@ -7,6 +7,7 @@
 // #define DEBUG_SEGMENT_ACCUMULATION   
 // #define DEBUG_SEGMENT_RANGE_WALK
 // #define DEBUG_CURSORS
+// #define DEBUG_CURSORS_LOW
 
 #define DEBUG_USE_NEW_FINDALL
 
@@ -434,7 +435,9 @@ namespace Bend
                         throw new Exception("cursor setup error, reached twice with same start key: " +
                             cur_key);
                     }
+#if DEBUG_CURSORS || DEBUG_CURSORS_LOW
                     Console.WriteLine("segmentWalkCursorSetup({0}) equal_ok:{1} starting... ", cur_key, equal_ok);
+#endif
                     INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
                         cur_key,
                         direction_is_forward,
@@ -449,9 +452,10 @@ namespace Bend
                 }
                 DateTime end = DateTime.Now;
 
+#if DEBUG_CURSORS || DEBUG_CURSORS_LOW
             Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
+#endif
 #if DEBUG_CURSORS
-            Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
             Console.WriteLine(stats);
 
 #endif
@@ -1132,8 +1136,7 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
-                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
-#if DEBUG_CURSORS
+#if DEBUG_CURSORS_LOW
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif
 
@@ -1294,7 +1297,9 @@ namespace Bend
 
             // done with worklist
 
+#if DEBUG_CURSORS_LOW
             Console.WriteLine("segmentsWithRecords: \n   {0}\n", String.Join("\n   ", segmentsWithRecords));
+#endif
 
         }
 
