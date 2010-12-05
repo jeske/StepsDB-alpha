@@ -3,6 +3,11 @@
 ----[ TODO ]---------
 
   - FIX: cursor-v2 bug  (MainTest, in increasing-order-keys-test, also in random test now)
+    - I think this is caused because the "new segment is lower than the "old" segment, so at
+	  the top layer it adds a new segment to the list and stops before it sees the tombstone.  
+	  Two possible fixes (1) don't stop until we see a range record that does not apply to the
+	  record we're looking for , (2) once we have a valid range record for a generation, mark
+	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
 
   - GUI: repaint heap-memory and GC info on a timer
   - GUI: setup generic DB event listener concept and notify GUI through it
