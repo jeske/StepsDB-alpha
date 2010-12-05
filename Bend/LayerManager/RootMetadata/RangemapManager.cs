@@ -74,7 +74,7 @@ namespace Bend
             int seg_count = 0;
             foreach (var segdesc in store.listAllSegments()) {
                 // TODO: make sure these are in increasing generation order! 
-                Console.WriteLine("gen{0} {1} -> {2}", segdesc.generation, segdesc.start_key, segdesc.end_key);
+                // Console.WriteLine("gen{0} {1} -> {2}", segdesc.generation, segdesc.start_key, segdesc.end_key);
                 mergeManager.notify_addSegment(segdesc);
                 seg_count++;
             }            

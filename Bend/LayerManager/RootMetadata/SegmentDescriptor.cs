@@ -20,9 +20,10 @@ namespace Bend {
         public readonly RecordKey start_key;
         public readonly RecordKey end_key;
 
-        public SegmentDescriptor(RecordKey key) {
-            RecordKey expected_prefix = new RecordKey().appendParsedKey(".ROOT/GEN");
-            if (!key.isSubkeyOf(expected_prefix)) {
+        private readonly RecordKey GEN_PREFIX = new RecordKey().appendParsedKey(".ROOT/GEN");
+
+        public SegmentDescriptor(RecordKey key) {            
+            if (!key.isSubkeyOf(GEN_PREFIX)) {
                 throw new Exception("can't decode key as segment descriptor: " + key.ToString());
             }
             record_key = key;
@@ -66,6 +67,19 @@ namespace Bend {
                 return false;
             }
             return true;
+        }
+        public bool directlyContainsKey(IComparable<RecordKey> testkey) {
+            // return true; 
+            if ((testkey.CompareTo(this.start_key) >= 0) &&
+                (testkey.CompareTo(this.end_key) <= 0)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        public bool keyrangeContainsSegmentPointers() {
+            return this.directlyContainsKey(GEN_PREFIX);            
         }
 
         public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {
