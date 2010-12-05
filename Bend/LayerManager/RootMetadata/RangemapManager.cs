@@ -6,7 +6,7 @@
 // #define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
 // #define DEBUG_SEGMENT_ACCUMULATION   
 // #define DEBUG_SEGMENT_RANGE_WALK
-#define DEBUG_CURSORS
+// #define DEBUG_CURSORS
 
 #define DEBUG_USE_NEW_FINDALL
 
@@ -522,8 +522,9 @@ namespace Bend
                     chain_hasmore = chain_enum.MoveNext();
                     if (chain_hasmore) {
                         var out_rec = chain_enum.Current;
-
+#if DEBUG_CURSORS
                         Console.WriteLine("merge produced: {0} segment_reload_at: {1}", out_rec, segment_reload_at_key);
+#endif
                         
                         // check to see if we need to segment reload
                         if (direction_is_forward) {
@@ -539,8 +540,9 @@ namespace Bend
                                 continue;
                             }
                         }
-
+#if DEBUG_CURSORS
                         Console.WriteLine("2");
+#endif
 
                         // end for past endkey                    
                         if (direction_is_forward) {
@@ -552,8 +554,9 @@ namespace Bend
                                 yield break;
                             }
                         }
-
+#if DEBUG_CURSORS
                         Console.WriteLine("3");
+#endif
 
                         if (out_rec.Value.type == RecordUpdateTypes.FULL) {
                             if (!equal_ok && (cur_key.CompareTo(out_rec.Key) == 0)) {
@@ -565,7 +568,9 @@ namespace Bend
 
                             yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                            
                         } else {
+#if DEBUG_CURSORS
                             Console.WriteLine("cursor skipping record: {0}", out_rec);
+#endif
                         }
                         cur_key = out_rec.Key;
                         equal_ok = false;
@@ -1108,9 +1113,10 @@ namespace Bend
 
             // (2) grab element off the worklist with the highest generation number, and process it
             int count = 0;
-
+#if DEBUG_CURSORS
             Console.WriteLine("segmentsetup non-recursive: {0} equal_ok:{1} direction_is_forward:{2}", 
                 startkeytest,equal_ok,direction_is_forward);
+#endif
 
             while (workList.Count > 0) {
                 var item = workList.FindPrev(null, false);
@@ -1124,7 +1130,9 @@ namespace Bend
                     Console.WriteLine("  handled: {0}  {1}",item,item.GetHashCode());
                 }
                 */
+#if DEBUG_CURSORS
                 Console.WriteLine("cursor worklist: {0} GetHashCode:{1}", item.Key, item.Key.GetHashCode());
+#endif
                 
 
                 if (count++ > 100) { throw new Exception("worklist too big! "); }
@@ -1149,7 +1157,7 @@ namespace Bend
                                 if (RangeKey.isRangeKey(nextrec.Key)) {
                                     RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                                     int cmpval = startkeytest.CompareTo(rk.highkey);
-                                    Console.WriteLine("cmp: {0}  start: {1}  range: {2}", cmpval, startkeytest, rk);
+                                    // Console.WriteLine("cmp: {0}  start: {1}  range: {2}", cmpval, startkeytest, rk);
                                     if ((cmpval > 0) || (cmpval == 0 && !equal_ok)) {
                                         nextrec = curseg.FindNext(startrk,true);                                     
                                      } 
@@ -1158,12 +1166,14 @@ namespace Bend
                                 }
 
                                 if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
-                                    handledIndexRecords.Add(nextrec.Key);                                    
+                                    handledIndexRecords.Add(nextrec.Key);
                                     if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
                                         segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                             this.segmentReaderFromRow(nextrec));
+                                    } else {
+                                        Console.WriteLine("rangerec was deletion tombstone: {0}", nextrec);
                                     }
-                                }
+                                } 
                             } catch (KeyNotFoundException) { }
                         } else {
                             try {
