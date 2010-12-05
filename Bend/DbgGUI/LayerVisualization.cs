@@ -78,9 +78,9 @@ namespace Bend {
 
 
             // figure out what the "maximum number of segments in a column" is, so we can compute segment height            
-            int segment_height = 50;
+            float segment_height = 50;
             if (unique_keys.Count > 0) {
-                segment_height = Math.Max(1, regionsize.Height / unique_keys.Count); // make sure segment heights are at least 1
+                segment_height = Math.Max(1, (float)regionsize.Height / (float)unique_keys.Count); // make sure segment heights are at least 1
             }
 
 
@@ -98,10 +98,10 @@ namespace Bend {
                 return;
             }
 
-            int y_loc = 0;
+            float y_loc = 0;
 
 
-            var key_to_position_map = new Dictionary<RecordKey, int>();
+            var key_to_position_map = new Dictionary<RecordKey, float>();
             foreach (var key in unique_keys.Keys) {
                 key_to_position_map[key] = y_loc;
                 y_loc += segment_height;
@@ -130,10 +130,10 @@ namespace Bend {
                 }
 
                 foreach (var seg in segments_by_generation[generation]) {
-                    int y_top = key_to_position_map[seg.start_key];
-                    int y_bottom = key_to_position_map[seg.end_key];
+                    int y_top = (int)key_to_position_map[seg.start_key];
+                    int y_bottom =(int)key_to_position_map[seg.end_key];
                     int mid_y = (y_top + y_bottom) / 2;
-                    int y_mid_top = mid_y - segment_height / 2;
+                    int y_mid_top = (int)(mid_y - (float)segment_height / 2);
 
 
                     // color the inside of the box. pseudorandom color based on a hash of the start/end keys of a block
