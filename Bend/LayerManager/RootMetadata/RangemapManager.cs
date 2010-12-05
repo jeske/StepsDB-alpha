@@ -434,6 +434,7 @@ namespace Bend
                         throw new Exception("cursor setup error, reached twice with same start key: " +
                             cur_key);
                     }
+                    Console.WriteLine("segmentWalkCursorSetup({0}) equal_ok:{1} starting... ", cur_key, equal_ok);
                     INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
                         cur_key,
                         direction_is_forward,
@@ -1102,7 +1103,7 @@ namespace Bend
 
             var workList = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
             var handledIndexRecords = new HashSet<RecordKey>();
-            var handledIndexGenerations = new HashSet<int>();
+            var segmentsWithRecordsTombstones = new HashSet<RecordKey>();
 
             // (1) add working segment to the worklist
             workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
@@ -1163,9 +1164,16 @@ namespace Bend
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                             
-                            if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) ||
-                                segmentsWithRecords.ContainsKey(rk)) {
+                            if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
+                                segmentsWithRecordsTombstones.Add(nextrec.Key);
+                                continue;
+                            }
+                            if (segmentsWithRecordsTombstones.Contains(nextrec.Key) || 
+                                segmentsWithRecords.ContainsKey(rk)) {
+                                // this entry was tombstoned. We consider it tombstoned if
+                                // it's in "segmentsWithRecords", because that just means there was
+                                // another value of the exact same segment key above us
                                 continue;
                             }
                             if (direction_is_forward) {
@@ -1217,7 +1225,7 @@ namespace Bend
                     //     TODO: this really doesn't handle the recursive case, because these two records could both be here...
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{.ROOT/GEN/### 
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{Z
-                    // if (!handledIndexGenerations.Contains(i))
+                    
                     {
                         RecordKeyComparator startrk = new RecordKeyComparator()
                             .appendParsedKey(".ROOT/GEN")
@@ -1286,7 +1294,7 @@ namespace Bend
 
             // done with worklist
 
-            Console.WriteLine("segmentsWithRecords: {0}", String.Join(",", segmentsWithRecords));
+            Console.WriteLine("segmentsWithRecords: \n   {0}\n", String.Join("\n   ", segmentsWithRecords));
 
         }
 
