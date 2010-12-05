@@ -1131,7 +1131,7 @@ namespace Bend
                 }
                 */
 #if DEBUG_CURSORS
-                Console.WriteLine("cursor worklist: {0} GetHashCode:{1}", item.Key, item.Key.GetHashCode());
+                Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif
                 
 
@@ -1146,6 +1146,7 @@ namespace Bend
                 for (int i = maxgen - 1; i >= 0; i--) {
                     // (1) find one live range row above and below the direct record  (.ROOT/GEN/#/{(startkeytest)...)
                     //       (along with all tombstones in between)
+                    
                     {
                         RecordKeyComparator startrk = new RecordKeyComparator()
                             .appendParsedKey(".ROOT/GEN")
@@ -1169,11 +1170,15 @@ namespace Bend
                                     segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                         this.segmentReaderFromRow(nextrec));
                                 }
-                            } 
+                            } else {
+                                // really only need this if below doesn't find one?
+                                segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                        this.segmentReaderFromRow(nextrec));
+                            }
                             break; // stop once we found a real record
                         }
 
-
+                        Console.WriteLine("segmentsWithRecords: {0}", segmentsWithRecords);
 
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
@@ -1192,6 +1197,10 @@ namespace Bend
                                     segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                         this.segmentReaderFromRow(nextrec));
                                 }
+                            } else {
+                                // really only need this if the above didn't find one?? 
+                                segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                        this.segmentReaderFromRow(nextrec));
                             }
                             break; // stop once we found a real record
                         }
@@ -1211,27 +1220,46 @@ namespace Bend
                             .appendParsedKey(".ROOT/GEN")
                             .appendKeyPart(new RecordKeyType_Long(i))
                             .appendParsedKey(".ROOT/GEN");
-                        if (direction_is_forward) {
-                            try {
-                                KeyValuePair<RecordKey, RecordUpdate> nextrec = curseg.FindPrev(startrk, true);
-                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
-                                    handledIndexRecords.Add(nextrec.Key);
-                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                                        workList[RangeKey.decodeFromRecordKey(nextrec.Key)] = this.segmentReaderFromRow(nextrec);
-                                    }
-                                }
-                            } catch (KeyNotFoundException) { }
-                        } else {
-                            try {
-                                KeyValuePair<RecordKey, RecordUpdate> nextrec = curseg.FindNext(startrk, true);
-                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
-                                    handledIndexRecords.Add(nextrec.Key);
-                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                                        workList[RangeKey.decodeFromRecordKey(nextrec.Key)] = this.segmentReaderFromRow(nextrec);
-                                    }
-                                }
-                            } catch (KeyNotFoundException) { }
+
+
+                        foreach (var nextrec in curseg.scanBackward(
+                            new ScanRange<RecordKey>(
+                                new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i)),
+                                startrk,
+                                null))) {
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            handledIndexRecords.Add(nextrec.Key);
+                            if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                // add all tombstones to the handled list, and continue to the next
+                                continue;
+                            }
+                            if (!handledIndexRecords.Contains(nextrec.Key)) {
+                                workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                            this.segmentReaderFromRow(nextrec));
+                            }
+                            break; // stop once we found a real record
                         }
+
+
+
+                        foreach (var nextrec in curseg.scanForward(
+                            new ScanRange<RecordKey>(
+                                startrk,
+                                RecordKey.AfterPrefix(new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
+                                null))) {
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            handledIndexRecords.Add(nextrec.Key);
+                            if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                // add all tombstones to the handled list, and continue to the next
+                                continue;
+                            }
+                            if (!handledIndexRecords.Contains(nextrec.Key)) {
+                                workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                            this.segmentReaderFromRow(nextrec));
+                            }
+                            break; // stop once we found a real record
+                        }
+
 
                     }
                 }
