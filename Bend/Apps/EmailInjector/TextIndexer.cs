@@ -16,6 +16,12 @@ namespace Bend.Indexer {
 
         }
 
+        public class IndexStats {
+            public int unique_hits_produced = 0;
+            public int entries_scanned = 0;
+            public int comparisons = 0;
+        }
+
 
         public void index_document(LayerManager.WriteGroup txwg, string docid, string txtbody) {
             //System.Console.WriteLine(msg.Body);
@@ -63,36 +69,43 @@ namespace Bend.Indexer {
                 return "EndPrefixMatch{" + key.ToString() + "}";
             }
         }
-        public class IndexStats {
-            public int unique_hits_produced = 0;
-            public int comparisons = 0;
-        }
+        
 
-
-        public class TermHit {
+        public class TermDocHit {
             public string word;
-            public string docid;
-            public string position;
+            public string docid;            
 
             public override string ToString() {
-                return String.Format("{0} at ({1} : {2})", word, docid, position);
+                return String.Format("{0} in docid{1}", word, docid);
             }
         }
 
         public interface Term {
-            TermHit advanceTo(IndexStats stats, TermHit newpos);
-            TermHit advancePastDocid(IndexStats stats, string docid);
+            TermDocHit advanceTo(IndexStats stats, TermDocHit newpos);
+            TermDocHit advancePastDocid(IndexStats stats, string docid);
         };
 
         public class TermWord : Term {
             string word;           
             TextIndexer index;
+            IEnumerator<KeyValuePair<RecordKey, RecordData>> hitlist;
             public TermWord(TextIndexer indexer, string word) {
                 this.word = word;
                 this.index = indexer;
+
+                var start = new RecordKey()
+                    .appendParsedKey(this.index.index_location_prefix)
+                    .appendKeyPart(word);
+                var end = RecordKey.AfterPrefix(new RecordKey()
+                    .appendParsedKey(this.index.index_location_prefix)
+                    .appendKeyPart(word));
+
+
+                this.hitlist = index.db.scanForward(new ScanRange<RecordKey>(start, end, null)).GetEnumerator();
+
             }
 
-            public IEnumerable<TermHit> allOccurances() {
+            public IEnumerable<TermDocHit> allOccurances() {
                 // <index prefix>.../<word>/<docid>/<position>
                 var start = new RecordKey().appendParsedKey(this.index.index_location_prefix)
                     .appendKeyPart(word);
@@ -103,56 +116,54 @@ namespace Bend.Indexer {
                     yield return unpackHit(hitrow.Key);
                 }
             }
-            private TermHit unpackHit(RecordKey hitrow) {
+            private TermDocHit unpackHit(RecordKey hitrow) {
                 // Console.WriteLine("unpackHit: " + hitrow);
 
                 int len_of_index_prefix = 2;  // ASSUME THIS FOR NOW
-                TermHit hit = new TermHit();
+                TermDocHit hit = new TermDocHit();
                 hit.word = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 0]).GetString();
-                hit.docid = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 1]).GetString();
-                hit.position = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 2]).GetString();
+                hit.docid = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 1]).GetString();                
                 return hit;
             }
-            public TermHit advancePastDocid(IndexStats stats, string docid) {
-                var prefix = new RecordKey().appendParsedKey(this.index.index_location_prefix)
-                      .appendKeyPart(this.word)
-                      .appendKeyPart(docid);
-                var keysearch = RecordKey.AfterPrefix(prefix);                   
+            public TermDocHit advancePastDocid(IndexStats stats, string docid) {
+                bool have_next = hitlist.MoveNext();
+                while (have_next) {
+                    KeyValuePair<RecordKey,RecordData> row = hitlist.Current;
+                    TermDocHit hit = unpackHit(row.Key);
 
-                KeyValuePair<RecordKey, RecordData> row = index.db.FindNext(keysearch, false);
-                TermHit hit = unpackHit(row.Key);
+                    stats.entries_scanned++;
 
-                if (hit.word.CompareTo(this.word) != 0) {
-                    throw new KeyNotFoundException(
-                        String.Format("advancePastDocid({0}): no more hits for {1}", docid, this.word));
+                    if (hit.docid.CompareTo(docid) > 0) {
+                        stats.unique_hits_produced++;
+                        return hit;
+                    }
+
+                    have_next = hitlist.MoveNext();
                 }
-
-                if (hit.docid.CompareTo(docid) <= 0) {
-                    throw new Exception(
-                        String.Format("INTERNAL ERROR: failure to advance past docid({0}) prefix({1}) rowreturned({2})",
-                              docid, prefix, row.Key));
-                }
-                stats.unique_hits_produced++;
-                return hit;
+                throw new KeyNotFoundException(
+                    String.Format("advancePastDocid({0}): no more hits for {1}", docid, this.word));
+                
             }
 
-            public TermHit advanceTo(IndexStats stats, TermHit newpos) {
+            public TermDocHit advanceTo(IndexStats stats, TermDocHit newpos) {
                 //    ".zindex/index/<word>/<docid>"
+                bool have_next = hitlist.MoveNext();
+                while (have_next) {
+                    KeyValuePair<RecordKey, RecordData> row = hitlist.Current;
+                    TermDocHit hit = unpackHit(row.Key);
 
-                var keysearch = new RecordKey().appendParsedKey(this.index.index_location_prefix)
-                                      .appendKeyPart(this.word)
-                                      .appendKeyPart(newpos.docid)
-                                      .appendKeyPart(newpos.position);
+                    stats.entries_scanned++;
 
-                KeyValuePair<RecordKey, RecordData> row = index.db.FindNext(keysearch, false);
-                TermHit hit = unpackHit(row.Key);
-                if (hit.word.CompareTo(this.word) == 0) {
-                    stats.unique_hits_produced++;
-                    return hit;
-                } else {
-                    throw new KeyNotFoundException(
-                        String.Format("advanceTo({0}): no more hits for {1}", newpos, this.word));
+                    if (hit.docid.CompareTo(newpos.docid) >= 0) {
+                        stats.unique_hits_produced++;
+                        return hit;
+                    }
+
+                    have_next = hitlist.MoveNext();
                 }
+                throw new KeyNotFoundException(
+                    String.Format("advanceTo({0}): no more hits for {1}", newpos.docid, this.word));
+
             }
         }
 
@@ -160,20 +171,20 @@ namespace Bend.Indexer {
             Term term1;
             Term term2;
 
-            TermHit hit1;
-            TermHit hit2;                       
+            TermDocHit hit1;
+            TermDocHit hit2;                       
 
             public TermAnd(Term left, Term right) {
                 this.term1 = left;
                 this.term2 = right;                
             }
 
-            public TermHit advanceTo(IndexStats stats, TermHit hit) {
+            public TermDocHit advanceTo(IndexStats stats, TermDocHit hit) {
                 return advancePastDocid(stats,hit.docid);
             }
 
-            public TermHit advancePastDocid(IndexStats stats, string docid) {
-                hit1 = term1.advancePastDocid(stats,docid);
+            public TermDocHit advancePastDocid(IndexStats stats, string docid) {
+                hit1 = term1.advancePastDocid(stats, docid);
                 hit2 = term2.advancePastDocid(stats, docid);
                 try {
                     while (true) {
@@ -203,7 +214,7 @@ namespace Bend.Indexer {
 
         public List<string> HitsForExpression(IndexStats stats, Term term) {
             List<string> hits = new List<string>();
-            TermHit hit = new TermHit();            
+            TermDocHit hit = new TermDocHit();            
             hit.docid = "";
             while (true) {
                 try {
@@ -239,8 +250,8 @@ namespace Bend.Indexer {
             DateTime start = DateTime.Now;
             List<string> hits = HitsForExpression(stats, tree);
             double elapsed_s = (DateTime.Now - start).TotalMilliseconds/1000.0;
-            Console.WriteLine("search for [{0}] returned {1} hits in {2}s   ({3} productions, {4} comparisons)", 
-                expression, hits.Count, elapsed_s, stats.unique_hits_produced, stats.comparisons);
+            Console.WriteLine("search for [{0}] returned {1} hits in {2}s   ({3} productions, {4} comparisons, {5} entries scanned)", 
+                expression, hits.Count, elapsed_s, stats.unique_hits_produced, stats.comparisons, stats.entries_scanned);
             
             // Console.WriteLine("    " + String.Join(",",hits.Count < 15 ? hits : hits.GetRange(0,15)));
             foreach (var hit in hits) {
