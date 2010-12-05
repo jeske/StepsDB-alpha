@@ -44,8 +44,12 @@ namespace Bend
             }
         }
 
+        public override int GetHashCode() {
+            throw new Exception(String.Format("RecordKeyType subtype({0}) must implement GetHashCode", this.GetType()));
+        }
+
         public abstract int CompareToPeer(RecordKeyType peer_target);  
-        internal abstract void encodeSubtypeTo(BinaryWriter w);
+        internal abstract void encodeSubtypeTo(BinaryWriter w);        
 
         public static RecordKeyType decodeFrom(BinaryReader r) {
             byte subtype_byte = r.ReadByte();
@@ -293,9 +297,12 @@ namespace BendTests
             }
 
 
+        }
 
-
-
+        [Test]
+        public void T02_RecordKeyType_GetHashCode() {
+            Assert.AreEqual(new RecordKeyType_String("Foo").GetHashCode(), new RecordKeyType_String("Foo").GetHashCode(), "string equal hash codes");
+            Assert.AreEqual(new RecordKeyType_Long(1).GetHashCode(), new RecordKeyType_Long(1).GetHashCode(), "long equal hash codes");
         }
     }
 }

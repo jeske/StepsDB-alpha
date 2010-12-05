@@ -105,10 +105,7 @@ namespace Bend {
 
         public override String ToString() {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            String keystring = enc.GetString(data);
-            if (type != RecordUpdateTypes.FULL) {
-                keystring = keystring + " [" + type.ToString() + "]";
-            }
+            String keystring = "RecordUpdate: " + type.ToString() + this.data.ToString();
             return keystring;
         }
 

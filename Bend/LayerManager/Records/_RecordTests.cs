@@ -311,6 +311,24 @@ namespace BendTests
 
             Assert.True(start_keytest.CompareTo(random_key) > 0, "should be after this random_key");
         }
+
+        [Test]
+        public void T12_RecordKey_Bug() {
+            var testkey = new RecordKey().appendParsedKey(".zdata/index/fax");
+            var jeskekey = new RecordKey().appendParsedKey(".zdata/index/jeske");
+            var jeske2key = new RecordKey().appendParsedKey(".zdata/index/jeske").appendKeyPart("");
+            var jeske2keyAP = RecordKey.AfterPrefix(jeske2key);
+
+            Assert.True(jeskekey.CompareTo(testkey) > 0, "1");
+            Assert.True(jeske2key.CompareTo(testkey) > 0, "2");
+            Assert.True(jeske2keyAP.CompareTo(testkey) > 0, "3");
+            
+            RecordKeyComparator startrk = new RecordKeyComparator()
+                            .appendKeyPart(jeske2key);
+
+
+            Assert.True(startrk.CompareTo(testkey) > 0, "4");
+        }
     }
 
 

@@ -6,8 +6,7 @@
 // #define DEBUG_SEGMENT_WALK_COUNTERS    // prints a set of debug counters at the end of each row fetch
 // #define DEBUG_SEGMENT_ACCUMULATION   
 // #define DEBUG_SEGMENT_RANGE_WALK
-
-// #define DEBUG_CURSORS
+#define DEBUG_CURSORS
 
 #define DEBUG_USE_NEW_FINDALL
 
@@ -279,6 +278,7 @@ namespace Bend
             public int rowDuplicatesAppeared;
             public int rowAccumulate_TryGet;
             public int rowDeletionTombstonesSkipped;
+            public int handlingGeneration;
 
             public override String ToString() {
                 var string_lines = new List<string>();
@@ -392,6 +392,7 @@ namespace Bend
             bool tombstone_ok) {
             
             IComparable<RecordKey> cur_key;
+            IComparable<RecordKey> last_attempted_cursor_setup_key = null;
 
             if (direction_is_forward) {
                 cur_key = lowestKeyTest;
@@ -399,12 +400,13 @@ namespace Bend
                 cur_key = highestKeyTest;
             }
 
-#if DEBUG_SEGMENT_WALK
+#if DEBUG_CURSORS
             Console.WriteLine("getNextRecord_LowLevel_Cursor(cur_key={0})", cur_key);                    
 #endif
             while (true) {
 
                 SegmentWalkStats stats = new SegmentWalkStats();
+                stats.handlingGeneration = 100; // hack
 
                 var handledIndexRecords = new BDSkipList<RecordKey, RecordData>();
                 var recordSegments = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
@@ -427,7 +429,11 @@ namespace Bend
                                     layer.FindPrev(null, true).Key,
                                     num_generations);
 
-                    INTERNAL_segmentWalkCursorSetupForNextKey(
+                    if (last_attempted_cursor_setup_key != null && last_attempted_cursor_setup_key.Equals(cur_key)) {
+                        throw new Exception("cursor setup error, reached twice with same start key: " +
+                            cur_key);
+                    }
+                    INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
                         cur_key,
                         direction_is_forward,
                         layer,
@@ -437,11 +443,12 @@ namespace Bend
                         recordSegments,
                         equal_ok,
                         stats: stats);
+                    last_attempted_cursor_setup_key = cur_key;
                 }
                 DateTime end = DateTime.Now;
 
-#if DEBUG_SEGMENT_WALK_COUNTERS
-            Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", lowkey, (((end - start).TotalMilliseconds)));
+#if DEBUG_CURSORS
+            Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
             Console.WriteLine(stats);
 
 #endif
@@ -454,16 +461,20 @@ namespace Bend
 
                 if (recordSegments.Count == 0) {
                     // we have no qualifying segments, so we're done
+#if DEBUG_CURSORS
+                    Console.WriteLine("cursor setup: no qualifying recordSegments");
+#endif
                     yield break;
                 }
 
 
                 RecordKey segment_reload_at_key = null;
 
-                // now scan the returned segments for records...
+                // now setup the merge chain 
+                // start with the lowest generation first so it is on on the bottom right of the chain
                 IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
                 foreach (var curseg_kvp in recordSegments.scanForward(null)) {
-#if DEBUG_SEGMENT_WALK
+#if DEBUG_CURSORS
                     Console.WriteLine("setup cursors: " + curseg_kvp);
 #endif
                     IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> seg_scanner;
@@ -507,24 +518,12 @@ namespace Bend
                 var chain_enum = chain.GetEnumerator();
                 bool chain_hasmore = true;
 
-                while (chain_hasmore) {
-                    try {
-                        chain_hasmore = chain_enum.MoveNext();
-                    } catch (SortedSetExhaustedException e) {
-                        Console.WriteLine("One ran out: " + e.ToString());
-                        // we need to prime the next key properly
-                        Console.WriteLine("lowkey: {0}  cur_key:{1}", lowestKeyTest, cur_key);
-                        // throw new Exception(e.ToString());
-                        KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>> seg_ranout = 
-                            (KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>)e.payload;
-                        // set cur_key to the last key in the RangeKey?? 
-
-                        cur_key = RecordKey.AfterPrefix(seg_ranout.Key.highkey);
-                        continue;
-                    }
-
+                while (chain_hasmore) {                   
+                    chain_hasmore = chain_enum.MoveNext();
                     if (chain_hasmore) {
                         var out_rec = chain_enum.Current;
+
+                        Console.WriteLine("merge produced: {0} segment_reload_at: {1}", out_rec, segment_reload_at_key);
                         
                         // check to see if we need to segment reload
                         if (direction_is_forward) {
@@ -541,6 +540,8 @@ namespace Bend
                             }
                         }
 
+                        Console.WriteLine("2");
+
                         // end for past endkey                    
                         if (direction_is_forward) {
                             if (highestKeyTest != null && highestKeyTest.CompareTo(out_rec.Key) < 0) {
@@ -552,15 +553,19 @@ namespace Bend
                             }
                         }
 
-
+                        Console.WriteLine("3");
 
                         if (out_rec.Value.type == RecordUpdateTypes.FULL) {
-                            if (equal_ok || (cur_key.CompareTo(out_rec.Key)) != 0) {
-                                var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
-                                record.applyUpdate(out_rec.Value);
-
-                                yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);
+                            if (!equal_ok && (cur_key.CompareTo(out_rec.Key) == 0)) {
+                                cur_key = out_rec.Key;
+                                continue;
                             }
+                            var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
+                            record.applyUpdate(out_rec.Value);
+
+                            yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                            
+                        } else {
+                            Console.WriteLine("cursor skipping record: {0}", out_rec);
                         }
                         cur_key = out_rec.Key;
                         equal_ok = false;
@@ -568,9 +573,11 @@ namespace Bend
                         Console.WriteLine("advance past. {0}", out_rec);
 #endif
                     }
-                }
-
-                yield break;
+                } // while there are more keys in the merge-chain
+#if DEBUG_CURSORS
+                Console.WriteLine("cursor-merge ran out of keys");
+                equal_ok = false;
+#endif                
             }
         }
 
@@ -663,6 +670,9 @@ namespace Bend
                 }
             }
 
+            public override int GetHashCode() {
+                return generation.GetHashCode() + lowkey.GetHashCode() + highkey.GetHashCode();
+            }
             public int CompareTo(RangeKey target) {
                 int cmpres = this.generation.CompareTo(target.generation);
                 if (cmpres != 0) { return cmpres; }
@@ -1067,6 +1077,163 @@ namespace Bend
 
         // ---------------------------------------------------------
 
+
+
+        private void INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
+            IComparable<RecordKey> startkeytest,
+            bool direction_is_forward,
+            ISortedSegment startseg_raw,
+            RangeKey startseg_rangekey,
+            IScannableDictionary<RecordKey, RecordData> handledIndexRecords2,
+            int maxgen,
+            IScannableDictionary<RangeKey, IScannable<RecordKey, RecordUpdate>> segmentsWithRecords,
+            bool equal_ok,
+            SegmentWalkStats stats) {
+
+            var workList = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
+            var handledIndexRecords = new HashSet<RecordKey>();
+
+            // (1) add working segment to the worklist
+            workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+            if (direction_is_forward) {
+                if (startkeytest.CompareTo(startseg_rangekey.highkey) < 0) {
+                    segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+                }
+            } else {
+                if (startkeytest.CompareTo(startseg_rangekey.lowkey) > 0) {
+                    segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+                }
+            }
+
+
+            // (2) grab element off the worklist with the highest generation number, and process it
+            int count = 0;
+
+            Console.WriteLine("segmentsetup non-recursive: {0} equal_ok:{1} direction_is_forward:{2}", 
+                startkeytest,equal_ok,direction_is_forward);
+
+            while (workList.Count > 0) {
+                var item = workList.FindPrev(null, false);
+                IScannable<RecordKey, RecordUpdate> curseg = item.Value;
+                workList.Remove(item.Key);
+
+                /*
+                Console.WriteLine("worklist: " + workList);
+
+                foreach (var hiitem in handledIndexRecords) {
+                    Console.WriteLine("  handled: {0}  {1}",item,item.GetHashCode());
+                }
+                */
+                Console.WriteLine("cursor worklist: {0} GetHashCode:{1}", item.Key, item.Key.GetHashCode());
+                
+
+                if (count++ > 100) { throw new Exception("worklist too big! "); }
+                stats.segmentWalkInvocations++; // really iterations
+
+                if (!startseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
+                    throw new Exception("why do we have a worklist item that's not an indirect segment?");
+                }
+                // for each generation, starting with maxgen
+                for (int i = maxgen - 1; i >= 0; i--) {
+                    // (1) find the range row above or below the direct record  (.ROOT/GEN/#/{(startkeytest)...)
+                    {
+                        RecordKeyComparator startrk = new RecordKeyComparator()
+                            .appendParsedKey(".ROOT/GEN")
+                            .appendKeyPart(new RecordKeyType_Long(i))
+                            .appendKeyPart(startkeytest);
+
+                        if (direction_is_forward) {
+                            try {
+                                KeyValuePair<RecordKey,RecordUpdate> nextrec = curseg.FindPrev(startrk, true);                                                                
+                                // if the previous one ends at startrk AND we can't accept an equal key
+                                if (RangeKey.isRangeKey(nextrec.Key)) {
+                                    RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                                    int cmpval = startkeytest.CompareTo(rk.highkey);
+                                    Console.WriteLine("cmp: {0}  start: {1}  range: {2}", cmpval, startkeytest, rk);
+                                    if ((cmpval > 0) || (cmpval == 0 && !equal_ok)) {
+                                        nextrec = curseg.FindNext(startrk,true);                                     
+                                     } 
+                                } else {
+                                    nextrec = curseg.FindNext(startrk,true);                                     
+                                }
+
+                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
+                                    handledIndexRecords.Add(nextrec.Key);                                    
+                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                        segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                            this.segmentReaderFromRow(nextrec));
+                                    }
+                                }
+                            } catch (KeyNotFoundException) { }
+                        } else {
+                            try {
+                                KeyValuePair<RecordKey, RecordUpdate> nextrec = curseg.FindNext(startrk, true);
+                                // if the previous one ends at startrk AND we can't accept an equal key
+                                if (RangeKey.isRangeKey(nextrec.Key)) {
+                                    RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                                    int cmpval = startkeytest.CompareTo(rk.lowkey);
+                                    if ((cmpval < 0) || (cmpval == 0 && !equal_ok)) {
+                                        nextrec = curseg.FindPrev(startrk, true);
+                                    }
+                                }
+
+                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
+                                    handledIndexRecords.Add(nextrec.Key);
+                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                        segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                            this.segmentReaderFromRow(nextrec));
+                                    }
+                                }
+                            } catch (KeyNotFoundException) { }
+                        }
+                    }
+
+                    // (2) find the range row above or below the indirect range record (.ROOT/GEN/##/{.ROOT/GEN...)
+                    //     TODO: this really doesn't handle the recursive case, because these two records could both be here...
+                    //                 .ROOT/GEN/###{.ROOT/GEN/###{.ROOT/GEN/### 
+                    //                 .ROOT/GEN/###{.ROOT/GEN/###{Z
+                    {
+                        RecordKeyComparator startrk = new RecordKeyComparator()
+                            .appendParsedKey(".ROOT/GEN")
+                            .appendKeyPart(new RecordKeyType_Long(i))
+                            .appendParsedKey(".ROOT/GEN");
+                        if (direction_is_forward) {
+                            try {
+                                KeyValuePair<RecordKey, RecordUpdate> nextrec = curseg.FindPrev(startrk, true);
+                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
+                                    handledIndexRecords.Add(nextrec.Key);
+                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                        workList[RangeKey.decodeFromRecordKey(nextrec.Key)] = this.segmentReaderFromRow(nextrec);
+                                    }
+                                }
+                            } catch (KeyNotFoundException) { }
+                        } else {
+                            try {
+                                KeyValuePair<RecordKey, RecordUpdate> nextrec = curseg.FindNext(startrk, true);
+                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
+                                    handledIndexRecords.Add(nextrec.Key);
+                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                        workList[RangeKey.decodeFromRecordKey(nextrec.Key)] = this.segmentReaderFromRow(nextrec);
+                                    }
+                                }
+                            } catch (KeyNotFoundException) { }
+                        }
+
+                    }
+                }
+            }
+
+            // done with worklist
+
+            Console.WriteLine("segmentsWithRecords: {0}", String.Join(",", segmentsWithRecords));
+
+
+
+        }
+
+        
+        
+
         private void INTERNAL_segmentWalkCursorSetupForNextKey(
             IComparable<RecordKey> startkeytest,
             bool direction_is_forward,
@@ -1090,11 +1257,15 @@ namespace Bend
                 segmentsWithRecords.Add(curseg_rangekey,curseg);                
             }
 
-
             // find all generation range references that are relevant for this key
             // .. make a note of which ones are "current"             
             if (curseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
                 BDSkipList<RecordKey, RecordUpdate> todo_list = new BDSkipList<RecordKey, RecordUpdate>();
+
+                if (curseg_rangekey.generation > stats.handlingGeneration) {
+                    throw new Exception("cursor segup generation priority inversion");
+                }
+                stats.handlingGeneration = curseg_rangekey.generation;
 
 
                 for (int i = maxgen - 1; i >= 0; i--) {

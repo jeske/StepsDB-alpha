@@ -399,6 +399,7 @@ namespace Bend
                 }
                 one_hasmore = oneenum.MoveNext();
             }
+
         }
 
         public void mergeSegments(IEnumerable<SegmentDescriptor> segs) {
@@ -470,7 +471,7 @@ namespace Bend
 
                 // remove tombstones if we need to        
                 if (target_generation == 0) {
-                    // chain_head = LayerManager.RemoveTombstones(chain_head);
+                    chain_head = LayerManager.RemoveTombstones(chain_head);
                 }
 
                 this._writeSegment(tx, chain_head , (int)target_generation);

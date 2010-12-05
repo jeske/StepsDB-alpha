@@ -241,7 +241,11 @@ namespace Bend.Indexer {
             double elapsed_s = (DateTime.Now - start).TotalMilliseconds/1000.0;
             Console.WriteLine("search for [{0}] returned {1} hits in {2}s   ({3} productions, {4} comparisons)", 
                 expression, hits.Count, elapsed_s, stats.unique_hits_produced, stats.comparisons);
-            Console.WriteLine("    " + String.Join(",",hits.Count < 15 ? hits : hits.GetRange(0,15)));
+            
+            // Console.WriteLine("    " + String.Join(",",hits.Count < 15 ? hits : hits.GetRange(0,15)));
+            foreach (var hit in hits) {
+                Console.WriteLine("     " + hit);
+            }
             
         }
 
