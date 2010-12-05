@@ -4,27 +4,22 @@
 
   - the merge extension needs to take a duplicate key resolver, which will handle things like
     causing incremental updates to merge. 
-  - review and make sure merges are happening in the right precedence order
-  - figure out why the TombstoneRemover caused output differences
+
+  - FIX: cursor-v2 bug in increasing-order-keys-test
+
+
+**** PERF ideas  ****
+
+  - ? make BDSkipList do a quick check to see if the key is outside the top/bottom range?  
+  - ? make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
   
-
-**** PERF!!!!  ****
-  - switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
   - implement a new block format!!! 
-
-
-  - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
-  - ? FIX: make BDSkipList do a quick check to see if the key is outside the top/bottom range?
-  - ? FIX: make a shortcut test for equal_ok and a key appearing in assembled records which matches  
-  - ? FIX: make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
-
-  - implement fast cursors! 
 
 ********************
   - gui: mark blocks which contain index (.ROOT/GEN) records  
 
   - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
-     Don't we need to continue iterating in the next range of that generation?  How?
+     Don't we need to continue iterating in the next range of that generation?  How? At least we should fail! 
   
   - MAKE: scanrange cache, use in segment walk
   - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
@@ -189,6 +184,13 @@
 
 
 ------------[ DONE ]--------------------
+  
+12/5  - cursor scan based TextIndexer has MUCH better performance!! 
+12/5  - CURSOR-V2!!!!  - implement fast cursors! 
+      - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
+      - (no longer needed) switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
+      - review and make sure merges are happening in the right precedence order
+      - figure out why the TombstoneRemover caused output differences
 12/3  - put a counter in for every time we do FindNext/FindPrev trying to find a rangerow in findAllEligible..
 12/2  - FIX: only call findAllEligible range-rows for segments that actually could have range rows
 12/2  - FIX: directlyContainsKey should not return TRUE!! 
