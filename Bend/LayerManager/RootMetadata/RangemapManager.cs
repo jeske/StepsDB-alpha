@@ -1143,60 +1143,63 @@ namespace Bend
                 }
                 // for each generation, starting with maxgen
                 for (int i = maxgen - 1; i >= 0; i--) {
-                    // (1) find the range row above or below the direct record  (.ROOT/GEN/#/{(startkeytest)...)
+                    // (1) find one live range row above and below the direct record  (.ROOT/GEN/#/{(startkeytest)...)
+                    //       (along with all tombstones in between)
                     {
                         RecordKeyComparator startrk = new RecordKeyComparator()
                             .appendParsedKey(".ROOT/GEN")
                             .appendKeyPart(new RecordKeyType_Long(i))
                             .appendKeyPart(startkeytest);
 
-                        if (direction_is_forward) {
-                            try {
-                                KeyValuePair<RecordKey,RecordUpdate> nextrec = curseg.FindPrev(startrk, true);                                                                
-                                // if the previous one ends at startrk AND we can't accept an equal key
-                                if (RangeKey.isRangeKey(nextrec.Key)) {
-                                    RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                                    int cmpval = startkeytest.CompareTo(rk.highkey);
-                                    // Console.WriteLine("cmp: {0}  start: {1}  range: {2}", cmpval, startkeytest, rk);
-                                    if ((cmpval > 0) || (cmpval == 0 && !equal_ok)) {
-                                        nextrec = curseg.FindNext(startrk,true);                                     
-                                     } 
-                                } else {
-                                    nextrec = curseg.FindNext(startrk,true);                                     
+                        foreach (var nextrec in curseg.scanBackward(
+                            new ScanRange<RecordKey>(
+                                new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i)),
+                                startrk,
+                                null))) {
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            handledIndexRecords.Add(nextrec.Key);
+                            if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                // add all tombstones to the handled list, and continue to the next
+                                continue;
+                            }
+                            if (direction_is_forward) {
+                                int cmpval = startkeytest.CompareTo(rk.highkey);
+                                if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
+                                    segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                        this.segmentReaderFromRow(nextrec));
                                 }
+                            } 
+                            break; // stop once we found a real record
+                        }
 
-                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
-                                    handledIndexRecords.Add(nextrec.Key);
-                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                                        segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
-                                            this.segmentReaderFromRow(nextrec));
-                                    } else {
-                                        Console.WriteLine("rangerec was deletion tombstone: {0}", nextrec);
-                                    }
-                                } 
-                            } catch (KeyNotFoundException) { }
-                        } else {
-                            try {
-                                KeyValuePair<RecordKey, RecordUpdate> nextrec = curseg.FindNext(startrk, true);
-                                // if the previous one ends at startrk AND we can't accept an equal key
-                                if (RangeKey.isRangeKey(nextrec.Key)) {
-                                    RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                                    int cmpval = startkeytest.CompareTo(rk.lowkey);
-                                    if ((cmpval < 0) || (cmpval == 0 && !equal_ok)) {
-                                        nextrec = curseg.FindPrev(startrk, true);
-                                    }
-                                }
 
-                                if (RangeKey.isRangeKey(nextrec.Key) && !handledIndexRecords.Contains(nextrec.Key)) {
-                                    handledIndexRecords.Add(nextrec.Key);
-                                    if (nextrec.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE) {
-                                        segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
-                                            this.segmentReaderFromRow(nextrec));
-                                    }
+
+                        foreach (var nextrec in curseg.scanForward(
+                            new ScanRange<RecordKey>(
+                                startrk,
+                                RecordKey.AfterPrefix(new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
+                                null))) {
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            handledIndexRecords.Add(nextrec.Key);
+                            if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
+                                // add all tombstones to the handled list, and continue to the next
+                                continue;
+                            }
+                            if (!direction_is_forward) {
+                                int cmpval = startkeytest.CompareTo(rk.lowkey);
+                                if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
+                                    segmentsWithRecords.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
+                                        this.segmentReaderFromRow(nextrec));
                                 }
-                            } catch (KeyNotFoundException) { }
+                            }
+                            break; // stop once we found a real record
                         }
                     }
+
+
+
+
+
 
                     // (2) find the range row above or below the indirect range record (.ROOT/GEN/##/{.ROOT/GEN...)
                     //     TODO: this really doesn't handle the recursive case, because these two records could both be here...
@@ -1236,8 +1239,6 @@ namespace Bend
             // done with worklist
 
             Console.WriteLine("segmentsWithRecords: {0}", String.Join(",", segmentsWithRecords));
-
-
 
         }
 
