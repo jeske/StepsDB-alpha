@@ -218,9 +218,9 @@ namespace Bend
             // TODO, make this somehow get a threadsafe stream to hand to the basic block
             // decoder!!
 
-            return new SegmentBlockBasicDecoder(
+            return new SegmentBlockBasicDecoder(SegmentBlockCompressedDecodeStage.decode(
                 segmentRegion.getNewBlockAccessor((int)block.datastart,
-                (int)(block.dataend - block.datastart)));
+                (int)(block.dataend - block.datastart))));
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -617,7 +617,7 @@ namespace Bend
                     if (!this.hasmore) { break; } // if no more rows, see if we need to write a block
 
                     if (encoder == null) {
-                        encoder = new SegmentBlockBasicEncoder();
+                        encoder = new SegmentBlockCompressedEncoder(new SegmentBlockBasicEncoder());
                         mb_writer = new MicroBlockStream(kvp.Key, encoder);
                         encoder.setStream(mb_writer);
                         //block_start_key = kvp.Key;

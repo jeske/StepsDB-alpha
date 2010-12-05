@@ -53,6 +53,7 @@ namespace Bend
 
             // write the compressed data
             GZipOutputStream zipstream = new GZipOutputStream(this.output);
+            zipstream.SetLevel(1); // 0 is no compression, 9 is best compression (slowest)
             zipstream.Write(uncompressed_bytes, 0, uncompressed_bytes.Length);
             zipstream.Finish();            
         }

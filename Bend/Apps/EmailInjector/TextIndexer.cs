@@ -26,6 +26,7 @@ namespace Bend.Indexer {
         public void index_document(LayerManager.WriteGroup txwg, string docid, string txtbody) {
             //System.Console.WriteLine(msg.Body);
             int wordpos = 0;
+            HashSet<string> seen_words = new HashSet<string>();
 
             foreach (var possibleword in Regex.Split(txtbody, @"[-*()\""'[\]:\s?.,]+")) {
                 String srcword = possibleword;
@@ -41,11 +42,24 @@ namespace Bend.Indexer {
 
                 // create a key and insert into the db
                 // TODO: docid may have / on UNIX .
-                var key = new RecordKey().appendParsedKey(index_location_prefix)
-                    .appendKeyPart(word).appendKeyPart(docid).appendKeyPart("" + wordpos);
+
+                if (true) {
+                    // DOCHITS
+                    if (!seen_words.Contains(word)) {
+                        seen_words.Add(word);
+                        var key = new RecordKey().appendParsedKey(index_location_prefix)
+                            .appendKeyPart(word).appendKeyPart(docid);
+                        txwg.setValue(key, RecordUpdate.WithPayload(""));
+                    }
+                } else {
+                    // WORDHITS
+                    var key = new RecordKey().appendParsedKey(index_location_prefix)
+                       .appendKeyPart(word).appendKeyPart(docid).appendKeyPart("" + wordpos);
+                    txwg.setValue(key, RecordUpdate.WithPayload(""));
+                }
 
                 // System.Console.WriteLine(key);
-                txwg.setValue(key, RecordUpdate.WithPayload(""));
+                
                 wordpos++;
             }
 
