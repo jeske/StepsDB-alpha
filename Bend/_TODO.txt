@@ -2,11 +2,22 @@
 
 ----[ TODO ]---------
 
+  - GUI: mark blocks which contain index (.ROOT/GEN) records  
+  - GUI: repaint heap-memory and GC info on a timer
+  - GUI: setup generic DB event listener concept and notify GUI through it
+
   - the merge extension needs to take a duplicate key resolver, which will handle things like
     causing incremental updates to merge. 
 
   - FIX: cursor-v2 bug in increasing-order-keys-test
 
+  - improve performance of mbox parser
+  - ADD: record block-encoder registry, encoder-type "chain" and decode-setup (so it just auto-decodes whatever is there)
+  - MergeManager: notify_add should check for overlap! 
+  - LayerManager: merge should have a slow/safe mode to verify segments db vs merge-manager after every merge
+  - PERF: experiment changing BDSkipList locks into SpinLocks
+  - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
+  - MergeManager: extend to consider "peers" to the start-segment so we can do good top-heavy merges
 
 **** PERF ideas  ****
 
@@ -16,7 +27,7 @@
   - implement a new block format!!! 
 
 ********************
-  - gui: mark blocks which contain index (.ROOT/GEN) records  
+
 
   - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
      Don't we need to continue iterating in the next range of that generation?  How? At least we should fail! 
@@ -72,6 +83,8 @@
   - CLEANUP: make a 'new block range verify' that makes sure a new block range does not span an existing block range
     - though it'll need to ignore the blocks it's replacing. 
 	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
+  
+  - CLEANUP: is there a race when we delete and then add a segment with the same key?
 
   - CLEANUP:
     - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
@@ -87,6 +100,7 @@
 	   - visualize the disk/block address space
 	   - show number of keys in the database (LayerManager will need to track this)
 	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
+	   - IDEA: debug GUI for IScanner interface
 
   - fix 'unmergable' higher generation blocks (i.e. increasing order insertion)
      - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
@@ -185,6 +199,7 @@
 
 ------------[ DONE ]--------------------
   
+12/5  - MergeManager: add merge-priority boosts based on block's generation, whether it has rangekeys, etc.
 12/5  - cursor scan based TextIndexer has MUCH better performance!! 
 12/5  - CURSOR-V2!!!!  - implement fast cursors! 
       - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
