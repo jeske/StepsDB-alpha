@@ -387,31 +387,36 @@ namespace Bend {
             // find the highest source generation
             
             long highest_generation = 0;
+            long lowest_generation = 1000; // maxint
             foreach (var source_seg in source_segs) {
-                highest_generation = Math.Max(highest_generation, source_seg.generation);
+                highest_generation = Math.Max(highest_generation, source_seg.generation);                
                 if (source_seg.keyrangeContainsSegmentPointers()) {
                     contains_pointers = true;
                 }
             }
             foreach (var target_seg in target_segs) {
+                lowest_generation = Math.Min(lowest_generation, target_seg.generation);
                 if (target_seg.keyrangeContainsSegmentPointers()) {
                     contains_pointers = true;
                 }
             }
+            long generation_span = highest_generation - lowest_generation;
 
             // LOWER scores are BETTER!
 
             this.merge_ratio =
                 ( (float)(target_segs.Count) / (float)source_segs.Count  )  -    // ratio of target to source
-                (target_segs.Count + source_segs.Count)/6.0f -                   // boost larger merges
+                (target_segs.Count + source_segs.Count)/10.0f -                   // boost larger merges
                 0.1f * (float) highest_generation; // boost based on block generation 
 
 
+            // boost when the contains segment pointers 
             if (contains_pointers) {
-                this.merge_ratio -= 0.2f;  // boost when the contains segment pointers 
+                this.merge_ratio -= (2f * (float)generation_span);  
             }
 
-            // TODO: boost when the merge spans multiple generations
+            // boost when the merge spans multiple generations
+            this.merge_ratio -= 0.1f * (float)generation_span;        
             
 
         }

@@ -94,6 +94,7 @@ namespace Bend
                     if (walk.MoveNext()) {
                         if (walk.Current.Key.CompareTo(seg) != 0) {
                             discrepancy = true;
+                            Console.WriteLine("  mismatch: db{0} mm{1}", seg, walk.Current.Key);
                         }
                     } else { discrepancy = true; }
 
@@ -230,6 +231,11 @@ namespace Bend
             int flush_period = 10000;
             int commit_period = 1000;
             bool random_order = true;
+
+
+
+
+
             DateTime start = DateTime.Now;
             int record_count = 0;
 
@@ -262,7 +268,7 @@ namespace Bend
                     win.debugDump(db);
                     dumpMergeCandidates(db);
                     
-                    for (int mx = 0; mx < 8; mx++) {
+                    for (int mx = 0; mx < 30; mx++) {
                         
                         mc = db.rangemapmgr.mergeManager.getBestCandidate();
                         if (mc == null) { break; }
