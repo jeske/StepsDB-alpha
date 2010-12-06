@@ -8,8 +8,17 @@
 	  Two possible fixes (1) don't stop until we see a range record that does not apply to the
 	  record we're looking for , (2) once we have a valid range record for a generation, mark
 	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
+    
+  - FIX: runaway max-gen count! 
 
   - fix the block decoder selection to be hardcoded
+  - much bigger index test (try to make a 2GB index)
+
+  - add a network interface and a command-line client
+  - add ACCUMULATORS
+
+  - convert willowmail sqliteDB to stepsdb keys/values
+     - need large-record support
 
   - WILLOWMAIL / INDEXER TEST: 
      - implement log recirculation

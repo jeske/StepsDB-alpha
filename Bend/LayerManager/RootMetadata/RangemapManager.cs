@@ -1092,8 +1092,6 @@ namespace Bend
 
         // ---------------------------------------------------------
 
-
-
         private void INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
             IComparable<RecordKey> startkeytest,
             bool direction_is_forward,
@@ -1109,17 +1107,31 @@ namespace Bend
             var handledIndexRecords = new HashSet<RecordKey>();
             var segmentsWithRecordsTombstones = new HashSet<RecordKey>();
 
+
+            // we only want the "next" segment by generation, so we accumulate them in this array. 
+            // Note that because we stop searching in a given segment as soon as we find a valid
+            // pointer, this also acts as a "tombstone" for any pointers bigger than the valid 
+            // segment we found (because we don't want to scan far enoguh to add _all_ candidate tombstones)
+
+            var segmentsWithRecords_ByGeneration =
+                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[maxgen+1];
+
             // (1) add working segment to the worklist
             workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
             if (direction_is_forward) {
                 int cmpresult = startkeytest.CompareTo(startseg_rangekey.highkey);
                 if (cmpresult < 0 || (equal_ok && (cmpresult <= 0))) {
                     segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+                    segmentsWithRecords_ByGeneration[startseg_rangekey.generation] =
+                        new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
                 }
             } else {
                 int cmpresult = startkeytest.CompareTo(startseg_rangekey.lowkey);
                 if (cmpresult > 0 || (equal_ok && (cmpresult >= 0))) {
                     segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+                    segmentsWithRecords_ByGeneration[startseg_rangekey.generation] =
+                        new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+
                 }
             }
 
@@ -1182,13 +1194,25 @@ namespace Bend
                             if (direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
-                                    segmentsWithRecords.Add(rk,
-                                        this.segmentReaderFromRow(nextrec));
+                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                        var segment = this.segmentReaderFromRow(nextrec);
+
+                                        segmentsWithRecords.Add(rk, segment);
+                                        segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    }
                                 }
                             } else {
                                 // really only need this if below doesn't find one?
-                                segmentsWithRecords.Add(rk,
-                                        this.segmentReaderFromRow(nextrec));
+                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                    var segment = this.segmentReaderFromRow(nextrec);
+
+                                    segmentsWithRecords.Add(rk, segment);
+                                    segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                }
                             }
                             break; // stop once we found a real record
                         }
@@ -1203,21 +1227,44 @@ namespace Bend
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                             
-                            if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) ||
-                                segmentsWithRecords.ContainsKey(rk)) {
+                            if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
+                                segmentsWithRecordsTombstones.Add(nextrec.Key);
+                                continue;
+                            }
+                            if (segmentsWithRecordsTombstones.Contains(nextrec.Key) ||
+                                segmentsWithRecords.ContainsKey(rk)) {
+                                // this entry was tombstoned. We consider it tombstoned if
+                                // it's in "segmentsWithRecords", because that just means there was
+                                // another value of the exact same segment key above us
                                 continue;
                             }
                             if (!direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
-                                    segmentsWithRecords.Add(rk,
-                                        this.segmentReaderFromRow(nextrec));
+                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+
+                                        var segment = this.segmentReaderFromRow(nextrec);
+
+                                        segmentsWithRecords.Add(rk, segment);
+                                        segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    }
+                                        
                                 }
                             } else {
                                 // really only need this if the above didn't find one?? 
-                                segmentsWithRecords.Add(rk,
-                                        this.segmentReaderFromRow(nextrec));
+                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+
+                                    var segment = this.segmentReaderFromRow(nextrec);
+
+                                    segmentsWithRecords.Add(rk, segment);
+                                    segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                }
+                                        
                             }
                             break; // stop once we found a real record
                         }
@@ -1296,6 +1343,26 @@ namespace Bend
             }
 
             // done with worklist
+            int candidate_count = 0;
+            foreach (var segwrec in segmentsWithRecords_ByGeneration) {
+                if (segwrec.Key != null) {
+                    candidate_count++;
+                }
+            }
+            if (candidate_count < segmentsWithRecords.Count) {
+                Console.WriteLine("                            <--------------------------------------------------------------------");
+                Console.WriteLine("count mismatch, bygen:{0} list:{1}", candidate_count, segmentsWithRecords.Count);
+                Console.WriteLine("list: {0}", segmentsWithRecords);
+
+                segmentsWithRecords.Clear();
+                foreach (var segwrec in segmentsWithRecords_ByGeneration) {
+                    if (segwrec.Key != null) {
+                        segmentsWithRecords.Add(segwrec);
+                    }
+                }
+                Console.WriteLine("newlist: {0}", segmentsWithRecords);
+            }
+
 
 #if DEBUG_CURSORS_LOW
             Console.WriteLine("segmentsWithRecords: \n   {0}\n", String.Join("\n   ", segmentsWithRecords));
