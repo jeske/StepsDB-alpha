@@ -1140,7 +1140,7 @@ namespace Bend
 
             // (2) grab element off the worklist with the highest generation number, and process it
             int count = 0;
-#if DEBUG_CURSORS
+#if DEBUG_CURSORS || true
             Console.WriteLine("segmentsetup non-recursive: {0} equal_ok:{1} direction_is_forward:{2}", 
                 startkeytest,equal_ok,direction_is_forward);
 #endif
@@ -1160,7 +1160,7 @@ namespace Bend
 
                 if (!startseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
                     // throw new Exception("why do we have a worklist item that's not an indirect segment?");
-                    return; // nothing to do here.                    
+                    break; // nothing to do here.                    
                 }
                 // for each generation, starting with maxgen
                 for (int i = maxgen - 1; i >= 0; i--) {
@@ -1181,12 +1181,13 @@ namespace Bend
                                 startrk,
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            
                             if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 segmentsWithRecordsTombstones.Add(nextrec.Key);
+                                Console.WriteLine("stage(1) scanBack tombstone: {0}", rk);
                                 continue;
                             }
+                            Console.WriteLine("stage(1) scanBack considered: {0}", rk);
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) || 
                                 segmentsWithRecords.ContainsKey(rk)) {
                                 // this entry was tombstoned. We consider it tombstoned if
@@ -1197,22 +1198,21 @@ namespace Bend
                             if (direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
+                                    var segment = this.segmentReaderFromRow(nextrec);
+                                    segmentsWithRecords.Add(rk, segment);
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
-                                        var segment = this.segmentReaderFromRow(nextrec);
-
-                                        segmentsWithRecords.Add(rk, segment);
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {                                        
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
                                 }
                             } else {
                                 // really only need this if below doesn't find one?
-                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
-                                    var segment = this.segmentReaderFromRow(nextrec);
+                                var segment = this.segmentReaderFromRow(nextrec);
+                                segmentsWithRecords.Add(rk, segment);
 
-                                    segmentsWithRecords.Add(rk, segment);
+                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {                                
                                     segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                 }
@@ -1228,16 +1228,17 @@ namespace Bend
 
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
-                                startrk,
+                                startrk,                                
                                 RecordKey.AfterPrefix(new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            
                             if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 segmentsWithRecordsTombstones.Add(nextrec.Key);
+                                Console.WriteLine("stage(1) scanForeward tombstone: {0}", rk);
                                 continue;
-                            }
+                            }                            
+                            Console.WriteLine("stage(1) scanForeward considered: {0}", rk);
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) ||
                                 segmentsWithRecords.ContainsKey(rk)) {
                                 // this entry was tombstoned. We consider it tombstoned if
@@ -1248,19 +1249,17 @@ namespace Bend
                             if (!direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
+                                    var segment = this.segmentReaderFromRow(nextrec);
+                                    segmentsWithRecords.Add(rk, segment);
+
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
-
-                                        var segment = this.segmentReaderFromRow(nextrec);
-
-                                        segmentsWithRecords.Add(rk, segment);
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
                                         
                                 }
-                            } else {
-                                // really only need this if the above didn't find one?? 
+                            } else {                                
                                 if (segmentsWithRecords_ByGeneration[i].Key == null ||
                                         segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
 
