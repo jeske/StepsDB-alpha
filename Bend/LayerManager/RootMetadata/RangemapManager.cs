@@ -1213,7 +1213,7 @@ namespace Bend
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) < 0) {                                        
+                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) > 0) {                                        
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
@@ -1269,7 +1269,7 @@ namespace Bend
                                     segmentsWithRecords.Add(rk, segment);
 
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) > 0) {      
+                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) > 0) {      
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
