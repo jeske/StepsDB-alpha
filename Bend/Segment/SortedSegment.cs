@@ -1,6 +1,7 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
+// #define COMPRESSED
 
 using System;
 using System.Collections.Generic;
@@ -217,10 +218,16 @@ namespace Bend
         private ISegmentBlockDecoder openBlock(_SegBlock block) {
             // TODO, make this somehow get a threadsafe stream to hand to the basic block
             // decoder!!
-
+#if COMPRESSED
             return new SegmentBlockBasicDecoder(SegmentBlockCompressedDecodeStage.decode(
                 segmentRegion.getNewBlockAccessor((int)block.datastart,
                 (int)(block.dataend - block.datastart))));
+#else
+            return new SegmentBlockBasicDecoder(
+                segmentRegion.getNewBlockAccessor((int)block.datastart,
+                (int)(block.dataend - block.datastart)));
+
+#endif
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -617,7 +624,11 @@ namespace Bend
                     if (!this.hasmore) { break; } // if no more rows, see if we need to write a block
 
                     if (encoder == null) {
+#if COMPRESSED
                         encoder = new SegmentBlockCompressedEncoder(new SegmentBlockBasicEncoder());
+#else
+                        encoder = new SegmentBlockBasicEncoder();
+#endif
                         mb_writer = new MicroBlockStream(kvp.Key, encoder);
                         encoder.setStream(mb_writer);
                         //block_start_key = kvp.Key;

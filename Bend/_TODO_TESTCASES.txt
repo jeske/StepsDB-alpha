@@ -1,0 +1,48 @@
+﻿
+
+TESTCASES:
+----------
+
+text-index:
+  - build test, 100k documents, 60k each, 8 fields, 1h:15m to index
+
+distributed store:
+  - easy setup
+  - "add remove nodes" punishment test
+  - "crash nodes" punishment test
+
+geospatial index: 
+   - add 2M venues in a relativelys small area
+   - find 20 closest points to a given location (lat/lon)
+   - find 20 closest points with additional query paramaters
+
+   - test against MySQL R-tree, MongoDB geospatial hash
+
+
+log/file storage processing:
+   - map-reduce (various record formats)
+   - hive/pig
+
+analytics: 
+   - Palantir style data slice and dice GUI
+
+SQL in C#:
+  - sqlite csharp
+  - sharpHSQL
+
+MapReduce Analytics:
+
+XML database:
+   - benchmark - http://tpox.sourceforge.net/
+
+LDAP data:
+
+
+ORM: 
+Lift/scala
+Python: db.py, Ming
+Hibernate: 
+
+Evaluating Distributed Key Stores
+- http://randomfoo.net/2009/04/20/some-notes-on-distributed-key-stores
+- http://www.metabrew.com/article/anti-rdbms-a-list-of-distributed-key-value-stores/

@@ -230,7 +230,7 @@ namespace Bend
             int keycount = 1000000;
             int flush_period = 10000;
             int commit_period = 1000;
-            bool random_order = true;
+            bool random_order = false;
 
 
 

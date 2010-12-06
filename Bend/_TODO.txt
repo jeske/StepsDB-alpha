@@ -9,6 +9,8 @@
 	  record we're looking for , (2) once we have a valid range record for a generation, mark
 	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
 
+  - fix the block decoder selection to be hardcoded
+
   - WILLOWMAIL / INDEXER TEST: 
      - implement log recirculation
      - make a command line text-indexer and test it under mono (index, merge, search)
