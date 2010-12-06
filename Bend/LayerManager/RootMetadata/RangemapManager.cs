@@ -1189,14 +1189,19 @@ namespace Bend
                             }
                             Console.WriteLine("stage(1) scanBack considered: {0}", rk);
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) || 
-                                segmentsWithRecords.ContainsKey(rk) ||
-                                (segmentsWithRecords_ByGeneration[i].Key != null &&
-                                  segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0)) { 
-                                // this entry was tombstoned. We consider it tombstoned if
-                                // it's in "segmentsWithRecords", because that just means there was
-                                // another value of the exact same segment key above us
+                                segmentsWithRecords.ContainsKey(rk)) {                                
+                                // this entry was tombstoned.                                 
                                 continue;
                             }
+                            if (segmentsWithRecords_ByGeneration[i].Key != null &&
+                                  segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                // We also consider it tombstoned if
+                                // it's in "segmentsWithRecords" before us, because that means there was
+                                // another value of the exact same segment key above us, which could
+                                // have hidden our tombstone in it's shadow.
+                                break; // and it also means we can stop now
+                            }
+
                             if (direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
@@ -1239,14 +1244,19 @@ namespace Bend
                             }                            
                             Console.WriteLine("stage(1) scanForeward considered: {0}", rk);
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) ||
-                                segmentsWithRecords.ContainsKey(rk) ||
-                                (segmentsWithRecords_ByGeneration[i].Key != null &&
-                                 segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0)) {
-                                // this entry was tombstoned. We consider it tombstoned if
-                                // it's in "segmentsWithRecords", because that just means there was
-                                // another value of the exact same segment key above us
+                                segmentsWithRecords.ContainsKey(rk)) {                              
+                                // this entry was tombstoned. 
                                 continue;
                             }
+                            if (segmentsWithRecords_ByGeneration[i].Key != null &&
+                                 segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                // We also consider it tombstoned if
+                                // it's in "segmentsWithRecords" before us, because that means there was
+                                // another value of the exact same segment key above us, which could
+                                // have hidden our tombstone in it's shadow.
+                                break;  // and it also means we can stop now
+                            }
+
                             if (!direction_is_forward) {
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
