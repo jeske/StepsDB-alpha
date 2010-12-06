@@ -1193,36 +1193,31 @@ namespace Bend
                                 // this entry was tombstoned.                                 
                                 continue;
                             }
-                            if (segmentsWithRecords_ByGeneration[i].Key != null &&
-                                  segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
-                                // We also consider it tombstoned if
-                                // it's in "segmentsWithRecords" before us, because that means there was
-                                // another value of the exact same segment key above us, which could
-                                // have hidden our tombstone in it's shadow.
-                                break; // and it also means we can stop now
-                            }
 
-                            if (direction_is_forward) {
+                            if (!direction_is_forward) {
+                                // we're headed in the direction of this scan, so get the next valid segment
+                                // so long as it appears sooner than the one we have already
+                                var segment = this.segmentReaderFromRow(nextrec);
+                                segmentsWithRecords.Add(rk, segment);
+                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                    segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                }
+                                break;
+                            } else {
+                                // we're headed in the opposite direction of the scan, so only grab a 
+                                // segment if we're inside it _and_ not inside our current candidate
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) < 0) {                                        
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
-                                    
-                                }
-                            } else {
-                                // really only need this if below doesn't find one?
-                                var segment = this.segmentReaderFromRow(nextrec);
-                                segmentsWithRecords.Add(rk, segment);
-                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
 
-                                    segmentsWithRecords_ByGeneration[i] =
-                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                 }
 
                             }
@@ -1253,38 +1248,30 @@ namespace Bend
                                 // this entry was tombstoned. 
                                 continue;
                             }
-                            if (segmentsWithRecords_ByGeneration[i].Key != null &&
-                                 segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
-                                // We also consider it tombstoned if
-                                // it's in "segmentsWithRecords" before us, because that means there was
-                                // another value of the exact same segment key above us, which could
-                                // have hidden our tombstone in it's shadow.
-                                break;  // and it also means we can stop now
-                            }
+                            
+                            if (direction_is_forward) {
+                                // we're headed in the direction of this scan, so get the next valid segment
+                                // so long as it appears sooner than the one we have already
+                                var segment = this.segmentReaderFromRow(nextrec);
+                                segmentsWithRecords.Add(rk, segment);
 
-                            if (!direction_is_forward) {
+                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                        segmentsWithRecords_ByGeneration[i] =
+                                                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);                                    
+                                }
+                            } else {
+                                // we're headed in the opposite direction of the scan, so only grab a 
+                                // segment if we're inside it _and_ not inside our current candidate
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
 
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) > 0) {      
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
-                                    }
-                                }
-                            } else {                                
-                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
-
-                                    var segment = this.segmentReaderFromRow(nextrec);
-                                    segmentsWithRecords.Add(rk, segment);
-
-                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
-                                        segmentsWithRecords_ByGeneration[i] =
-                                                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
                                 }
                                         
