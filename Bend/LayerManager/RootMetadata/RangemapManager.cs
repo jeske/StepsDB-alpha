@@ -271,9 +271,11 @@ namespace Bend
             public int segmentDeletionTombstonesSkipped;
             public int segmentDeletionTombstonesAccumulated;
             public int segmentUpdatesApplied;
+
             public int segmentRangeRowScansPerformed;
             public int segmentRangeRow_FindCalls;
             public int segmentRangeRowsConsidered;               
+
             public int segmentIndirectRangeRowsConsidered;
             public int segmentAccumulate_TryGet;            
             public int rowUpdatesApplied;
@@ -1148,7 +1150,7 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
-#if DEBUG_CURSORS_LOW
+#if DEBUG_CURSORS_LOW || true
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif
 
@@ -1173,6 +1175,7 @@ namespace Bend
                             
 
                         foreach (var nextrec in curseg.scanBackward(
+                            
                             new ScanRange<RecordKey>(
                                 new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i)),
                                 startrk,
@@ -1195,7 +1198,7 @@ namespace Bend
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
                                         var segment = this.segmentReaderFromRow(nextrec);
 
                                         segmentsWithRecords.Add(rk, segment);
@@ -1220,6 +1223,9 @@ namespace Bend
                         Console.WriteLine("segmentsWithRecords: {0}", segmentsWithRecords);                        
 #endif
 
+                            
+                        
+
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
                                 startrk,
@@ -1243,7 +1249,7 @@ namespace Bend
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
 
                                         var segment = this.segmentReaderFromRow(nextrec);
 
@@ -1266,16 +1272,16 @@ namespace Bend
                                 }
                                         
                             }
-                            break; // stop once we found a real record
+                            break; // stop after we've seen a non-tombstone record
                         }
                     }
                  
 
-                    // (3) find the range row above or below the indirect range record (.ROOT/GEN/##/{.ROOT/GEN...)
+                    // (2) find the range row above or below the indirect range record (.ROOT/GEN/##/{.ROOT/GEN...)
                     //     TODO: this really doesn't handle the recursive case, because these two records could both be here...
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{.ROOT/GEN/### 
                     //                 .ROOT/GEN/###{.ROOT/GEN/###{Z
-                    
+
                     {
                         RecordKeyComparator startrk = new RecordKeyComparator()
                             .appendParsedKey(".ROOT/GEN")
@@ -1293,20 +1299,24 @@ namespace Bend
                             }
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                             if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
+                                // stop once we've gone past all possible indirect range references
                                 break;
                             }
+
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 handledIndexRecords.Add(nextrec.Key);
+                                stats.segmentDeletionTombstonesAccumulated++;
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
-                                handledIndexRecords.Add(nextrec.Key);                                
+                                handledIndexRecords.Add(nextrec.Key);
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
-                                            this.segmentReaderFromRow(nextrec));                                
-                                break; // stop once we found a real record
+                                            this.segmentReaderFromRow(nextrec));
+                            } else {
+                                stats.segmentDeletionTombstonesSkipped++;
                             }
-                            
+
                         }
 
                         foreach (var nextrec in curseg.scanForward(
@@ -1319,25 +1329,24 @@ namespace Bend
                             }
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
                             if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
+                                // stop once we've gone past all possible indirect range references
                                 break;
-                            }
-
-                            
+                            }                            
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 handledIndexRecords.Add(nextrec.Key);
+                                stats.segmentDeletionTombstonesAccumulated++;
                                 continue;
                             }
                             if (!handledIndexRecords.Contains(nextrec.Key)) {
-                                handledIndexRecords.Add(nextrec.Key);                                
+                                handledIndexRecords.Add(nextrec.Key);
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                             this.segmentReaderFromRow(nextrec));
-                                break; // stop once we found a real record
+
+                            } else {
+                                stats.segmentDeletionTombstonesSkipped++;
                             }
-                            
                         }
-
-
                     }
                 }
             }
