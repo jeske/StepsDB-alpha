@@ -1189,7 +1189,9 @@ namespace Bend
                             }
                             Console.WriteLine("stage(1) scanBack considered: {0}", rk);
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) || 
-                                segmentsWithRecords.ContainsKey(rk)) {
+                                segmentsWithRecords.ContainsKey(rk) ||
+                                (segmentsWithRecords_ByGeneration[i].Key != null &&
+                                  segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0)) { 
                                 // this entry was tombstoned. We consider it tombstoned if
                                 // it's in "segmentsWithRecords", because that just means there was
                                 // another value of the exact same segment key above us
@@ -1200,22 +1202,19 @@ namespace Bend
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
-                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {                                        
-                                        segmentsWithRecords_ByGeneration[i] =
-                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
-                                    }
+                                                                     
+                                    segmentsWithRecords_ByGeneration[i] =
+                                         new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    
                                 }
                             } else {
                                 // really only need this if below doesn't find one?
                                 var segment = this.segmentReaderFromRow(nextrec);
                                 segmentsWithRecords.Add(rk, segment);
 
-                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {                                
-                                    segmentsWithRecords_ByGeneration[i] =
-                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
-                                }
+                                segmentsWithRecords_ByGeneration[i] =
+                                        new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+
                             }
                             break; // stop once we found a real record
                         }
@@ -1240,7 +1239,9 @@ namespace Bend
                             }                            
                             Console.WriteLine("stage(1) scanForeward considered: {0}", rk);
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) ||
-                                segmentsWithRecords.ContainsKey(rk)) {
+                                segmentsWithRecords.ContainsKey(rk) ||
+                                (segmentsWithRecords_ByGeneration[i].Key != null &&
+                                 segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0)) {
                                 // this entry was tombstoned. We consider it tombstoned if
                                 // it's in "segmentsWithRecords", because that just means there was
                                 // another value of the exact same segment key above us
@@ -1252,11 +1253,9 @@ namespace Bend
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
 
-                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
-                                        segmentsWithRecords_ByGeneration[i] =
-                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
-                                    }
+                                    segmentsWithRecords_ByGeneration[i] =
+                                          new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+
                                         
                                 }
                             } else {                                
