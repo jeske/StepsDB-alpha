@@ -1207,18 +1207,23 @@ namespace Bend
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
-                                                                     
-                                    segmentsWithRecords_ByGeneration[i] =
-                                         new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                        segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    }
                                     
                                 }
                             } else {
                                 // really only need this if below doesn't find one?
                                 var segment = this.segmentReaderFromRow(nextrec);
                                 segmentsWithRecords.Add(rk, segment);
+                                if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
 
-                                segmentsWithRecords_ByGeneration[i] =
-                                        new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                }
 
                             }
                             break; // stop once we found a real record
@@ -1263,20 +1268,24 @@ namespace Bend
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
 
-                                    segmentsWithRecords_ByGeneration[i] =
-                                          new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
-
-                                        
+                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                        segmentsWithRecords_ByGeneration[i] =
+                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    }
                                 }
                             } else {                                
                                 if (segmentsWithRecords_ByGeneration[i].Key == null ||
                                         segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
 
                                     var segment = this.segmentReaderFromRow(nextrec);
-
                                     segmentsWithRecords.Add(rk, segment);
-                                    segmentsWithRecords_ByGeneration[i] =
-                                            new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+
+                                    if (segmentsWithRecords_ByGeneration[i].Key == null ||
+                                        segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                        segmentsWithRecords_ByGeneration[i] =
+                                                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
+                                    }
                                 }
                                         
                             }
