@@ -1,5 +1,10 @@
 ﻿
 
+
+
+http://blogs.msdn.com/b/vcblog/archive/2010/04/21/quick-help-on-vs2010-custom-build-rule.aspx
+
+
 Q: How can we make a 
 
 
@@ -9,6 +14,41 @@ Q: How can we make a
 More design notes at:
 
 https://docs.google.com/Doc?docid=0AZBsc776AuokZGdndnFmZm5fNjNneDRjYzZmaw&hl=en
+
+
+
+
+					/* var rec = new Rec();
+                     * rec.prefix = "foo";
+                     * rec.word = bar
+                     * rec.docid = 5
+                     * rec.freq = 6
+                     * 
+                     * var rec = new Rec{
+                     *    prefix = "foo",
+                     *    word = "bar",
+                     *    docid = 5,
+                     *    freq = 6
+                     *    };
+                     *    
+                     * 
+                     * db.wordlist.setRec(rec)
+                     * 
+                     * struct WordHit {
+                     *   RecordKeyType_String prefix;
+                     *   RecordKeyType_String word;
+                     *   RecordKeyType_Long docid;
+                     *   RecordKeyType_Long freq;
+                     *   }
+                     *   
+                     * DbIdex WordHitIndex = db.wordlist.defineKey(WordHit, WordHit.prefix.Type,WordHit.word.Type,WordHit.docid.Type);
+                     *                                           
+                     * db.wordlist.defineKey("prefix/word/docid");
+                     * 
+                     *                      
+                     * void defineKey<T> where T:RecordKeyType (WordHit.Type, T[] parts)
+                     *                                                            
+                     */
 
 
 

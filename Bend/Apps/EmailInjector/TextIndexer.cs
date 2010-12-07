@@ -81,10 +81,14 @@ namespace Bend.Indexer {
 
                 // now add all the words for that document
                 foreach (var wordinfo in word_count) {
-                    var key = new RecordKey().appendParsedKey(index_location_prefix)
-                         .appendKeyPart(wordinfo.Key).appendKeyPart(new RecordKeyType_Long(doc_numeric_id));
-                         txwg.setValue(key, RecordUpdate.WithPayload("" + wordinfo.Value));
+                    var key = new RecordKey()
+                        .appendParsedKey(index_location_prefix)                      // prefix
+                        .appendKeyPart(wordinfo.Key)                                 // word itself
+                        .appendKeyPart(new RecordKeyType_Long(doc_numeric_id));      // docid
 
+                         txwg.setValue(key, RecordUpdate.WithPayload("" + wordinfo.Value));  // value is word-frequeny in the doc
+
+                    
                 }
             }
         }
