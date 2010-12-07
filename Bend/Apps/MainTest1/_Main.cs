@@ -233,9 +233,6 @@ namespace Bend
             bool random_order = false;
 
 
-
-
-
             DateTime start = DateTime.Now;
             int record_count = 0;
 

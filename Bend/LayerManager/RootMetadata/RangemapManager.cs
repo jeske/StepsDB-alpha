@@ -1253,6 +1253,15 @@ namespace Bend
                                 RecordKey.AfterPrefix(new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
                                 null))) {
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            if (direction_is_forward) {
+                                if (segmentsWithRecords_ByGeneration[i].Key != null &&
+                                    segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+                                    Console.WriteLine("stage(1) scanForeward V-tombstone: {0} before {1}", 
+                                        segmentsWithRecords_ByGeneration[i].Key, rk);
+                                    break;
+                                }
+                            }
+                                
                             if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 segmentsWithRecordsTombstones.Add(nextrec.Key);
