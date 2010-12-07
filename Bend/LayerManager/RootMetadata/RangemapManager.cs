@@ -79,6 +79,7 @@ namespace Bend
                 seg_count++;
             }            
             Console.WriteLine("primeMergeManager(): finished. Loaded {0} segments.", seg_count);
+            this.setMaxGenCountHack(mergeManager.getMaxGeneration() + 1);
         }
 
         public static void Init(LayerManager store) {
@@ -175,6 +176,15 @@ namespace Bend
             // we can't really do this because the file is still open
             // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data)); 
                        
+        }
+
+        public void setMaxGenCountHack(int num_generations) {            
+            if (this.num_generations != num_generations) {
+                this.num_generations = num_generations;                
+                store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
+                    RecordUpdate.WithPayload(num_generations.ToString()));
+            }
+
         }
        
         public void setGenerationCountToZeroHack() {                       

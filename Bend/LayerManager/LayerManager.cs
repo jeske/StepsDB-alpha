@@ -482,6 +482,7 @@ namespace Bend
 
                 tx.finish();                             // commit the freespace and rangemap transaction
 
+                rangemapmgr.setMaxGenCountHack(rangemapmgr.mergeManager.getMaxGeneration() + 1);
                 rangemapmgr.clearSegmentCacheHack();
             }
         }
