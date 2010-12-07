@@ -1208,12 +1208,17 @@ namespace Bend
                             } else {
                                 // we're headed in the opposite direction of the scan, so only grab a 
                                 // segment if we're inside it _and_ not inside our current candidate
+                                //  note: we need to treat an existing segment above startkeytest as a 
+                                //        "virtual tombstone" because it shadows tombstones above itself
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
+                                    Console.WriteLine("stage(1)    scanBack added: {0}", rk);
                                     segmentsWithRecords.Add(rk, segment);
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) > 0) {                                        
+                                        ((startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) > 0) &&
+                                         (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0))) {
+                                            Console.WriteLine("stage(1)    scanBack confirmed: {0}", rk);
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
@@ -1254,22 +1259,26 @@ namespace Bend
                                 // so long as it appears sooner than the one we have already
                                 var segment = this.segmentReaderFromRow(nextrec);
                                 segmentsWithRecords.Add(rk, segment);
-
+                                Console.WriteLine("stage(1)    scanForeward added: {0}", rk);
                                 if (segmentsWithRecords_ByGeneration[i].Key == null ||
                                         segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+                                            Console.WriteLine("stage(1)    scanForeward confirmed: {0}", rk);
                                         segmentsWithRecords_ByGeneration[i] =
                                                 new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);                                    
                                 }
                             } else {
                                 // we're headed in the opposite direction of the scan, so only grab a 
                                 // segment if we're inside it _and_ not inside our current candidate
+                                //  note: we need to treat an existing segment above startkeytest as a 
+                                //        "virtual tombstone" because it shadows tombstones above itself
                                 int cmpval = startkeytest.CompareTo(rk.lowkey);
                                 if ((cmpval > 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
                                     segmentsWithRecords.Add(rk, segment);
-
+                                    
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) > 0) {      
+                                        ((startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) > 0) &&
+                                         (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0))) {                                            
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
@@ -1367,13 +1376,17 @@ namespace Bend
                 Console.WriteLine("count mismatch, bygen:{0} list:{1}", candidate_count, segmentsWithRecords.Count);
                 Console.WriteLine("list: {0}", segmentsWithRecords);
 
+                var segsWithRec_ByGen_List = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
+
                 segmentsWithRecords.Clear();
                 foreach (var segwrec in segmentsWithRecords_ByGeneration) {
-                    if (segwrec.Key != null) {
+                    if (segwrec.Key != null) {                        
                         segmentsWithRecords.Add(segwrec);
                     }
                 }
                 Console.WriteLine("newlist: {0}", segmentsWithRecords);
+                
+
             }
 
 
