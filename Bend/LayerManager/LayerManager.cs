@@ -28,7 +28,7 @@ namespace Bend
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
-        private int SEGMENT_BLOCKSIZE = 512 * 1025;
+        private int SEGMENT_BLOCKSIZE = 512 * 1024;
 
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;
@@ -324,6 +324,40 @@ namespace Bend
 
         //-------------------------------------------------------
 
+        public void verifySegmentList() {
+            
+            // this is the slow method
+
+            var walk = this.rangemapmgr.mergeManager.segmentInfo.GetEnumerator();
+
+            bool discrepancy = false;
+
+            foreach (var seg in this.listAllSegments()) {
+
+                // Assert.AreEqual(true, walk.MoveNext(), "mergemanager missing record!");
+                // Assert.AreEqual(0, walk.Current.Key.CompareTo(seg), "mergemanager and db.listAllSegments have different data!");
+                if (walk.MoveNext()) {
+                    if (walk.Current.Key.CompareTo(seg) != 0) {
+                        discrepancy = true;
+                        Console.WriteLine("  mismatch: db{0} mm{1}", seg, walk.Current.Key);
+                    }
+                } else { discrepancy = true; }
+
+                System.Console.WriteLine("db gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+            }
+
+            if (discrepancy) {
+                foreach (var seginfo in this.rangemapmgr.mergeManager.segmentInfo) {
+                    var seg = seginfo.Key;
+                    System.Console.WriteLine("mm gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
+                }
+                throw new Exception("mergemanager and db.listAllSegments have different data!");
+            }
+
+
+           
+        }
+
         public void performMerge(MergeCandidate mc) {
             if (mc == null) { return; }
 
@@ -334,6 +368,7 @@ namespace Bend
             segs_to_merge.AddRange(mc.target_segs);
             segs_to_merge.Reverse();
             this.mergeSegments(segs_to_merge);
+            this.verifySegmentList();
         }
 
         public List<SegmentDescriptor> listSegmentsForGen(int gen) {
@@ -482,6 +517,7 @@ namespace Bend
 
                 tx.finish();                             // commit the freespace and rangemap transaction
 
+                rangemapmgr.setMaxGenCountHack(rangemapmgr.mergeManager.getMaxGeneration() + 1);
                 rangemapmgr.clearSegmentCacheHack();
             }
         }

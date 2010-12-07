@@ -1,6 +1,7 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
+// #define COMPRESSED
 
 using System;
 using System.Collections.Generic;
@@ -217,10 +218,16 @@ namespace Bend
         private ISegmentBlockDecoder openBlock(_SegBlock block) {
             // TODO, make this somehow get a threadsafe stream to hand to the basic block
             // decoder!!
-
+#if COMPRESSED
             return new SegmentBlockBasicDecoder(SegmentBlockCompressedDecodeStage.decode(
                 segmentRegion.getNewBlockAccessor((int)block.datastart,
                 (int)(block.dataend - block.datastart))));
+#else
+            return new SegmentBlockBasicDecoder(
+                segmentRegion.getNewBlockAccessor((int)block.datastart,
+                (int)(block.dataend - block.datastart)));
+
+#endif
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
@@ -468,8 +475,8 @@ namespace Bend
     {
         int keys_since_last_block = 0;
         int bytes_since_last_block = 0;
-        static int RECOMMEND_MAX_KEYS_PER_MICROBLOCK = 30; 
-        static int RECOMMEND_MAX_BYTES_PER_MICROBLOCK = 64 * 1024;
+        static int RECOMMEND_MAX_KEYS_PER_MICROBLOCK = 200000; 
+        static int RECOMMEND_MAX_BYTES_PER_MICROBLOCK = 16 * 1024;
 
         public SegmentWriterAdvisor() {
         }
@@ -501,12 +508,12 @@ namespace Bend
         MicroBlockStream carryoverMicroblock = null; // this is the Microblock we encoded that didn't fit into the destination
         
         // TODO: track input size, output size, number of blocks, 'wasted' space
-        public struct statinfo
+        public struct SegmentWriterStatInfo
         {
-            public int num_rows;
-            public int num_microblocks;
+            public int num_rows_by_segwriter;
+            public int num_microblocks_by_segwriter;
         };
-        statinfo stats;
+        SegmentWriterStatInfo stats;
 
         public SegmentWriter(IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> enumeration) {
             this.enumeration = enumeration;
@@ -601,7 +608,7 @@ namespace Bend
                         this.carryoverMicroblock = mb_writer;
                         destination_full = true;
                         Debug.WriteLine(String.Format("lastmicroblock {0} ending at row: {1}, key: {2}",
-                            stats.num_microblocks, stats.num_rows, mb_writer.last_seen_key));
+                            stats.num_microblocks_by_segwriter, stats.num_rows_by_segwriter, mb_writer.last_seen_key));
                         break;  // get out of this loop!
                     }
                 
@@ -617,16 +624,21 @@ namespace Bend
                     if (!this.hasmore) { break; } // if no more rows, see if we need to write a block
 
                     if (encoder == null) {
+#if COMPRESSED
                         encoder = new SegmentBlockCompressedEncoder(new SegmentBlockBasicEncoder());
+#else
+                        encoder = new SegmentBlockBasicEncoder();
+#endif
                         mb_writer = new MicroBlockStream(kvp.Key, encoder);
                         encoder.setStream(mb_writer);
                         //block_start_key = kvp.Key;
 
-
+#if DEBUG
                         if ((stats.num_microblocks % 2) == 0) {
                             Debug.WriteLine(String.Format("microblock {0} starting at row: {1}, key: {2}",
                                 stats.num_microblocks, stats.num_rows, kvp.Key.ToString()));
                         }
+#endif
                     }
 
                     // add this row to the microblock
@@ -634,6 +646,7 @@ namespace Bend
                         encoder.add(kvp.Key, kvp.Value);
                         mb_writer.last_seen_key = kvp.Key;
                         mb_writer.num_rows++;
+                        stats.num_rows_by_segwriter++;
                         advisor.fyiAddedRecord(kvp.Key, kvp.Value);
                     }
 
@@ -658,11 +671,15 @@ namespace Bend
                 writer.Write(indexlenbuf, 0, indexlenbuf.Length);
             }
 
-            if (this.carryoverMicroblock == null) {
-                System.Console.WriteLine("segment block finished.  {0} microblocks, {1} rows", 
-                    stats.num_microblocks,stats.num_rows);
-            }
             if (!block_wi.isPopulated()) { throw new Exception("block_wi write info non populated"); }
+
+            Console.WriteLine("segment finished.  {0} microblocks, {1} rows by segwriter so far",
+                    stats.num_microblocks_by_segwriter, stats.num_rows_by_segwriter);
+            if (this.carryoverMicroblock == null) {
+                Console.WriteLine("   has carryover microblock with {0} rows", mb_writer.num_rows);
+            }
+            
+
 
             return block_wi; // return the start/end key write info
         }
@@ -674,8 +691,8 @@ namespace Bend
                         long endpos = writer.Position;
                         index.addBlock(mb_writer.block_start_key, mb_writer.encoder, startpos, endpos);
                         // accumulate statistics                        
-                        stats.num_microblocks++;
-                        stats.num_rows += mb_writer.num_rows;
+                        stats.num_microblocks_by_segwriter++;
+                        stats.num_rows_by_segwriter += mb_writer.num_rows;
 
         }
 

@@ -120,7 +120,9 @@ namespace Bend.Indexer {
             }
 
             public IEnumerable<TermDocHit> allOccurances() {
+   
                 // <index prefix>.../<word>/<docid>/<position>
+
                 var start = new RecordKey().appendParsedKey(this.index.index_location_prefix)
                     .appendKeyPart(word);
                 var end = new EndPrefixMatch(new RecordKey().appendParsedKey(this.index.index_location_prefix)

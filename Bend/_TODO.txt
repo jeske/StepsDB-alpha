@@ -2,25 +2,52 @@
 
 ----[ TODO ]---------
 
+  - FIX: cursor-v2 bug  (MainTest, in increasing-order-keys-test, also in random test now)
+    - I think this is caused because the "new segment is lower than the "old" segment, so at
+	  the top layer it adds a new segment to the list and stops before it sees the tombstone.  
+	  Two possible fixes (1) don't stop until we see a range record that does not apply to the
+	  record we're looking for , (2) once we have a valid range record for a generation, mark
+	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
+    
+  - FIX: runaway max-gen count! 
+  - FIX: super-slow advisor row size estimation!! 
+	- (we might as well encode the key and use that len, since we have to do it anyhow)
+
+  - IDEA: it seems like there is a fancy version of segment setup worklist, where when it descends to
+    the next indirect block, it hands down the current segment, and down below it "merges" the two, in
+	order to remove tombstones. 
+
+  - fix the block decoder selection to be hardcoded
+  - much bigger index test (try to make a 2GB index)
+
+  - add a network interface and a command-line client
+  - add ACCUMULATORS
+
+  - convert willowmail sqliteDB to stepsdb keys/values
+     - need large-record support
+
+  - WILLOWMAIL / INDEXER TEST: 
+     - implement log recirculation
+     - make a command line text-indexer and test it under mono (index, merge, search)
 
   - GUI: repaint heap-memory and GC info on a timer
   - GUI: setup generic DB event listener concept and notify GUI through it
 
   - MergeManager: build unit testcases for merge-manager merge-score (can we just build the function from test-cases?)
   - MergeManager: move the "threshold for merge" logic into the merge manager
+  - MergeManager: notify_add should check for overlap within a generation!
+  - MergeManager: extend to consider "peers" to the start-segment so we can do good top-heavy merges
 
-  - the merge extension needs to take a duplicate key resolver, which will handle things like
+  - LayerManager: SortedMerge extension needs to take a duplicate key resolver, which will handle things like
     causing incremental updates to merge. 
-
-  - FIX: cursor-v2 bug in increasing-order-keys-test
 
   - improve performance of mbox parser
   - ADD: record block-encoder registry, encoder-type "chain" and decode-setup (so it just auto-decodes whatever is there)
-  - MergeManager: notify_add should check for overlap within a generation!
+
   - LayerManager: merge should have a slow/safe mode to verify segments db vs merge-manager after every merge
   - PERF: experiment changing BDSkipList locks into SpinLocks
   - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
-  - MergeManager: extend to consider "peers" to the start-segment so we can do good top-heavy merges
+  
 
 **** PERF ideas  ****
 

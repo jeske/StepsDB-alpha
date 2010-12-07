@@ -405,11 +405,15 @@ namespace Bend {
 
             // LOWER scores are BETTER!
 
-            this.merge_ratio =
-                ( (float)(target_segs.Count) / (float)source_segs.Count  )  -    // ratio of target to source
-                (number_of_segments)/12.0f -                   // boost larger merges
-                0.1f * (float) highest_generation; // boost based on block generation 
+            // The base score is based on target-to-source ratio             
+            this.merge_ratio = (float)(target_segs.Count) / (float)source_segs.Count;
 
+
+            // boost based on block generation 
+            this.merge_ratio -=  0.01f * (float) highest_generation; 
+
+            // the larger the merge, the more we should prefer it.
+            this.merge_ratio -= number_of_segments * 0.01f;
 
             // boost when the contains segment pointers 
             if (contains_pointers) {

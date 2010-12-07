@@ -153,6 +153,7 @@ namespace Bend.EmailIndexerTest {
             string[] filePaths = Directory.GetFiles(basepath);
 
             int count = 1;
+            DateTime start = DateTime.Now;
 
             foreach (var fn in filePaths) {
                 String fullpath = Path.Combine(basepath, fn);
@@ -172,8 +173,14 @@ namespace Bend.EmailIndexerTest {
                         if (lines.Count > 0) {
                             string msg = String.Join("\n", lines);
                             count++;
+                            
+                            string docid = fullpath + ":" + count;
+                            parse_msg(txwg, docid, msg);
 
-                            System.Console.WriteLine("count: " + count);
+                            DateTime cur = DateTime.Now;
+                            Console.WriteLine("doc{0}: {1}    elapsed:{2}    docs/sec:{3}", 
+                                count, docid, (cur-start).TotalSeconds, (float)count / (cur-start).TotalSeconds);
+                                
                             if (count % 800 == 0) {
                                 gui.debugDump(db);
                                 db.flushWorkingSegment();
@@ -192,8 +199,7 @@ namespace Bend.EmailIndexerTest {
                                 // return;
                             }
 
-                            string docid = fullpath + ":" + count;
-                            parse_msg(txwg, docid,msg);
+                           
 
                             // if (count > 40) { return; }
 
