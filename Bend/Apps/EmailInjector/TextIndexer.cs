@@ -32,17 +32,9 @@ namespace Bend.Indexer {
         public void index_document(LayerManager.WriteGroup txwg, string docid, string txtbody) {
             //System.Console.WriteLine(msg.Body);
             int wordpos = 0;
-            HashSet<string> seen_words = new HashSet<string>();
+            IDictionary<string, int> word_count = new BDSkipList<string, int>();            
 
-            // first assign the docid string to a numeric id
-
-            int doc_numeric_id = incrementing_docid++;
-            txwg.setValue(new RecordKey().appendParsedKey(index_location_prefix)
-                .appendKeyPart(new RecordKeyType_Long(doc_numeric_id)),
-                RecordUpdate.WithPayload(docid));
-
-            // then add all the words against that docid
-
+            // first find and count all the words
             foreach (var possibleword in Regex.Split(txtbody, @"[-*()\""'[\]:\s?.,]+")) {
                 String srcword = possibleword;
                 srcword = Regex.Replace(srcword, @"([-""':+_=\/|]{3,})", "");
@@ -58,26 +50,43 @@ namespace Bend.Indexer {
                 // create a key and insert into the db
                 // TODO: docid may have / on UNIX .
 
-                if (true) {
-                    // DOCHITS
-                    if (!seen_words.Contains(word)) {
-                        seen_words.Add(word);
-                        var key = new RecordKey().appendParsedKey(index_location_prefix)
-                            .appendKeyPart(word).appendKeyPart(new RecordKeyType_Long(doc_numeric_id));
-                        txwg.setValue(key, RecordUpdate.WithPayload(""));
-                    }
-                } else {
+                
+                // compute word counts
+                if (!word_count.ContainsKey(word)) {
+                    word_count[word] = 0;
+                }
+                word_count[word]++;
+
+                if (false) {
                     // WORDHITS
                     var key = new RecordKey().appendParsedKey(index_location_prefix)
                        .appendKeyPart(word).appendKeyPart(docid).appendKeyPart("" + wordpos);
                     txwg.setValue(key, RecordUpdate.WithPayload(""));
                 }
 
-                // System.Console.WriteLine(key);
-                
+                // System.Console.WriteLine(key);                
                 wordpos++;
             }
 
+
+            // then insert the document (actually 1000 copies of the same document)
+
+            for (int x = 0; x < 100; x++) {
+                // assign the docid string to a numeric id
+
+                int doc_numeric_id = incrementing_docid++;
+                txwg.setValue(new RecordKey().appendParsedKey(index_location_prefix)
+                    .appendKeyPart(new RecordKeyType_Long(doc_numeric_id)),
+                    RecordUpdate.WithPayload(docid + ":" + x));
+
+                // now add all the words for that document
+                foreach (var wordinfo in word_count) {
+                    var key = new RecordKey().appendParsedKey(index_location_prefix)
+                         .appendKeyPart(wordinfo.Key).appendKeyPart(new RecordKeyType_Long(doc_numeric_id));
+                         txwg.setValue(key, RecordUpdate.WithPayload("" + wordinfo.Value));
+
+                }
+            }
         }
         
 
@@ -294,9 +303,9 @@ namespace Bend.Indexer {
                 expression, hits.Count, elapsed_s, stats.unique_hits_produced, stats.comparisons, stats.entries_scanned);
             
             // Console.WriteLine("    " + String.Join(",",hits.Count < 15 ? hits : hits.GetRange(0,15)));
-            foreach (var hit in hits) {
-                Console.WriteLine("     " + hit);
-            }
+            //foreach (var hit in hits) {
+            //    Console.WriteLine("     " + hit);
+            //}
             
         }
 
@@ -310,6 +319,7 @@ namespace Bend.Indexer {
             searchFor("noticed problems");
             searchFor("data returned");
             searchFor("scott hassan");
+            searchFor("and the with not about jeske");
         }
 
     }
