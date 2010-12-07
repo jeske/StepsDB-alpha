@@ -1216,8 +1216,8 @@ namespace Bend
                                     Console.WriteLine("stage(1)    scanBack added: {0}", rk);
                                     segmentsWithRecords.Add(rk, segment);
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        ((startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) > 0) &&
-                                         (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0))) {
+                                        (startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) < 0) ||
+                                        (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0)) {
                                             Console.WriteLine("stage(1)    scanBack confirmed: {0}", rk);
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
@@ -1277,8 +1277,8 @@ namespace Bend
                                     segmentsWithRecords.Add(rk, segment);
                                     
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
-                                        ((startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) > 0) &&
-                                         (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0))) {                                            
+                                        (startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.highkey) > 0) ||
+                                        (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0)) {
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
