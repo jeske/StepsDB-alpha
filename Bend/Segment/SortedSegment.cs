@@ -1,7 +1,7 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
-#define COMPRESSED
+// #define COMPRESSED
 
 using System;
 using System.Collections.Generic;

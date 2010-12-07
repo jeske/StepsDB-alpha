@@ -1180,7 +1180,7 @@ namespace Bend
                                 new RecordKey().appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i)),
                                 startrk,
                                 null))) {
-                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);                            
                             if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 segmentsWithRecordsTombstones.Add(nextrec.Key);
@@ -1188,6 +1188,8 @@ namespace Bend
                                 continue;
                             }
                             Console.WriteLine("stage(1) scanBack considered: {0}", rk);
+
+
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) || 
                                 segmentsWithRecords.ContainsKey(rk)) {                                
                                 // this entry was tombstoned.                                 
