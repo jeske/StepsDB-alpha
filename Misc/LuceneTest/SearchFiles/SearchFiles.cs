@@ -93,7 +93,7 @@ namespace Lucene.Net.Demo
 		
 		/// <summary>Simple command-line based search demo. </summary>
 		[STAThread]
-		public static void  Main(System.String[] args)
+		public static void  MainOld(System.String[] args)
 		{
 			System.String usage = "Usage:\t" + typeof(SearchFiles) + "[-index dir] [-field f] [-repeat n] [-queries file] [-raw] [-norms field] [-paging hitsPerPage]";
 			usage += "\n\tSpecify 'false' for hitsPerPage to use streaming instead of paging search.";
