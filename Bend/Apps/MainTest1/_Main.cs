@@ -286,8 +286,13 @@ namespace Bend
                     }
 
                     double elapsed = (DateTime.Now - start).TotalMilliseconds / 1000.0;
-                    System.Console.WriteLine("*** merge cycle done  {0} records so far, in {1} total time, {2} records/second",
-                             record_count,elapsed, (double)record_count/elapsed);                
+                    
+                    Console.WriteLine("*************************************************");                    
+                    Console.WriteLine("*************************************************");
+                    Console.WriteLine("*** merge cycle done  {0} records so far, in {1} total time, {2} records/second",
+                             record_count,elapsed, (double)record_count/elapsed);
+                    Console.WriteLine("*************************************************");
+                    Console.WriteLine("*************************************************");
                     
                 }
             }
