@@ -12,7 +12,7 @@ namespace IndexFiles {
 
     public class BendInboxWalk {
         internal static readonly System.IO.FileInfo INDEX_DIR = new System.IO.FileInfo(@"c:\EmailTest\LuceneDB");
-
+        
         [STAThread]
         public static void Main(System.String[] args) {
             System.DateTime start = System.DateTime.Now;
@@ -99,6 +99,7 @@ namespace IndexFiles {
             string[] filePaths = Directory.GetFiles(basepath);
 
             int count = 1;
+            DateTime start = DateTime.Now;
 
             foreach (var fn in filePaths) {
                 String fullpath = Path.Combine(basepath, fn);
@@ -120,6 +121,9 @@ namespace IndexFiles {
 
                             string docid = fullpath + ":" + count;
                             parse_msg(writer, docid, msg);
+                            DateTime cur = DateTime.Now;
+                            Console.WriteLine("doc{0}: {1}    elapsed:{2}    docs/sec:{3}", 
+                                count, docid, (cur-start).TotalSeconds, (float)count / (cur-start).TotalSeconds);
                         }
                             
       
