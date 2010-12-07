@@ -4,12 +4,18 @@ using System.Text.RegularExpressions; // used to split body msg into words
 using System.Collections.Generic;
 using Bend;
 
+using System.Security.Cryptography;
+
 
 namespace Bend.Indexer {
 
     public class TextIndexer {
         LayerManager db;
         public readonly string index_location_prefix = ".zdata/index";
+
+        int incrementing_docid = 1;
+
+        SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 
         public TextIndexer(LayerManager db) {
             this.db = db;
@@ -27,6 +33,15 @@ namespace Bend.Indexer {
             //System.Console.WriteLine(msg.Body);
             int wordpos = 0;
             HashSet<string> seen_words = new HashSet<string>();
+
+            // first assign the docid string to a numeric id
+
+            int doc_numeric_id = incrementing_docid++;
+            txwg.setValue(new RecordKey().appendParsedKey(index_location_prefix)
+                .appendKeyPart(new RecordKeyType_Long(doc_numeric_id)),
+                RecordUpdate.WithPayload(docid));
+
+            // then add all the words against that docid
 
             foreach (var possibleword in Regex.Split(txtbody, @"[-*()\""'[\]:\s?.,]+")) {
                 String srcword = possibleword;
@@ -48,7 +63,7 @@ namespace Bend.Indexer {
                     if (!seen_words.Contains(word)) {
                         seen_words.Add(word);
                         var key = new RecordKey().appendParsedKey(index_location_prefix)
-                            .appendKeyPart(word).appendKeyPart(docid);
+                            .appendKeyPart(word).appendKeyPart(new RecordKeyType_Long(doc_numeric_id));
                         txwg.setValue(key, RecordUpdate.WithPayload(""));
                     }
                 } else {
@@ -87,7 +102,7 @@ namespace Bend.Indexer {
 
         public class TermDocHit {
             public string word;
-            public string docid;            
+            public long docid;            
 
             public override string ToString() {
                 return String.Format("{0} in docid{1}", word, docid);
@@ -96,7 +111,7 @@ namespace Bend.Indexer {
 
         public interface Term {
             TermDocHit advanceTo(IndexStats stats, TermDocHit newpos);
-            TermDocHit advancePastDocid(IndexStats stats, string docid);
+            TermDocHit advancePastDocid(IndexStats stats, long docid);
         };
 
         public class TermWord : Term {
@@ -138,10 +153,10 @@ namespace Bend.Indexer {
                 int len_of_index_prefix = 2;  // ASSUME THIS FOR NOW
                 TermDocHit hit = new TermDocHit();
                 hit.word = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 0]).GetString();
-                hit.docid = ((RecordKeyType_String)hitrow.key_parts[len_of_index_prefix + 1]).GetString();                
+                hit.docid = ((RecordKeyType_Long)hitrow.key_parts[len_of_index_prefix + 1]).GetLong();               
                 return hit;
             }
-            public TermDocHit advancePastDocid(IndexStats stats, string docid) {
+            public TermDocHit advancePastDocid(IndexStats stats, long docid) {
                 bool have_next = hitlist.MoveNext();
                 while (have_next) {
                     KeyValuePair<RecordKey,RecordData> row = hitlist.Current;
@@ -208,7 +223,7 @@ namespace Bend.Indexer {
                 return advancePastDocid(stats,hit.docid);
             }
 
-            public TermDocHit advancePastDocid(IndexStats stats, string docid) {
+            public TermDocHit advancePastDocid(IndexStats stats, long docid) {
                 hit1 = term1.advancePastDocid(stats, docid);
                 hit2 = term2.advancePastDocid(stats, docid);
                 try {
@@ -237,10 +252,10 @@ namespace Bend.Indexer {
             }
         }
 
-        public List<string> HitsForExpression(IndexStats stats, Term term) {
-            List<string> hits = new List<string>();
+        public List<long> HitsForExpression(IndexStats stats, Term term) {
+            List<long> hits = new List<long>();
             TermDocHit hit = new TermDocHit();            
-            hit.docid = "";
+            hit.docid = 0;
             while (true) {
                 try {
                     hit = term.advancePastDocid(stats,hit.docid);
@@ -273,7 +288,7 @@ namespace Bend.Indexer {
             }
             var stats = new IndexStats();
             DateTime start = DateTime.Now;
-            List<string> hits = HitsForExpression(stats, tree);
+            List<long> hits = HitsForExpression(stats, tree);
             double elapsed_s = (DateTime.Now - start).TotalMilliseconds/1000.0;
             Console.WriteLine("search for [{0}] returned {1} hits in {2}s   ({3} productions, {4} comparisons, {5} entries scanned)", 
                 expression, hits.Count, elapsed_s, stats.unique_hits_produced, stats.comparisons, stats.entries_scanned);
