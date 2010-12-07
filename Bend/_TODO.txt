@@ -10,6 +10,7 @@
 	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
     
   - FIX: runaway max-gen count! 
+  - FIX: super-slow advisor row size estimation!! 
 
   - IDEA: it seems like there is a fancy version of segment setup worklist, where when it descends to
     the next indirect block, it hands down the current segment, and down below it "merges" the two, in

@@ -28,7 +28,7 @@ namespace Bend
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
-        private int SEGMENT_BLOCKSIZE = 512 * 1025;
+        private int SEGMENT_BLOCKSIZE = 512 * 1024;
 
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;

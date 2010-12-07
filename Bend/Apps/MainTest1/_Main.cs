@@ -226,11 +226,12 @@ namespace Bend
             System.Console.WriteLine("-------- Write ALOT of data ---------------------------------");
 
 
-            int keysize = 2000;
+            int keysize = 20
+                ;
             int keycount = 1000000;
             int flush_period = 10000;
             int commit_period = 1000;
-            bool random_order = false;
+            bool random_order = true;
 
 
             DateTime start = DateTime.Now;
