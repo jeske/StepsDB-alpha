@@ -1162,7 +1162,7 @@ namespace Bend
 
             // (2) grab element off the worklist with the highest generation number, and process it
             int count = 0;
-#if DEBUG_CURSORS || true
+#if DEBUG_CURSORS 
             Console.WriteLine("segmentsetup non-recursive: {0} equal_ok:{1} direction_is_forward:{2}", 
                 startkeytest,equal_ok,direction_is_forward);
 #endif
@@ -1174,7 +1174,7 @@ namespace Bend
 
                 RangeKey curseg_rangekey = item.Key;
 
-#if DEBUG_CURSORS_LOW || true
+#if DEBUG_CURSORS_LOW 
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
 #endif                
 
@@ -1366,7 +1366,9 @@ namespace Bend
                                 break;
                             }
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+#if DEBUG_CURSORS
                             Console.WriteLine("stage(2) scanBack considered: {0}", nextrec);
+#endif
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
                                 handledIndexRecords.Add(rk);
@@ -1401,7 +1403,9 @@ namespace Bend
                                 break;
                             }                            
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+#if DEBUG_CURSORS
                             Console.WriteLine("stage(2) scanForward considered: {0}", nextrec);
+#endif
                                                
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
