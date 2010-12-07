@@ -11,6 +11,7 @@
     
   - FIX: runaway max-gen count! 
   - FIX: super-slow advisor row size estimation!! 
+	- (we might as well encode the key and use that len, since we have to do it anyhow)
 
   - IDEA: it seems like there is a fancy version of segment setup worklist, where when it descends to
     the next indirect block, it hands down the current segment, and down below it "merges" the two, in

@@ -476,7 +476,7 @@ namespace Bend
         int keys_since_last_block = 0;
         int bytes_since_last_block = 0;
         static int RECOMMEND_MAX_KEYS_PER_MICROBLOCK = 200000; 
-        static int RECOMMEND_MAX_BYTES_PER_MICROBLOCK = 64 * 1024;
+        static int RECOMMEND_MAX_BYTES_PER_MICROBLOCK = 16 * 1024;
 
         public SegmentWriterAdvisor() {
         }

@@ -465,7 +465,7 @@ namespace Bend
                 }
                 DateTime end = DateTime.Now;
 
-#if DEBUG_CURSORS || DEBUG_CURSORS_LOW
+#if DEBUG_CURSORS || DEBUG_CURSORS_LOW || true
             Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
 #endif
 #if DEBUG_CURSORS
