@@ -74,12 +74,13 @@ namespace Bend
             int seg_count = 0;
             foreach (var segdesc in store.listAllSegments()) {
                 // TODO: make sure these are in increasing generation order! 
-                // Console.WriteLine("gen{0} {1} -> {2}", segdesc.generation, segdesc.start_key, segdesc.end_key);
+                Console.WriteLine("gen{0} {1} -> {2}", segdesc.generation, segdesc.start_key, segdesc.end_key);
                 mergeManager.notify_addSegment(segdesc);
                 seg_count++;
             }            
             Console.WriteLine("primeMergeManager(): finished. Loaded {0} segments.", seg_count);
             this.setMaxGenCountHack(mergeManager.getMaxGeneration() + 1);
+            
         }
 
         public static void Init(LayerManager store) {
@@ -611,7 +612,7 @@ namespace Bend
 
 
         // [DebuggerDisplay("RangeKey( {generation}:{lowkey} -> {highkey} )")]
-        public class RangeKey : IComparable<RangeKey>
+        public class RangeKey : IComparable<RangeKey>, IEquatable<RangeKey>
         {
             public RecordKey lowkey = null;
             public RecordKey highkey = null;
@@ -697,6 +698,13 @@ namespace Bend
                 }
             }
 
+            public override bool Equals(object obj) {
+                return this.CompareTo((RangeKey)obj) == 0;
+            }
+            public bool Equals(RangeKey target) {
+                return this.CompareTo(target) == 0;
+            }
+
             public override int GetHashCode() {
                 return generation.GetHashCode() + lowkey.GetHashCode() + highkey.GetHashCode();
             }
@@ -709,6 +717,7 @@ namespace Bend
                 return cmpres;
 
             }
+            
 
             public bool directlyContainsKey(IComparable<RecordKey> testkey) {
                 // return true; 
@@ -1116,9 +1125,12 @@ namespace Bend
             SegmentWalkStats stats) {
 
             var workList = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
-            var handledIndexRecords = new HashSet<RecordKey>();
+            var handledIndexRecords = new HashSet<RangeKey>();
             var segmentsWithRecordsTombstones = new HashSet<RecordKey>();
 
+
+            // add the start segments to the handled list 
+            handledIndexRecords.Add(startseg_rangekey);
 
             // we only want the "next" segment by generation, so we accumulate them in this array. 
             // Note that because we stop searching in a given segment as soon as we find a valid
@@ -1146,7 +1158,7 @@ namespace Bend
 
                 }
             }
-
+            
 
             // (2) grab element off the worklist with the highest generation number, and process it
             int count = 0;
@@ -1160,18 +1172,20 @@ namespace Bend
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
+                RangeKey curseg_rangekey = item.Key;
+
 #if DEBUG_CURSORS_LOW || true
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());
-#endif
-
+#endif                
 
                 if (count++ > 100) { throw new Exception("worklist too big! "); }
                 stats.segmentWalkInvocations++; // really iterations
 
-                if (!startseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
+                if (!curseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
                     // throw new Exception("why do we have a worklist item that's not an indirect segment?");
                     break; // nothing to do here.                    
                 }
+
                 // for each generation, starting with maxgen
                 for (int i = maxgen - 1; i >= 0; i--) {
                     // (1) find one live range row above and below the direct record  (.ROOT/GEN/#/{(startkeytest)...)
@@ -1194,10 +1208,14 @@ namespace Bend
                             if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 segmentsWithRecordsTombstones.Add(nextrec.Key);
+#if DEBUG_CURSORS
                                 Console.WriteLine("stage(1) scanBack tombstone: {0}", rk);
+#endif
                                 continue;
                             }
+#if DEBUG_CURSORS
                             Console.WriteLine("stage(1) scanBack considered: {0}", rk);
+#endif
 
 
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) || 
@@ -1225,12 +1243,16 @@ namespace Bend
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
                                     var segment = this.segmentReaderFromRow(nextrec);
+#if DEBUG_CURSORS
                                     Console.WriteLine("stage(1)    scanBack added: {0}", rk);
+#endif
                                     segmentsWithRecords.Add(rk, segment);
                                     if (segmentsWithRecords_ByGeneration[i].Key == null ||
                                         (startkeytest.CompareTo(segmentsWithRecords_ByGeneration[i].Key.lowkey) < 0) ||
                                         (segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0)) {
+#if DEBUG_CURSORS
                                             Console.WriteLine("stage(1)    scanBack confirmed: {0}", rk);
+#endif
                                         segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                     }
@@ -1256,8 +1278,10 @@ namespace Bend
                             if (direction_is_forward) {
                                 if (segmentsWithRecords_ByGeneration[i].Key != null &&
                                     segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) < 0) {
+#if DEBUG_CURSORS
                                     Console.WriteLine("stage(1) scanForeward V-tombstone: {0} before {1}", 
                                         segmentsWithRecords_ByGeneration[i].Key, rk);
+#endif
                                     break;
                                 }
                             }
@@ -1265,10 +1289,14 @@ namespace Bend
                             if ((nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE)) {
                                 // add all tombstones to the handled list, and continue to the next
                                 segmentsWithRecordsTombstones.Add(nextrec.Key);
+#if DEBUG_CURSORS
                                 Console.WriteLine("stage(1) scanForeward tombstone: {0}", rk);
+#endif
                                 continue;
                             }                            
+#if DEBUG_CURSORS
                             Console.WriteLine("stage(1) scanForeward considered: {0}", rk);
+#endif
                             if (segmentsWithRecordsTombstones.Contains(nextrec.Key) ||
                                 segmentsWithRecords.ContainsKey(rk)) {                              
                                 // this entry was tombstoned. 
@@ -1280,10 +1308,14 @@ namespace Bend
                                 // so long as it appears sooner than the one we have already
                                 var segment = this.segmentReaderFromRow(nextrec);
                                 segmentsWithRecords.Add(rk, segment);
+#if DEBUG_CURSORS
                                 Console.WriteLine("stage(1)    scanForeward added: {0}", rk);
+#endif
                                 if (segmentsWithRecords_ByGeneration[i].Key == null ||
                                         segmentsWithRecords_ByGeneration[i].Key.CompareTo(rk) > 0) {
+#if DEBUG_CURSORS
                                             Console.WriteLine("stage(1)    scanForeward confirmed: {0}", rk);
+#endif
                                         segmentsWithRecords_ByGeneration[i] =
                                                 new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);                                    
                                 }
@@ -1325,28 +1357,34 @@ namespace Bend
 
                         foreach (var nextrec in curseg.scanBackward(
                             new ScanRange<RecordKey>(
-                                new ScanRange<RecordKey>.minKey(),
+                                new RecordKey()
+                                    .appendParsedKey(".ROOT/GEN")
+                                    .appendKeyPart(new RecordKeyType_Long(i)),
                                 startrk,
                                 null))) {
                             if (!RangeKey.isRangeKey(nextrec.Key)) {
                                 break;
                             }
                             RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
-                                // stop once we've gone past all possible indirect range references
-                                break;
-                            }
-
+                            Console.WriteLine("stage(2) scanBack considered: {0}", nextrec);
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
-                                handledIndexRecords.Add(nextrec.Key);
+                                handledIndexRecords.Add(rk);
                                 stats.segmentDeletionTombstonesAccumulated++;
                                 continue;
                             }
-                            if (!handledIndexRecords.Contains(nextrec.Key)) {
-                                handledIndexRecords.Add(nextrec.Key);
-                                workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
-                                            this.segmentReaderFromRow(nextrec));
+                            if (!direction_is_forward) {
+                                if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
+                                    // stop once we've gone past all possible indirect range references
+                                    break;
+                                }
+                            } 
+
+
+                            if (!handledIndexRecords.Contains(rk)) {
+                                handledIndexRecords.Add(rk);                                
+                                workList.Add(rk, this.segmentReaderFromRow(nextrec));
+                                
                             } else {
                                 stats.segmentDeletionTombstonesSkipped++;
                             }
@@ -1356,24 +1394,29 @@ namespace Bend
                         foreach (var nextrec in curseg.scanForward(
                             new ScanRange<RecordKey>(
                                 startrk,
-                                new ScanRange<RecordKey>.maxKey(),
+                                RecordKey.AfterPrefix(new RecordKey()
+                                .appendParsedKey(".ROOT/GEN").appendKeyPart(new RecordKeyType_Long(i))),
                                 null))) {
                             if (!RangeKey.isRangeKey(nextrec.Key)) {
                                 break;
-                            }
-                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
-                            if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
-                                // stop once we've gone past all possible indirect range references
-                                break;
                             }                            
+                            RangeKey rk = RangeKey.decodeFromRecordKey(nextrec.Key);
+                            Console.WriteLine("stage(2) scanForward considered: {0}", nextrec);
+                                               
                             if (nextrec.Value.type == RecordUpdateTypes.DELETION_TOMBSTONE) {
                                 // add all tombstones to the handled list, and continue to the next
-                                handledIndexRecords.Add(nextrec.Key);
+                                handledIndexRecords.Add(rk);
                                 stats.segmentDeletionTombstonesAccumulated++;
                                 continue;
                             }
-                            if (!handledIndexRecords.Contains(nextrec.Key)) {
-                                handledIndexRecords.Add(nextrec.Key);
+                            
+                            if (!rk.directlyContainsKey(GEN_KEY_PREFIX)) {
+                                // stop once we've gone past all possible indirect range references
+                                break;
+                            }
+                            
+                            if (!handledIndexRecords.Contains(rk)) {
+                                handledIndexRecords.Add(rk);
                                 workList.Add(RangeKey.decodeFromRecordKey(nextrec.Key),
                                             this.segmentReaderFromRow(nextrec));
 
