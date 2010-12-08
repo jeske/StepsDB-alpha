@@ -181,7 +181,7 @@ namespace Bend.EmailIndexerTest {
                             Console.WriteLine("doc{0}: {1}    elapsed:{2}    docs/sec:{3}", 
                                 count, docid, (cur-start).TotalSeconds, (float)count / (cur-start).TotalSeconds);
                                 
-                            if (count % 800 == 0) {
+                            if (count % 15 == 0) {
                                 gui.debugDump(db);
                                 db.flushWorkingSegment();
                                 gui.debugDump(db);
