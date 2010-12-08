@@ -3,6 +3,21 @@
 
 ------[ TODO file for tomn ]------------
 
+1) compile Mono and bringup database on unix (vm and dj1)
+
+2) make asp.net 4 MVC example project
+
+
+------[ LATER ]-----------------
+
+3) Avro Network Test
+
+   - bring up and check-in a windows toolchain in ThirdParty to compile an AvroIDL
+   - make a new "App" that starts up an Avro Network Socket and offers a "get/set" api for the database
+   - make a client "App" that connects to the server and uses the api
+
+
+------[ done ]-----------------
 
 1) Text Indexer Test
    - bring up lucene based clone of email-indexer-test
@@ -14,12 +29,3 @@
    - bring up and check-in a thrift windows toolchain in ThirdParty to compile a ThriftIDL
    - make a new "App" that starts up a Thrift Network Socket server and offers a "get/set" api for the database
    - make a client "App" that connects to the server and uses the api
-
-3) Avro Network Test
-
-   - bring up and check-in a windows toolchain in ThirdParty to compile an AvroIDL
-   - make a new "App" that starts up an Avro Network Socket and offers a "get/set" api for the database
-   - make a client "App" that connects to the server and uses the api
-
-
-------[ done ]-----------------
