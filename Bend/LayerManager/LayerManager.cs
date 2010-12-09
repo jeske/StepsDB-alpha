@@ -584,17 +584,6 @@ namespace Bend
 
 
 
-        public GetStatus getRecord(RecordKey key, out RecordData record) {
-            RecordKey found_key = new RecordKey();
-            record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
-            if (rangemapmgr.getNextRecord(key, true, ref found_key, ref record,true) == GetStatus.PRESENT) {
-                if (found_key.Equals(key)) {
-                    return GetStatus.PRESENT;
-                }
-            }
-            record = null;
-            return GetStatus.MISSING;
-        }
 
         public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey found_key, ref RecordData found_record) {
             return (rangemapmgr.getNextRecord(lowkey, false, ref found_key, ref found_record,false));
@@ -647,6 +636,19 @@ namespace Bend
 
         }
 
+        public GetStatus getRecord(RecordKey key, out RecordData record) {
+            try {
+                KeyValuePair<RecordKey, RecordData> val = this.FindNext(key, equal_ok: true);
+                if (val.Key.CompareTo(key) == 0) {
+                    record = val.Value;
+                    return GetStatus.PRESENT;
+                }
+            } catch (KeyNotFoundException) {
+
+            }
+            record = null;
+            return GetStatus.MISSING;
+        }
 
         public KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
             RecordKey found_key = new RecordKey();
@@ -655,12 +657,16 @@ namespace Bend
 #if DEBUG_FINDNEXT
             Console.WriteLine("FindNext({0})", keytest);
 #endif
-            if (rangemapmgr.getNextRecord(keytest, true, ref found_key, ref record,equal_ok, false) == GetStatus.PRESENT) {
+
+
+            foreach (var rec in this.scan(new ScanRange<RecordKey>(keytest, new ScanRange<RecordKey>.maxKey(), null),
+                    direction_is_forward:true, equal_ok:equal_ok)) {
 #if DEBUG_FINDNEXT
                 Console.WriteLine("FindNext returning: {0} -> {1}", found_key, record);
 #endif
-                return new KeyValuePair<RecordKey,RecordData>(found_key,record);
+                return rec;
             }
+
             throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
 
         }
@@ -669,23 +675,27 @@ namespace Bend
             RecordKey found_key = new RecordKey();
             RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-            if (rangemapmgr.getNextRecord(keytest, false,ref found_key, ref record, equal_ok, false) == GetStatus.PRESENT) {
-                return new KeyValuePair<RecordKey, RecordData>(found_key, record);
+            foreach (var rec in this.scan(new ScanRange<RecordKey>(new ScanRange<RecordKey>.minKey(), keytest, null),
+                    direction_is_forward: false, equal_ok: equal_ok)) {
+                        return rec;
             }
+
             throw new KeyNotFoundException(String.Format("LayerManager.FindNext({0},{1}) found no key", keytest, equal_ok));
 
         }        
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
-            return scan(scanner,true);
+            return scan(scanner,true, true);
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner) {
-            return scan(scanner, false);
+            return scan(scanner, false, true);
         }
 
 
-        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan(IScanner<RecordKey> scanner, bool direction_is_forward) {
+        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan(IScanner<RecordKey> scanner, 
+            bool direction_is_forward, bool equal_ok) {
+
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
             if (scanner != null) {
@@ -699,9 +709,9 @@ namespace Bend
             return rangemapmgr.getRecord_LowLevel_Cursor(
                 lowestKeyTest,
                 highestKeyTest,
-                direction_is_forward,
-                true,
-                false);
+                direction_is_forward : direction_is_forward,
+                equal_ok: equal_ok,
+                tombstone_ok:false);
 
         }
 
