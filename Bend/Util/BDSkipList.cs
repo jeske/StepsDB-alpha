@@ -1000,7 +1000,7 @@ namespace BendTests
         }
 
         [Test]
-        public void T01_SkipList_TestKeysValuesProperties() {
+        public void T01_SkipList_TestKeysValuesProperties_ZZTODO() {
             BDSkipList<string, int> l = new BDSkipList<string, int>();
             string[] keylist = { "abc", "def", "ghi" };
             int[] valuelist = { 1, 2, 3 };

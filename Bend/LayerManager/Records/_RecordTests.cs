@@ -114,12 +114,12 @@ namespace BendTests
             key3.appendKeyParts(parts3);
 
             // key2 > key1
-            Assert.AreEqual(1, key2.CompareTo(key1));
-            Assert.AreEqual(-1, key1.CompareTo(key2));
+            Assert.True(key2.CompareTo(key1) > 0);
+            Assert.True(key1.CompareTo(key2) < 0);
 
             // key3 > key1
-            Assert.AreEqual(1, key3.CompareTo(key1));
-            Assert.AreEqual(-1, key1.CompareTo(key3));
+            Assert.True(key3.CompareTo(key1) > 0);
+            Assert.True(key1.CompareTo(key3) < 0);
 
         }
 
