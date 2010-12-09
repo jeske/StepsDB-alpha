@@ -95,15 +95,15 @@ namespace Bend
         public override int CompareToPeer(RecordKeyType peer_target) {
             RecordKeyType_String converted_peer_target = (RecordKeyType_String)peer_target;
             
-            // return this.value.CompareTo(converted_peer_target.value);
+            return this.value.CompareTo(converted_peer_target.value);
 
             // switch to forcing ORDINAL comparisons so we don't end up with
             // sort orders changing based on locale.... eventually we will
             // record the locale sort order of this keytype. 
             
-            return String.Compare(this.value, converted_peer_target.value,
-                System.Threading.Thread.CurrentThread.CurrentCulture,
-                System.Globalization.CompareOptions.Ordinal);
+            // return String.Compare(this.value, converted_peer_target.value,
+            //     System.Threading.Thread.CurrentThread.CurrentCulture,
+            //     System.Globalization.CompareOptions.Ordinal);
             
         }
 
