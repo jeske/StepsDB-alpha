@@ -39,7 +39,9 @@ namespace BendTests
             var key6 = new RecordKey().appendParsedKey(@".zdata/index/?/c:\EmailTest\Data\saved_mail_2002:908/184");
 
             Assert.True('>'.CompareTo('?') < 0, "check char comparison");
-            Assert.True(">".CompareTo("?") < 0, "check string comparison");
+            Assert.True(String.Compare(">", "?", System.Threading.Thread.CurrentThread.CurrentCulture,
+                System.Globalization.CompareOptions.Ordinal) < 0, "ordinal string comparison");
+            // Assert.True(">".CompareTo("?") < 0, "check string comparison");
             Assert.True(key5.CompareTo(key6) < 0, " '>' should be < '?' ");
 
         }

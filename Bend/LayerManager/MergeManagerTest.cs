@@ -126,7 +126,7 @@ namespace BendTests {
         }
 
         [Test]
-        public void T010_MergeManager_ScoreTests() {
+        public void T010_MergeManager_ScoreTests_ZZTodo() {
             // 9 segments, 2 "source" at gen 1,2, 7 "target" at gen 0, plus range-rows boost
             Assert.Fail();
         }
