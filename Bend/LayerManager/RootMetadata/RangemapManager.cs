@@ -586,7 +586,19 @@ namespace Bend
                             var record = new RecordData(RecordDataState.NOT_PROVIDED, out_rec.Key);
                             record.applyUpdate(out_rec.Value);
 
-                            yield return new KeyValuePair<RecordKey, RecordData>(out_rec.Key, record);                            
+
+
+                            // OUTPUT A RECORD !!!
+
+                            // we clone the record so nobody can accidentally modify records inside the
+                            // system. 
+
+                            // TODO: should we clone the record update also?
+
+                            yield return 
+                                new KeyValuePair<RecordKey, RecordData>(
+                                    out_rec.Key.CloneRecordKey(), 
+                                    record);                            
                         } else {
 #if DEBUG_CURSORS
                             Console.WriteLine("cursor skipping record: {0}", out_rec);

@@ -13,14 +13,15 @@ namespace Bend
 {
 
     abstract public class RecordKeyType : IComparable<RecordKeyType> {
-        internal enum RecordKeySubtype {
+        public enum RecordKeySubtype {
             LONG = 1,
             STRING = 2,
             RECORD_KEY = 10,
             RAW_BYTES = 11,
-            TS_ATTRIBUTE = 0x1000
+            TS_ATTRIBUTE = 40
+            // only a byte!! 
         }
-        internal RecordKeySubtype subtype;
+        public RecordKeySubtype subtype;
        
         // (1) first, compare the target type in the type registry
         // (2) then, defer to the subtype to do comparisons if they are the same
@@ -76,7 +77,8 @@ namespace Bend
         }
 
         public void encodeTo(BinaryWriter w) {
-            w.Write((byte)this.subtype);
+            if ((int)this.subtype > 0xFF) { throw new Exception("RecordKeyTYpe.encodeTo(): subtype out of range"); }
+            w.Write((byte)this.subtype); 
             this.encodeSubtypeTo(w);
         }
 
@@ -92,7 +94,7 @@ namespace Bend
         // TODO support other encodings and collations
 
         public RecordKeyType_String(string value) {
-            subtype = RecordKeySubtype.STRING;
+            this.subtype = RecordKeySubtype.STRING;
             this.value = value;
         }
 
@@ -138,8 +140,9 @@ namespace Bend
 
     public class RecordKeyType_Long : RecordKeyType {
         internal long value;
+        
         public RecordKeyType_Long(long value) {
-            subtype = RecordKeySubtype.LONG;
+            this.subtype = RecordKeySubtype.LONG;
             this.value = value;
         }
         public override int CompareToPeer(RecordKeyType peer_target) {
@@ -163,15 +166,34 @@ namespace Bend
         }
     }
 
-    public class RecordKeyType_AttributeTimestamp : RecordKeyType_Long {
-        public RecordKeyType_AttributeTimestamp(long timestamp) : base(timestamp) {
+    public class RecordKeyType_AttributeTimestamp : RecordKeyType {
+        internal long value;
+
+        public RecordKeyType_AttributeTimestamp(long value) {
             this.subtype = RecordKeySubtype.TS_ATTRIBUTE;
+            this.value = value;
+        }
+        public override int CompareToPeer(RecordKeyType peer_target) {
+            RecordKeyType_AttributeTimestamp converted_peer_target = (RecordKeyType_AttributeTimestamp)peer_target;
+            return this.value.CompareTo(converted_peer_target.value);
+        }
+        internal override void encodeSubtypeTo(BinaryWriter w) {
+            w.Write((long)value);
+        }
+        public static RecordKeyType decodeSubtypeFrom(BinaryReader r) {
+            return new RecordKeyType_AttributeTimestamp(r.ReadInt64());
+        }
+        public long GetLong() {
+            return value;
+        }
+        public override int GetHashCode() {
+            return value.GetHashCode();
         }
         public override string ToString() {
             return String.Format("TS:{0}L", this.value);
         }
-
     }
+    
 
     public class RecordKeyType_RecordKey : RecordKeyType {
         internal RecordKey value;

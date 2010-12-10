@@ -33,6 +33,10 @@ namespace Bend {
             RecordKey.encoder.decode(data, this);
         }
 
+        public RecordKey CloneRecordKey() {
+            return new RecordKey(this.encode());
+        }
+
         public RecordKey appendParsedKey(String keyToParse) {
             char[] delimiters = { PRINTED_DELIMITER };
 

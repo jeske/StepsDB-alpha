@@ -12,24 +12,37 @@ namespace Bend.DBClientTest {
             LayerManager raw_db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\main");
             StepsDatabase db_broker = new StepsDatabase(raw_db);
 
-            IStepsKVDB db = db_broker.getDatabase();
+            IStepsKVDB generic_db = db_broker.getDatabase();
+
+            TimestampSnapshotStage db = (TimestampSnapshotStage)generic_db;
 
             db.setValue(new RecordKey().appendParsedKey("test/1"),
-                RecordUpdate.WithPayload("blah"));
+                RecordUpdate.WithPayload("blah-t0"));
+
+            TimestampSnapshotStage db_snap = db.getSnapshot();
 
             db.setValue(new RecordKey().appendParsedKey("test/1"),
-                RecordUpdate.WithPayload("blah-new"));
+                RecordUpdate.WithPayload("blah-t1"));
 
 
             var key = new RecordKey().appendParsedKey("test/1");
 
             raw_db.debugDump();
 
-            Console.WriteLine("top level readback:");
+            Console.WriteLine("-------------------[ top level readback ] -------------------");
 
             foreach (var rec in db.scanForward(new ScanRange<RecordKey>(key,new ScanRange<RecordKey>.maxKey(),null))) {
                 Console.WriteLine(rec);
             }
+
+            Console.WriteLine("-------------------[ snapshot readback ] -------------------");
+
+            foreach (var rec in db_snap.scanForward(new ScanRange<RecordKey>(key, new ScanRange<RecordKey>.maxKey(), null))) {
+                Console.WriteLine(rec);
+            }
+
+
+
         }
     }
 }

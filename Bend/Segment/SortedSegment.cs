@@ -633,7 +633,7 @@ namespace Bend
                         encoder.setStream(mb_writer);
                         //block_start_key = kvp.Key;
 
-#if DEBUG
+#if DEBUG && false
                         if ((stats.num_microblocks % 2) == 0) {
                             Debug.WriteLine(String.Format("microblock {0} starting at row: {1}, key: {2}",
                                 stats.num_microblocks, stats.num_rows, kvp.Key.ToString()));
