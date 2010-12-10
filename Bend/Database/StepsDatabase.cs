@@ -19,7 +19,6 @@ namespace Bend {
          void setValue(RecordKey key, RecordUpdate update);
          // public GetStatus getRecord(RecordKey key, out RecordData record);
          IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner);
-
          IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner);
     }
 
@@ -174,36 +173,3 @@ namespace Bend {
 
 }
 
-
-#if false
-
-namespace BendTests {
-   
-    abstract class RecAttr {
-        
-    }
-
-    public class RecAttrTimestamp : RecAttr {
-        int value; 
-        public RecAttrTimestamp(int timestamp) {
-            this.value = timestamp;
-        }
-
-
-    }
-
-
-    [TestFixture]
-    public class A00_AttributeTests {
-        [Test]
-        public void T00_AddAttribute() {
-            var key = new RecordKey()
-                .appendParsedKey("test/1")
-                .appendKeyPart(new RecordKeyType_Attribute(1));
-
-                
-
-        }
-    }
-
-#endif

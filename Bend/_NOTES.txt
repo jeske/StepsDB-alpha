@@ -1,8 +1,24 @@
 ﻿
+-------------------[  atomic segment changes ]----------------------------------------
 
 
 
--------------------[  field based record interface ]------------------------------------------------------------
+I can create a special kind of atomic write-group that lets you make a set of changes that will all be written in the same transaction log packet. As a result, the whole write-group with either all apply, or not apply. I can't use this for user-transactions, because a user-transaction could write 200MB+ of data -- too much to fit in a log packet. However, segment pointer changes are boundable (max of N segments per merge, max bytes per key, etc.)
+
+These changes also need to be atomically applied into the working segment with respect to the cursors. 
+
+(1) A brute force way to do this would be to lock the working segment, invalidate all cursors, wait for confirmation that all cursors are reset, change the entries, and then unlock the working segment. Since this is entirely atomic, it could put the old segment blocks right onto the freelist in the AtomicWriteGroup.
+
+(2) I have an idea about how to do this that doesn't require coordinating with the cursors... this is both faster and seems simpler to me. I already have a concept of "layers" of the memory working segment for checkpointing. I can cheaply add the AtomicWriteGroup to a new memory layer and "atomically" put it in place. Existing cursors might be running without this new memory layer, which is fine as long as those segments are not actually put on the free-list yet. New cursors will see the new memory layer. If it's important, once all "old" cursors are done, I can 'merge' the top-memory layer down into the next layer (they are just duplicates) and then drop the top memory layer. 
+
+With (2), that leaves the question of how to get the freed segments onto the free-list ONLY AFTER they are no longer in use by any cursors. 
+
+(a) I had already been considering a mechanism which would have the in-memory freelist manager keep track of the segments which are recorded as free but "still held" by live objects. A WeakRef trigger would notify the freelist when these objects were garbage collected so it could reallocate them safetly. If the server restarted, all cursors are reset anyhow, so these blocks are actually safe to reallocate.  
+
+(b) In the past I had been considering doing snapshots that would potentially keep old segments around. This might justify a different way of trapping these records before they were actually added back onto the freelist. However, I've since changed my thinking, as I think these needs are probably better served by using attributes and letting merge progress  continue to keep things as merged as possible. 
+
+
+-------------------[  field based record interface ]----------------------------
 
 /* var rec = new Rec();
     * rec.prefix = "foo";
@@ -38,7 +54,7 @@
 
 
 
--------------------[  random notes ]------------------------------------------------------------
+-------------------[  random notes ]----------------------------------------------------
 
 
 Solr + HBase + Avro = flexible searchable document store
@@ -51,7 +67,7 @@ http://www.codeproject.com/KB/cs/csharpcommentinganddocs.aspx
 
 
 
--------------------[  cluster perf testing  ]------------------------------------------------------------
+-------------------[  cluster perf testing  ]---------------------------------------
 
 
 
@@ -77,7 +93,7 @@ http://nosql.mypopescu.com/post/392868405/mongodb-durability-a-tradeoff-to-be-aw
 https://github.com/ericflo/twissandra
 
 
--------------------[  random research ]------------------------------------------------------------
+-------------------[  random research ]-------------------------------------------------
 *** Research Notes
 
 nosql for .net blog
@@ -105,7 +121,7 @@ add consistent hot-records cache design
 http://www.codeproject.com/KB/cs/mime_project.aspx?print=true
 
 
--------------------[  end user apps  ]------------------------------------------------------------
+-------------------[  end user apps  ]-------------------------------------------
 
 CMS:
   - wordpress
@@ -121,7 +137,7 @@ Wiki
 
 
 
--------------------[  sort orders ]------------------------------------------------------------
+-------------------[  sort orders ]---------------------------------------------
 
 csharp string culture aware sorting:
 
@@ -162,7 +178,7 @@ Thread.Thread.CurrentThread.CurrentUICulture?
 
 
 
--------------------[  visual studio ]------------------------------------------------------------
+-------------------[  visual studio ]---------------------------------------------
 
 http://blogs.msdn.com/b/vcblog/archive/2010/04/21/quick-help-on-vs2010-custom-build-rule.aspx
 
