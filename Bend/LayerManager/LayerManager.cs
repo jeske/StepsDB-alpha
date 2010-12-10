@@ -24,7 +24,7 @@ namespace Bend
 
     // ---------------[ LayerManager ]---------------------------------------------------------
 
-    public class LayerManager : IDisposable 
+    public class LayerManager : IDisposable, IStepsKVDB
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
@@ -659,7 +659,7 @@ namespace Bend
 #endif
 
 
-            foreach (var rec in this.scan(new ScanRange<RecordKey>(keytest, new ScanRange<RecordKey>.maxKey(), null),
+            foreach (var rec in this._scan(new ScanRange<RecordKey>(keytest, new ScanRange<RecordKey>.maxKey(), null),
                     direction_is_forward:true, equal_ok:equal_ok)) {
 #if DEBUG_FINDNEXT
                 Console.WriteLine("FindNext returning: {0} -> {1}", found_key, record);
@@ -675,7 +675,7 @@ namespace Bend
             RecordKey found_key = new RecordKey();
             RecordData record = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
 
-            foreach (var rec in this.scan(new ScanRange<RecordKey>(new ScanRange<RecordKey>.minKey(), keytest, null),
+            foreach (var rec in this._scan(new ScanRange<RecordKey>(new ScanRange<RecordKey>.minKey(), keytest, null),
                     direction_is_forward: false, equal_ok: equal_ok)) {
                         return rec;
             }
@@ -685,15 +685,15 @@ namespace Bend
         }        
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
-            return scan(scanner,true, true);
+            return _scan(scanner,true, true);
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner) {
-            return scan(scanner, false, true);
+            return _scan(scanner, false, true);
         }
 
 
-        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan(IScanner<RecordKey> scanner, 
+        private IEnumerable<KeyValuePair<RecordKey, RecordData>> _scan(IScanner<RecordKey> scanner, 
             bool direction_is_forward, bool equal_ok) {
 
             IComparable<RecordKey> lowestKeyTest = null;

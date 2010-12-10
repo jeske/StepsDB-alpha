@@ -83,10 +83,12 @@
     <Content Include="_TODO_tomn.txt" />
     <Content Include="_CODING_STYLE.txt" />
     <Content Include="_BUGS.txt" />
+    <Compile Include="Database\StepsDatabase.cs" />
     <Compile Include="DbgGUI\DbgGUI.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="DbgGUI\LayerVisualization.cs" />
+    <Compile Include="LayerManager\Attributes\_AttributeTests.cs" />
     <Compile Include="LayerManager\MergeManagerTest.cs" />
     <Compile Include="LayerManager\MergeManager.cs" />
     <Compile Include="LayerManager\Records\RecordData.cs" />

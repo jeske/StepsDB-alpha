@@ -88,6 +88,11 @@ namespace Bend {
             return this;
         }
 
+        public RecordKey insertKeyPart(RecordKeyType keypart) {
+            key_parts.Insert(0, keypart);
+            return this;
+        }
+
         public RecordKey appendKeyPart(RecordKey keydata) {            
             key_parts.Add(new RecordKeyType_RecordKey(keydata));
             return this;
@@ -438,7 +443,7 @@ namespace Bend {
             }
             return this;
         }
-
+       
         public RecordKeyComparator appendKeyPart(IComparable<RecordKeyType> part) {
             this.cmp_parts.Add(part);
             return this;

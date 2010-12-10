@@ -17,7 +17,8 @@ namespace Bend
             LONG = 1,
             STRING = 2,
             RECORD_KEY = 10,
-            RAW_BYTES = 11
+            RAW_BYTES = 11,
+            TS_ATTRIBUTE = 0x1000
         }
         internal RecordKeySubtype subtype;
        
@@ -66,6 +67,9 @@ namespace Bend
                     break;
                 case RecordKeySubtype.RAW_BYTES:
                     return RecordKeyType_RawBytes.decodeSubtypeFrom(r);
+                    break;
+                case RecordKeySubtype.TS_ATTRIBUTE:
+                    return RecordKeyType_AttributeTimestamp.decodeSubtypeFrom(r);
                     break;
             }
             throw new Exception("RecordKeyType.decodeFrom: no decoder for subtype: " + subtype_enum.ToString());
@@ -157,6 +161,16 @@ namespace Bend
         public override string ToString() {
             return String.Format("{0}L", this.value);
         }
+    }
+
+    public class RecordKeyType_AttributeTimestamp : RecordKeyType_Long {
+        public RecordKeyType_AttributeTimestamp(long timestamp) : base(timestamp) {
+            this.subtype = RecordKeySubtype.TS_ATTRIBUTE;
+        }
+        public override string ToString() {
+            return String.Format("TS:{0}L", this.value);
+        }
+
     }
 
     public class RecordKeyType_RecordKey : RecordKeyType {
