@@ -2,6 +2,168 @@
 
 
 
+-------------------[  field based record interface ]------------------------------------------------------------
+
+/* var rec = new Rec();
+    * rec.prefix = "foo";
+    * rec.word = bar
+    * rec.docid = 5
+    * rec.freq = 6
+    * 
+    * var rec = new Rec{
+    *    prefix = "foo",
+    *    word = "bar",
+    *    docid = 5,
+    *    freq = 6
+    *    };
+    *    
+    * 
+    * db.wordlist.setRec(rec)
+    * 
+    * struct WordHit {
+    *   RecordKeyType_String prefix;
+    *   RecordKeyType_String word;
+    *   RecordKeyType_Long docid;
+    *   RecordKeyType_Long freq;
+    *   }
+    *   
+    * DbIdex WordHitIndex = db.wordlist.defineKey(WordHit, WordHit.prefix.Type,WordHit.word.Type,WordHit.docid.Type);
+    *                                           
+    * db.wordlist.defineKey("prefix/word/docid");
+    * 
+    *                      
+    * void defineKey<T> where T:RecordKeyType (WordHit.Type, T[] parts)
+    *                                                            
+    */
+
+
+
+-------------------[  random notes ]------------------------------------------------------------
+
+
+Solr + HBase + Avro = flexible searchable document store
+
+http://www.javarants.com/2010/06/30/havrobase-a-searchable-evolvable-entity-store-on-top-of-hbase-and-solr/
+
+doc generation
+
+http://www.codeproject.com/KB/cs/csharpcommentinganddocs.aspx
+
+
+
+-------------------[  cluster perf testing  ]------------------------------------------------------------
+
+
+
+http://hstack.org/hbase-performance-testing/
+
+
+http://wiki.apache.org/hadoop/Hbase/10Minutes
+
+http://www.mail-archive.com/cassandra-user@incubator.apache.org/msg02312.html
+
+http://www.slideshare.net/schubertzhang/hbase-0200-performance-evaluation
+
+http://nosql.mypopescu.com/post/734816227/nosql-benchmarks-and-performance-evaluations
+
+http://www.hypertable.com/pub/perfeval/test1/
+
+http://voltdb.com/blog/key-value-benchmarking
+
+http://voltdb.com/content/how-voltdb-works
+
+http://nosql.mypopescu.com/post/392868405/mongodb-durability-a-tradeoff-to-be-aware-of
+
+https://github.com/ericflo/twissandra
+
+
+-------------------[  random research ]------------------------------------------------------------
+*** Research Notes
+
+nosql for .net blog
+
+http://coderjournal.com/2010/03/cassandra-jump-start-for-the-windows-developer/
+
+
+search:
+
+solr - distributed lucene, is merged with lucene project now, static system, no elastic capability
+
+http://lucene.apache.org/java/2_4_0/benchmarks.html
+
+http://lucene.apache.org/solr/
+
+katta - distribute search serving (not indexing) with lucene
+hadoop lucene - mapreduce index build, works with katta, batch oriented, no realtime
+lucene
+
+discuss faceting
+discuss shard direction
+
+add consistent hot-records cache design
+
+http://www.codeproject.com/KB/cs/mime_project.aspx?print=true
+
+
+-------------------[  end user apps  ]------------------------------------------------------------
+
+CMS:
+  - wordpress
+  - http://erlanginside.com/zotonic-destroys-wordpress-and-rethinks-the-cms-with-erlang-149
+  - Drupal
+
+Forum
+  - PHPBB
+  - Google Groups + Wiki
+
+Wiki
+  - Etherpad realtime + Wiki + WYSIWYG
+
+
+
+-------------------[  sort orders ]------------------------------------------------------------
+
+csharp string culture aware sorting:
+
+
+http://msdn.microsoft.com/en-us/library/cc190529.aspx
+
+http://msdn.microsoft.com/en-us/library/system.globalization.cultureinfo.aspx
+
+
+
+
+
+
+http://groups.google.com/group/DotNetDevelopment/browse_thread/thread/9e25f876a251fd48
+
+http://msdn.microsoft.com/en-us/library/aa176552(SQL.80).aspx
+
+http://msdn.microsoft.com/en-us/library/aa258233(SQL.80).aspx
+
+http://en.wikipedia.org/wiki/Code_page
+
+'smart natural sorting' : 
+
+http://www.interact-sw.co.uk/iangblog/2007/12/13/natural-sorting
+
+http://www.codinghorror.com/blog/2007/12/sorting-for-humans-natural-sort-order.html
+
+http://www.davekoelle.com/alphanum.html
+
+http://msdn.microsoft.com/en-us/library/system.string.aspx
+
+
+
+
+Thread.CurrentThread.CurrentCulture and
+Thread.Thread.CurrentThread.CurrentUICulture?
+
+
+
+
+-------------------[  visual studio ]------------------------------------------------------------
+
 http://blogs.msdn.com/b/vcblog/archive/2010/04/21/quick-help-on-vs2010-custom-build-rule.aspx
 
 
@@ -16,44 +178,6 @@ More design notes at:
 https://docs.google.com/Doc?docid=0AZBsc776AuokZGdndnFmZm5fNjNneDRjYzZmaw&hl=en
 
 
-
-
-					/* var rec = new Rec();
-                     * rec.prefix = "foo";
-                     * rec.word = bar
-                     * rec.docid = 5
-                     * rec.freq = 6
-                     * 
-                     * var rec = new Rec{
-                     *    prefix = "foo",
-                     *    word = "bar",
-                     *    docid = 5,
-                     *    freq = 6
-                     *    };
-                     *    
-                     * 
-                     * db.wordlist.setRec(rec)
-                     * 
-                     * struct WordHit {
-                     *   RecordKeyType_String prefix;
-                     *   RecordKeyType_String word;
-                     *   RecordKeyType_Long docid;
-                     *   RecordKeyType_Long freq;
-                     *   }
-                     *   
-                     * DbIdex WordHitIndex = db.wordlist.defineKey(WordHit, WordHit.prefix.Type,WordHit.word.Type,WordHit.docid.Type);
-                     *                                           
-                     * db.wordlist.defineKey("prefix/word/docid");
-                     * 
-                     *                      
-                     * void defineKey<T> where T:RecordKeyType (WordHit.Type, T[] parts)
-                     *                                                            
-                     */
-
-
-
---------[ Random Notes ]--------
-
 Visual Studio
 
 Custom Tools
@@ -66,11 +190,3 @@ http://stackoverflow.com/questions/39712/visual-studio-2005-2008-how-can-you-sha
 Debug Levels and Tracing
 
 http://www.codeguru.com/csharp/.net/net_debugging/tracing/article.php/c5919
-
-Solr + HBase + Avro = flexible searchable document store
-
-http://www.javarants.com/2010/06/30/havrobase-a-searchable-evolvable-entity-store-on-top-of-hbase-and-solr/
-
-doc generation
-
-http://www.codeproject.com/KB/cs/csharpcommentinganddocs.aspx

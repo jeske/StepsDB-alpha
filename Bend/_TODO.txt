@@ -1,73 +1,68 @@
 
-
 ----[ TODO ]---------
 
-  - FIX: cursor-v2 bug  (MainTest, in increasing-order-keys-test, also in random test now)
-    - I think this is caused because the "new segment is lower than the "old" segment, so at
-	  the top layer it adds a new segment to the list and stops before it sees the tombstone.  
-	  Two possible fixes (1) don't stop until we see a range record that does not apply to the
-	  record we're looking for , (2) once we have a valid range record for a generation, mark
-	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
-    
-  - FIX: runaway max-gen count! 
-  - FIX: super-slow advisor row size estimation!! 
-	- (we might as well encode the key and use that len, since we have to do it anyhow)
+ - Replication System Bringup
+     (1) replication as a db stage on-top of snapshot stage
+        - does replication need to be able to 'set' the timestamp values of records'?
+     (2) replication 'full copy bringup' using snapshots
+     (3) cleanup of replication (switch to 'always pull' log tails)
+     (3) estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
+     (4) snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
 
-  - IDEA: it seems like there is a fancy version of segment setup worklist, where when it descends to
-    the next indirect block, it hands down the current segment, and down below it "merges" the two, in
-	order to remove tombstones. 
+  - FieldedDocumentStoreStage
+     (1) BSONDocument set/get interface
+	 (2) primary-key and index maintenance
+	 (3) find/query interface
 
-  - fix the block decoder selection to be hardcoded
-  - much bigger index test (try to make a 2GB index)
+  - StepsDBControllerStage
+     (1) allow creation of a pipeline, and metadata to recreate that pipeline when restarted
 
-  - add a network interface and a command-line client
-  - add ACCUMULATORS
+  - DBCORE extensions:
+     - estimate 'dbsize between start/end key', provide split keys    
+     - SortedSegment: prefix/suffix compression
 
-  - convert willowmail sqliteDB to stepsdb keys/values
-     - need large-record support
-
-  - WILLOWMAIL / INDEXER TEST: 
-     - implement log recirculation
-     - make a command line text-indexer and test it under mono (index, merge, search)
-
-  - GUI: repaint heap-memory and GC info on a timer
+  - GUI: repaint heap-memory and GC info on a timer instad of only when called
   - GUI: setup generic DB event listener concept and notify GUI through it
   - GUI: number of blocks in each layer (this is probably what we'll show externally)
 
-  - MergeManager: build unit testcases for merge-manager merge-score (can we just build the function from test-cases?)
-  - MergeManager: move the "threshold for merge" logic into the merge manager
-  - MergeManager: notify_add should check for overlap within a generation!
-  - MergeManager: extend to consider "peers" to the start-segment so we can do good top-heavy merges
+  - add ACCUMULATORS
+    - LayerManager: SortedMerge extension needs to take a duplicate key resolver, 
+      which will handle things like causing incremental updates to merge. 
 
-  - LayerManager: SortedMerge extension needs to take a duplicate key resolver, which will handle things like
-    causing incremental updates to merge. 
 
-  - improve performance of mbox parser
-  - ADD: record block-encoder registry, encoder-type "chain" and decode-setup (so it just auto-decodes whatever is there)
+  - fix the block decoder selection to be dynamically selected instead of hardcoded
+    - ADD: record block-encoder registry, encoder-type "chain" and 
+	       decode-setup (so it just auto-decodes whatever is there)
 
-  - LayerManager: merge should have a slow/safe mode to verify segments db vs merge-manager after every merge
+  - LayerManager: merge should have a slow/safe mode to verify segments db vs 
+       merge-manager after every merge 
+	      (when it fails, record the merge-manager state in a dump-file)
+  
+  - add a network interface and a command-line client
+
+--------[ CUSTOMER USABILITY ]-------------
+    
+  - log truncation/recirculation
+  - freelist management
+  - command line interface
+  - html status GUI
+
+--------[ PERF ]-----------
+
+  
+  - FIX: super-slow advisor row size estimation!! 
+	- (we might as well encode the key and use that len, since we have to do it anyhow)
   - PERF: experiment changing BDSkipList locks into SpinLocks
-  - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
-  
 
-**** PERF ideas  ****
+  - MAKE: scanrange cache, use in segment walk
 
-  - ? make BDSkipList do a quick check to see if the key is outside the top/bottom range?  
   - ? make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
-  
   - implement a new block format!!! 
 
-********************
+  - ? make BDSkipList do a quick check to see if the key is outside the top/bottom range?  
+     - it should already be fast because of the "top" skiplist lane
 
-
-  - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
-     Don't we need to continue iterating in the next range of that generation?  How? At least we should fail! 
-  
-  - MAKE: scanrange cache, use in segment walk
-  - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
-  
-  - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
-     - encode/decode before we put into the value? 
+--------[ APPS ]-----------
 
   - distributed datastore handler
      - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
@@ -81,18 +76,34 @@
      - email-indexer and search test programs
      - simple database client w/command line   
 
-  - email indexer test  
-	 - PERFORMANCE:
-	   - support integer recordkey parts for much faster comparisons
+  - convert willowmail from sqlitedb to stepsdb (document store)
+     - need document interface
+     - need large-record support
+
+  - email indexer
+     - improve performance of email-index-test mbox parser
+     - make a command line text-indexer and test it under mono (index, merge, search)
+	 - PERFORMANCE:	   
 	   - ? recordkey.withPrefix() construction, to avoid long prefix allocations
 	   - better block format than basic block
 	 - add exact phrase match
 	 - add proximity scoring
 	 - add TFxIDF scoring (need numeric accumulators in the database!!) 
      - write a custom block handler for the index hits and efficient search intersection
-     - compare indexing and query performance with lucene/xapian     
+     - compare indexing and query performance with lucene/xapian
 
-  - APP: graphical db-data debugging browser (so I can fish and figured out what happened in data)
+  - simulate Toku iibench
+     - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
+     - TARGET: 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
+
+--------[ DBCORE ]-----------
+
+  - LayerManager, MergeManager: add/remove keyrange merge-barrier (a different way to snapshot)
+
+  - TODO: make segment merge "apply" a truly atomic operation  
+     - make AtomicWriteGroup that is guaranteed to apply atomicically 
+	   (everything in one log packet, lock working segment during apply)
+	 - make flushWorkingSegment an automatic/background part of LayerManager
 
   - design/build [SimpleAtomicCommit] Attribute, and Attribute system
      - simply provide an atomic commit for a set of changes. Nobody (including us) should see the
@@ -108,22 +119,6 @@
 	   - it would be much better if we could figure out how to avoid creating this problem to begin with!
 	  - IDEA-2: let merge manger place the target block. If it overlaps, let it float to the higher gen.
 	    - this doesn't solve anything. The new block will just be a new histo merge, continuing in an endless cycle. 		 
-  
-  - FIX segment_data_mismatch (block tombstone lost or ignored)
-
-  - CLEANUP: make a 'new block range verify' that makes sure a new block range does not span an existing block range
-    - though it'll need to ignore the blocks it's replacing. 
-	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
-  
-  - CLEANUP: is there a race when we delete and then add a segment with the same key?
-
-  - CLEANUP:
-    - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
-    - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
-    - check that we never try to write a row bigger than a microblock (how do we handle big rows?)
-    - write scanForward() version of segment walk!! (use mergemanager segmentinfo map?)
-
-  - TODO: make segment merge "apply" a truly atomic operation
 
   - DBG-GUI:
        - visualize block "fullness" and "tomstone to key ratio"
@@ -133,49 +128,52 @@
 	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
 	   - IDEA: debug GUI for IScanner interface
 
-  - fix 'unmergable' higher generation blocks (i.e. increasing order insertion)
-     - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
-	 - or, (b) allow MergeManager to recommend a 'rename' to a lower generation
+  - MAKE debug-gui "data browser" (so I can fish and figured out what happened in data)
+
+  - MergeManager: build unit testcases for merge-manager merge-score (can we just build the function from test-cases?)
+  - MergeManager: move the "threshold for merge" logic into the merge manager
+  - MergeManager: notify_add should check for overlap within a generation!
+  - MergeManager: extend to consider "peers" to the start-segment so we can do good top-heavy merges
 
 
-  - make flushWorkingSegment an automatic part of LayerManager
+--------[ DBCORE Cleanup ]-----------
 
-  - cleanup    
-    - use SegmentDescriptor class everywhere	
-	- change generation to "int" everywhere.
-	- make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointers
-	- drop tombstones when writing into generation-0 (oldest)
-	- fix "clear segment cache hack"... why does it need to be cleared?
-	- scanForward/scanBackward should really have easy to use >/< operators in addition to <=/>=
+  - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
 
-	- add unit tests:
-		- write a layertest for the deletion tombstone-shadow problem        
-		- mergeSegments() unit test
+  - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
+     - encode/decode before we put into the value? 
 
+  - SCANNER FIXES
+    - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
+    - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
 
-	Q: what should be the type of keyparts? 
+  - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
+     Don't we need to continue iterating in the next range of that generation?  How? At least we should fail! 
+    - IDEA: it seems like there is a fancy version of segment setup worklist, where when it descends to
+       the next indirect block, it hands down the current segment, and down below it "merges" the two, in
+	   order to remove tombstones. 
 
-    Q: How do we assure a valid merge? (no generation inversion because of partial keyranges)
-       - code to check that using the min-gen for a merge output is valid?
-
-* TESTING
+  Q: How do we assure a valid merge? (no generation inversion or overlapping blocks)    
+    - make merge-manager do a 'new block range verify' that makes sure a new block range do not span an 
+      existing block range (does it need to ignore the blocks it's replacing?)
+	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
+  
+  - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
+  - check that we never try to write a row bigger than a microblock (how do we handle big rows?)
+  - use SegmentDescriptor class everywhere, merge with RangeKey
+  - change generation to "int" everywhere (from uint)
+  - make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointer "data"	
+  - fix "clear segment cache hack"... why does it need to be cleared?
+	
+- TESTING
   - build synthetic tester... random row addition/deletion, where it turns on expensive
     "strong checking" of every segment operation, and database contents. Let it run
 	for days to generate "failure data".   
-
-* PERFORMANCE
-  - fixes:
-    - row-range consistant cache (for system metadata rows)
-	- efficient row-scan instead of repeatin getNext()
-	- sometimes it would be efficient to add more than one "top generation" block to a merge
-  - tests:
-    - simple text-indexer test
-    - simulate iibench
-       - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
-       - TARGET: 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
+  - unit tests for segment walk/cursor-setup
+	    - check for deletion tombstone-shadow problem
+  - mergeSegments() unit test
 
 --------[ Bigger TODO items ]-----------
-
 
 *** "table management"
   - ? integration of my RowPIPE prototype code, which is a generic type of "table management" to organize how multi-part keys are built
@@ -185,10 +183,10 @@
 *** LinearAllocationRegion implementation (so two simultaneous allocators don't interleave)
   - can MergeManager trigger "defragmentation" of existing blocks? (i.e. schedule a merge of 10 fragmented blocks in the same generation)
 
-*** row attributes for MVCC and locks
-(a) introduce row-attribute concept (can affect commit, row visibility, etc.)
-(b) attach MVCC attribute handler to writes, attach txn id to each row
-(c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
+*** implement MVCC and locks
+  (a) introduce row-attribute concept (can affect commit, row visibility, etc.)
+  (b) attach MVCC attribute handler to writes, attach txn id to each row
+  (c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
 
 *** freelist
   - 'real' freelist handling
@@ -224,11 +222,22 @@
 *** Hookup Hive/Pig for data-analysis
 *** prototype "Palantir" data-slicing GUI
 
-*** Interactive C# Shell mode?
+*** Interactive C# Shell mode? (w/intellisense!!) 
    - http://tirania.org/blog/archive/2008/Sep-08.html
 
-
 ------------[ DONE ]--------------------
+  
+
+12/9  - timestamp/snapshot stage (first step, still need merge cleanup)
+12/6  - much bigger index test (try to make a 2GB index)
+12/6  - FIX: runaway max-gen count! 
+12/6  - drop tombstones when writing into generation-0 (oldest)
+12/6  - FIX: cursor-v2 bug  (MainTest, in increasing-order-keys-test, also in random test now)
+          - I think this is caused because the "new segment is lower than the "old" segment, so at
+ 	  the top layer it adds a new segment to the list and stops before it sees the tombstone.  
+	  Two possible fixes (1) don't stop until we see a range record that does not apply to the
+	  record we're looking for , (2) once we have a valid range record for a generation, mark
+	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
   
 12/5  - GUI: mark blocks which contain index (.ROOT/GEN) records  
 12/5  - MergeManager: add merge-priority boosts based on block's generation, whether it has rangekeys, etc.
@@ -245,6 +254,9 @@
 12/2  - extend RecordKey to be type-aware , see if we get back the proper number of search hits.
         (string, int, RecordKey) to start
 12/2  - FIX: gui debugger, so it uses "unique keys count" for segment height not the other junk  
+12/2? - fix 'unmergable' broad-higher generation blocks (i.e. increasing order insertion)
+        - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
+     - or, (b) allow MergeManager to recommend a 'rename' to a lower generation
 11/29 - FIX: text-indexer notify_removeSegment crash
 11/28 - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
 11/27 - basic text-indexer test with AND conjunction of terms is working
