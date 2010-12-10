@@ -17,8 +17,10 @@ namespace Bend.DBClientTest {
             db.setValue(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("blah"));
 
+            db.setValue(new RecordKey().appendParsedKey("test/1"),
+                RecordUpdate.WithPayload("blah-new"));
 
-            
+
             var key = new RecordKey().appendParsedKey("test/1");
 
             raw_db.debugDump();

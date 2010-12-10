@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using System.Threading;
+
 using NUnit.Framework;
 
 using Bend;
@@ -45,8 +47,9 @@ namespace Bend {
                 new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), null);
 
             foreach (var rec in next_stage.scanForward(new_scanner)) {
-                rec.Key.key_parts.RemoveAt(0);
-                yield return rec;
+                RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey) rec.Key.key_parts[1];
+
+                yield return new KeyValuePair<RecordKey, RecordData>(orig_key.GetRecordKey(), rec.Value);
             }
         }
 
@@ -57,15 +60,21 @@ namespace Bend {
 
     class TimestampSnapshotStage : IStepsKVDB {
         IStepsKVDB next_stage;
+        long current_timestamp;
         public TimestampSnapshotStage(IStepsKVDB next_stage) {
             this.next_stage = next_stage;
+            this.current_timestamp = DateTime.Now.Ticks;
+        }
+
+        private long _nextTimestamp() {
+            return Interlocked.Increment(ref this.current_timestamp);
         }
 
         public void setValue(RecordKey key, RecordUpdate update) {
             // RecordKey key = key.clone();
 
             // (1) get our timestamp
-            long timestamp = DateTime.Now.Ticks;
+            long timestamp = this._nextTimestamp();
             // (2) add our timestamp attribute to the end of the keyspace
             key.appendKeyPart(new RecordKeyType_AttributeTimestamp(timestamp));
             next_stage.setValue(key,update);
@@ -123,7 +132,7 @@ namespace Bend {
             this.db = db;
         }
         public IStepsKVDB getDatabase() {
-            return new SubsetStage(new RecordKeyType_String("STUFF"), new TimestampSnapshotStage(this.db));
+            return new TimestampSnapshotStage(new SubsetStage(new RecordKeyType_String("STUFF"), this.db));
         }
     }
 
