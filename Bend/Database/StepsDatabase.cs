@@ -63,11 +63,16 @@ namespace Bend {
         long current_timestamp;
         bool is_frozen;
         long frozen_at_timestamp = 0;
-        
+
+        private long _nowAsTime_T() {
+            DateTime start_time = new DateTime(1970, 1, 1);
+            return (long)(DateTime.Now - start_time).TotalSeconds;
+        }
+
         public TimestampSnapshotStage(IStepsKVDB next_stage) {
             this.is_frozen = false;
             this.next_stage = next_stage;
-            this.current_timestamp = DateTime.Now.Ticks;
+            this.current_timestamp = (_nowAsTime_T() << 16);
         }
 
         private TimestampSnapshotStage(IStepsKVDB next_stage, long frozen_at_timestamp) : this(next_stage) {

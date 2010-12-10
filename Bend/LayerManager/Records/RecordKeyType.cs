@@ -190,7 +190,7 @@ namespace Bend
             return value.GetHashCode();
         }
         public override string ToString() {
-            return String.Format("TS:{0}L", this.value);
+            return String.Format("TS:0x{0:X}", this.value);
         }
     }
     
