@@ -25,15 +25,35 @@ namespace Bend.DBClientTest {
 
             IStepsDocumentDB doc_db = db_broker.getDocumentDatabase();
 
-            var doc = new BsonDocument {
-                { "_id" , "foo" },
-                { "name" , "David" }
-            };
-            doc_db.ensureIndex( new string[] { "name", "_id" } );
-            doc_db.Insert(doc);
+            doc_db.ensureIndex( new string[] { "name" } );
+            doc_db.ensureIndex(new string[] { "age"});
+
+            doc_db.Insert(new BsonDocument {
+                { "_id" , "user1" },
+                { "name" , "David" },
+                { "age", 60 }
+
+            });
+
+            doc_db.Insert(new BsonDocument {
+                { "_id" , "user2" },
+                { "name" , "Tom" },
+                { "age", 32 }
+            });
+
+            doc_db.Insert(new BsonDocument {
+                { "_id" , "user3" },
+                { "name" , "Tom" },
+                { "age", 32 }
+            });
 
             raw_db.debugDump();
 
+            int count=0;
+            foreach (var doc in doc_db.Find(
+                new BsonDocument {{ "age", 32 }})) {
+                    Console.WriteLine(" [{0}] = {1}", count++, doc.ToString());
+            }
         }
 
         static void snapshot_test() {

@@ -24,12 +24,6 @@ namespace Bend {
     }
 
 
-    public class IndexPartSpec {
-        string field_name;
-        public IndexPartSpec(string field_name) {
-            this.field_name = field_name;
-        }
-    }
 
     public class DocumentDatabaseStage : IStepsDocumentDB {
         IStepsKVDB next_stage;
@@ -58,7 +52,20 @@ namespace Bend {
         private RecordKey _appendKeypartsForIndex(BsonDocument doc, List<string> index_spec, RecordKey index_key) {            
             foreach (var index_field_name in index_spec) {
                 var element = doc.GetElement(index_field_name);
-                index_key.appendKeyPart(new RecordKeyType_String(element.Value.AsString));
+                switch (element.Value.BsonType) {
+                    case BsonType.String:
+                        index_key.appendKeyPart(new RecordKeyType_String(element.Value.AsString));
+                        break;
+                    case BsonType.Int64:
+                        index_key.appendKeyPart(new RecordKeyType_Long(element.Value.AsInt64));
+                        break;
+                    case BsonType.Int32:
+                        index_key.appendKeyPart(new RecordKeyType_Long(element.Value.AsInt32));
+                        break;
+                    default:
+                        throw new Exception("unsupported index type");
+                        break;
+                }
             }
             return index_key;
         }
@@ -94,6 +101,76 @@ namespace Bend {
             }
         }
 
+        public struct ValuePair<A,B> : IComparable<ValuePair<A,B>> 
+            where A : IComparable<A> 
+            where B : IComparable<B> {
+            public readonly A value1;
+            public readonly B value2;
+            public int CompareTo(ValuePair<A, B> target) {
+                int cmpval = value1.CompareTo(target.value1);
+                if (cmpval != 0) { return cmpval; }
+                return value2.CompareTo(target.value2);
+            }
+            public ValuePair(A a,B b) {
+                value1 = a;
+                value2 = b;
+            }
+        }
+
+        private float _scoreIndex(BsonDocument query_doc, List<string> index_spec) {
+            float score = 0.0f;
+
+            // (1) We walk the prefix of each index against the query and count the 
+            // number of prefix-terms in the index match against specified parts 
+            // of the query. The longest match becomes the best index to use,
+            // and the query is executed against it.
+
+            foreach (var key_part in index_spec) {                
+                if (query_doc.Contains(key_part)) {
+                    score += 1.0f;
+                } else {
+                    break;
+                }
+            }
+            return score;
+        }
+
+        public IEnumerable<BsonDocument> Find(BsonDocument query_doc) {
+
+
+            // (1) index selection
+            var scored_indicies = new BDSkipList<ValuePair<float, long>, long>();
+            float pk_score = _scoreIndex(query_doc, this.pk_spec);
+
+            scored_indicies.Add(new ValuePair<float, long>(pk_score, 0), 0);
+             
+            foreach (var index in this.indicies) {
+                float idx_score = _scoreIndex(query_doc, index.Value);
+                scored_indicies.Add(new ValuePair<float, long>(idx_score, index.Key), index.Key);
+            }
+
+            foreach (var scored_index_entry in scored_indicies) {
+                var scored_index = scored_index_entry.Key;
+                Console.WriteLine(" idx:{0} score:{1} spec:{2}",
+                    scored_index.value2, scored_index.value1,
+                    String.Join(",", scored_index.value2 == 0 ? pk_spec : indicies[scored_index.value2]));
+            }
+
+            // (2) create a query-plan to execute
+
+
+            // (3) execute
+            yield break;
+        }
+
+    }
+}
+
+
+
+
+
+
 
 #if false
         var buffer = new BsonBuffer();
@@ -104,10 +181,3 @@ namespace Bend {
   
 
 #endif
-
-        public IEnumerable<BsonDocument> Find(BsonDocument query_doc) {
-            yield break;
-        }
-
-    }
-}
