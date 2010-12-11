@@ -56,6 +56,19 @@
   - command line interface
   - html status GUI
 
+--------[ Document DB ]-----------
+
+ - Q: can we serve exact-key lookups from an incomplete index being built at the time?
+   - MOTIVE: building an index is expensive. If we can use it to relieve read-pressure while
+       it's being built, we can free up resources to build it.
+   - This can only work *IF* the query hits a single-key, which means it will need to
+     be a lookup on an index with a UNIQUE constraint. 
+   - The index is being built on a snapshot, so in addition to performing the lookup, we
+     need to maintain a bloom of "records touched since the snapshot" so we can quickly
+	 check to see if the data in the index is current. 
+
+
+
 --------[ PERF ]-----------
 
   
