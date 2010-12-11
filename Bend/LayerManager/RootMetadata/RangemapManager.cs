@@ -597,7 +597,7 @@ namespace Bend
 
                             yield return 
                                 new KeyValuePair<RecordKey, RecordData>(
-                                    out_rec.Key.CloneRecordKey(), 
+                                    out_rec.Key.DeepCloneRecordKey(), 
                                     record);                            
                         } else {
 #if DEBUG_CURSORS

@@ -33,7 +33,10 @@ namespace Bend {
             RecordKey.encoder.decode(data, this);
         }
 
-        public RecordKey CloneRecordKey() {
+        public RecordKey DeepCloneRecordKey() {
+            // by using encode/decode to handle a deep clone, we assure that the
+            // record key will absolutly sort the same way after a clone that it will
+            // after the next decode
             return new RecordKey(this.encode());
         }
 
