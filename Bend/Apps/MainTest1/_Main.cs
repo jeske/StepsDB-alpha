@@ -229,10 +229,11 @@ namespace Bend
             int keysize = 20
                 ;
             int keycount = 1000000;
-            int flush_period = 10000;
+            int flush_period = 40000;
             int commit_period = 1000;
             bool random_order = true;
 
+            double elapsed;
 
             DateTime start = DateTime.Now;
             int record_count = 0;
@@ -285,7 +286,7 @@ namespace Bend
                         win.debugDump(db);                        
                     }
 
-                    double elapsed = (DateTime.Now - start).TotalMilliseconds / 1000.0;
+                    elapsed = (DateTime.Now - start).TotalMilliseconds / 1000.0;
                     
                     Console.WriteLine("*************************************************");                    
                     Console.WriteLine("*************************************************");
@@ -313,7 +314,17 @@ namespace Bend
             }
 
             dumpSegmentList(db);
+            elapsed = (DateTime.Now - start).TotalMilliseconds / 1000.0;
+
+            Console.WriteLine("*************************************************");
+            Console.WriteLine("*************************************************");
+            Console.WriteLine("*** merge cycle done  {0} records so far, in {1} total time, {2} records/second",
+                     record_count, elapsed, (double)record_count / elapsed);
+            Console.WriteLine("*************************************************");
+            Console.WriteLine("*************************************************");
+
             System.Console.WriteLine("** done.");
+            Environment.Exit(0);
         }
     }
 }
