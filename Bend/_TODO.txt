@@ -1,6 +1,14 @@
 
 ----[ TODO ]---------
 
+  - FieldedDocumentStoreStage
+     (1) BSONDocument insert interface
+	 (2) primary-key and composite-key index maintenance
+	 (3) get/find/query execution
+	 (4) snapshot/log-replay stage (for online index create)
+	 (5) online-index-create
+
+
  - Replication System Bringup
      (1) replication as a db stage on-top of snapshot stage
         - does replication need to be able to 'set' the timestamp values of records'?
@@ -9,10 +17,6 @@
      (3) estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
      (4) snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
 
-  - FieldedDocumentStoreStage
-     (1) BSONDocument set/get interface
-	 (2) primary-key and index maintenance
-	 (3) find/query interface
 
   - StepsDBControllerStage
      (1) allow creation of a pipeline, and metadata to recreate that pipeline when restarted
@@ -44,6 +48,7 @@
     
   - log truncation/recirculation
   - freelist management
+  - task/job/tool tracking
   - command line interface
   - html status GUI
 
