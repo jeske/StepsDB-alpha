@@ -37,6 +37,10 @@
     <Reference Include="Bend">
       <HintPath>..\..\obj\Release\Bend.dll</HintPath>
     </Reference>
+    <Reference Include="MongoDB.Bson, Version=0.7.0.3959, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\ThirdParty\Lib\MongoDB.Bson.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />

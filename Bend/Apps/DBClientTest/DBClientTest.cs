@@ -5,14 +5,42 @@ using System.Text;
 
 using Bend;
 
+using MongoDB.Bson;
+
 namespace Bend.DBClientTest {
     class DBClientTest {
+
+        
         static void Main(string[] args) {
 
+            document_db_test();
+
+            // snapshot_test();
+        }
+
+
+        static void document_db_test() {
             LayerManager raw_db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\main");
             StepsDatabase db_broker = new StepsDatabase(raw_db);
 
-            IStepsKVDB generic_db = db_broker.getDatabase();
+            IStepsDocumentDB doc_db = db_broker.getDocumentDatabase();
+
+            var doc = new BsonDocument {
+                { "_id" , "foo" },
+                { "name" , "David" }
+            };
+            doc_db.ensureIndex( new string[] { "name", "_id" } );
+            doc_db.Insert(doc);
+
+            raw_db.debugDump();
+
+        }
+
+        static void snapshot_test() {
+            LayerManager raw_db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\main");
+            StepsDatabase db_broker = new StepsDatabase(raw_db);
+
+            IStepsKVDB generic_db = db_broker.getSnapshotDatabase();
 
             TimestampSnapshotStage db = (TimestampSnapshotStage)generic_db;
 
