@@ -168,12 +168,14 @@ namespace Bend {
             this.db = db;
         }
 
+
         public IStepsDocumentDB getDocumentDatabase() {
             return new DocumentDatabaseStage(new SubsetStage(new RecordKeyType_String("DOCDB"), this.db));
         }
 
         public IStepsKVDB getSnapshotDatabase() {
             return new TimestampSnapshotStage(new SubsetStage(new RecordKeyType_String("SNAPDB"), this.db));
+
         }
     }
 
