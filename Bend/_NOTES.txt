@@ -18,6 +18,20 @@ With (2), that leaves the question of how to get the freed segments onto the fre
 (b) In the past I had been considering doing snapshots that would potentially keep old segments around. This might justify a different way of trapping these records before they were actually added back onto the freelist. However, I've since changed my thinking, as I think these needs are probably better served by using attributes and letting merge progress  continue to keep things as merged as possible. 
 
 
+-------------------[  speeding up text index ]----------------------------
+
+search for [jeske neotonic] returned 89100 hits in 59.0393769s   
+      (178483 productions, 89382 comparisons, 318401 entries scanned)
+
+ideas how to improve this:
+
+(1) make some new block format options that length-encode instead of escaping data.  That will minimally make it 2x faster, probably more like 8-10x. 
+
+(2) prefix-key-removal outside block handler.... I want to make sortedsegment try to create blocks that have the same prefix, and thus don't need to know the prefix. This way, searches/scans within the block will only need to decode the unique-keyparts inside that block. They won't need to even touch the prefix keyparts which are all the same. For keys like "zindex/WORD/DOCID", this should make scanning about 6x faster, because it won't need to do decoding or object allocation for the "zindex/WORD" part for every hit, only the "DOCID". 
+
+(3) eliminate deep virtual method call wind/unwind for every hit. Right now the bottom level produces a hit, and the top level decides if it is "big enough" for every hit. This is about 5 levels of virtual method calls. I can eliminate this by having search implement a "match spec" that it hands down into the iteration.. so the bottom level can just call the matcher to check entries. 
+                             
+
 -------------------[  field based record interface ]----------------------------
 
 /* var rec = new Rec();
