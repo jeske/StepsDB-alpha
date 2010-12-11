@@ -1,6 +1,10 @@
 
 ----[ TODO ]---------
 
+  - Q: If we use "minValidGenForBlock(int below_topgen)" to set a merge block output, 
+       can we do a 1-level histo merge? Seems like we can.
+  - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
+
   - FieldedDocumentStoreStage
      (1) BSONDocument insert interface
 	 (2) primary-key and composite-key index maintenance
@@ -13,7 +17,7 @@
      (1) replication as a db stage on-top of snapshot stage
         - does replication need to be able to 'set' the timestamp values of records'?
      (2) replication 'full copy bringup' using snapshots
-     (3) cleanup of replication (switch to 'always pull' log tails)
+     (3) cleanup of replication (switch to 'cd ..always pull' log tails)
      (3) estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
      (4) snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
 

@@ -1,5 +1,10 @@
-﻿// Copyright (C) 2008, by David W. Jeske
-// All Rights Reserved.
+﻿
+// IScanner - an efficient bi-directional scanning interface for sorted collections (like BDSkipList)
+//
+// authored by David W. Jeske (2008-2010)
+//
+// This code is provided without warranty to the public domain. You may use it for any
+// purpose without restriction.
 
 using System.Collections.Generic;
 using System;
