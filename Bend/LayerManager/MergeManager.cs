@@ -420,8 +420,9 @@ namespace Bend {
             this.merge_ratio -= number_of_segments * 0.3f;
 
             // boost when the contains segment pointers 
-            if (contains_pointers) {
-                this.merge_ratio -= (2f * (float)generation_span / number_of_segments);  
+            if (contains_pointers) {                
+                this.merge_ratio -= 0.3f * (float)generation_span;
+                this.merge_ratio -= 0.2f * (float)number_of_segments;
             }
 
             // boost when the merge spans multiple generations
