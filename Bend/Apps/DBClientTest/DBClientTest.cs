@@ -52,7 +52,7 @@ namespace Bend.DBClientTest {
             int count=0;
             foreach (var doc in doc_db.Find(
                 new BsonDocument {{ "age", 32 }})) {
-                    Console.WriteLine(" [{0}] = {1}", count++, doc.ToString());
+                    Console.WriteLine(" [{0}] = {1}", count++, doc.ToJson());
             }
         }
 

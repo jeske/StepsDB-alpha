@@ -16,7 +16,7 @@ using Bend;
 namespace Bend {
 
     public interface IStepsKVDB {
-         void setValue(RecordKey key, RecordUpdate update);
+         void setValue(RecordKey key, RecordUpdate update);         
          // public GetStatus getRecord(RecordKey key, out RecordData record);
          IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner);
          IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner);
