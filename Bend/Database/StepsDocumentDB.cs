@@ -94,6 +94,10 @@ namespace Bend {
         private float _scoreIndex(BsonDocument query_doc, IndexSpec index_spec) {
             float score = 0.0f;
 
+            if (index_spec.is_primary) {
+                score += 0.1f; // if everything is equal, prefer the primary, since it has the data!
+            }
+
             // (1) We walk the prefix of each index against the query and count the 
             // number of prefix-terms in the index match against specified parts 
             // of the query. The longest match becomes the best index to use,
@@ -234,15 +238,16 @@ namespace Bend {
             var ms = new MemoryStream();
             doc.WriteTo(ms);
 
-            // write the primary key
             IndexSpec pk_spec = indicies[this.pk_id];
 
+#if false
+            // write the primary key
             RecordKey primary_key = new RecordKey()
                 .appendKeyPart(new RecordKeyType_Long(0));
-            _appendKeypartsForIndexSpec(doc, pk_spec, primary_key);
-            this.next_stage.setValue(primary_key, RecordUpdate.WithPayload(ms.ToArray()));
+            _appendKeypartsForIndexSpec(doc, pk_spec, primary_key);            
 
             byte[] encoded_primary_key = primary_key.encode();
+#endif
 
             // write any other keys
             foreach (var index_spec in indicies) {
@@ -251,11 +256,17 @@ namespace Bend {
                     .appendKeyPart(new RecordKeyType_Long(index_spec.Key));
                 _appendKeypartsForIndexSpec(doc, index_spec.Value, index_key);
 
+                if (index_spec.Value.is_primary) {
+                    // primary index: save document data
+                    this.next_stage.setValue(index_key, RecordUpdate.WithPayload(ms.ToArray()));
+                } else {
+                    // secondary index: append primary keyparts
+                    // TODO: it might be faster to pre-build the primary key and then copy it
+                    // over each time, instead of using this function.
+                    _appendKeypartsForIndexSpec(doc, pk_spec, index_key);
+                    this.next_stage.setValue(index_key, RecordUpdate.WithPayload(new byte[0]));
+                }
 
-                // append primary keyparts
-                _appendKeypartsForIndexSpec(doc, pk_spec, index_key);
-
-                this.next_stage.setValue(index_key, RecordUpdate.WithPayload(new byte[0]));
             }
         }
 

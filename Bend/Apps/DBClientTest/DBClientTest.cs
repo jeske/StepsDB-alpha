@@ -26,7 +26,7 @@ namespace Bend.DBClientTest {
             IStepsDocumentDB doc_db = db_broker.getDocumentDatabase();
 
             doc_db.ensureIndex( new string[] { "name" } );
-            doc_db.ensureIndex(new string[] { "age"});
+            // doc_db.ensureIndex(new string[] { "age"});
 
             doc_db.Insert(new BsonDocument {
                 { "_id" , "user1" },
@@ -55,9 +55,11 @@ namespace Bend.DBClientTest {
                     Console.WriteLine(" [{0}] = {1}", count++, doc.ToJson());
             }
 
-            doc_db.Delete(new BsonDocument {
+            int num_deleted = doc_db.Delete(new BsonDocument {
                 { "age" , 32 }
             });
+
+            Console.WriteLine("** deleted {0} records", num_deleted);
 
 
             raw_db.debugDump();
@@ -66,6 +68,8 @@ namespace Bend.DBClientTest {
                 new BsonDocument { { "age", 32 } })) {
                 Console.WriteLine(" [{0}] = {1}", count++, doc.ToJson());
             }
+
+
         }
 
         static void snapshot_test() {
