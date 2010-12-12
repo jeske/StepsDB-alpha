@@ -31,6 +31,21 @@ ideas how to improve this:
 
 (3) eliminate deep virtual method call wind/unwind for every hit. Right now the bottom level produces a hit, and the top level decides if it is "big enough" for every hit. This is about 5 levels of virtual method calls. I can eliminate this by having search implement a "match spec" that it hands down into the iteration.. so the bottom level can just call the matcher to check entries. 
                              
+-------------------[  ideas ]----------------------------
+
+What do we need to track for auto index creation?
+ - every full table scan, what we scanned for
+ - every cross ref scan, total cost
+
+Pipeline multi dim results
+ - easy to setup a results processing pipeline accumulator
+ - results can be accumulated into a collection tree with a deep primary key index
+
+
+ "Life Beyond Distributed Transactions"
+  - http://web.mit.edu/tibbetts/Public/CIDR_2007_Proceedings/papers/cidr07p1
+
+
 
 -------------------[  field based record interface ]----------------------------
 

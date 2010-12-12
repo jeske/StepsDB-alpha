@@ -1,6 +1,12 @@
 ﻿// Copyright (C) 2008, by David W. Jeske
 // All Rights Reserved.
 
+// This uses SharpZipLib...
+//
+// we should also make a version that uses LZO.NET, as it claims to be much faster
+//   http://lzo-net.sourceforge.net/
+// 
+
 
 using System;
 using System.Collections.Generic;

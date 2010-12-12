@@ -6,7 +6,7 @@
   - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
 
   - FieldedDocumentStoreStage
-     - update (one or many)
+     
      - check for duplicate/redundant index during create
 	 - persist/reload/update database-stored index config    
      - code for index create
@@ -260,6 +260,7 @@
 	     - primary-key and composite-key index maintenance
 	     - get/find/query execution
 	     - delete	
+		 - update (one or many)
 12/9  - timestamp/snapshot stage (first step, still need merge cleanup)
 12/6  - much bigger index test (try to make a 2GB index)
 12/6  - FIX: runaway max-gen count! 
