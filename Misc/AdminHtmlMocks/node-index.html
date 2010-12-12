@@ -1,0 +1,109 @@
+<html>
+<head>
+<style>
+td {font-family:Arial,sans-serif;}
+body {font-family:Arial,sans-serif;}
+.genblock { float:left; margin: 1 1 1 1; background:#5555ff; }
+.wsblock { float:left; background:#5555ff; }
+.msgtbl td { background:#ddddff; }
+</style>
+</head>
+<body>
+
+<table width=100% bgcolor=#ccccff>
+ <tr>
+  <Td nowrap width=1%>&nbsp; STEPSDB &nbsp;</tD>
+  <Td> NODEINFO: (10.0.0.45 : 12314) </tD>
+  <td> </td>
+ </tr>
+</table>
+
+&nbsp;<br>
+
+<table align=left width=300 height=150>
+<tr bgcolor=#cccccc><td height=1>Generation Info</td></tr>
+<tr><td>
+<DIV class=genblock style="height:100px;width:20;"></DIV>
+<DIV class=genblock style="height:50px;width:20;"></DIV>
+<DIV class=genblock style="height:20px;width:20;"></DIV>
+</td></tr>
+</table>
+
+<table align=left width=300 height=150>
+<tr bgcolor=#cccccc><td height=1>Working Segment</td></tr>
+<Tr><td>
+<DIV class=wsblock style="height:50px;width:30;"></DIV>
+<DIV class=wsblock style="height:50px;width:200;background:#cccccc;"></DIV>
+</td></tr>
+<tr><Td>10MB of 100MB</td></tr>
+</table>
+
+<table align=left width=300>
+<tr bgcolor=#cccccc><td>Recent Events</td></tr>
+<tr><Td>
+<table width=100% class=msgtbl>
+ <tr><Td nowrap>-3m:20s</td><td nowrap>WS Flush (98MB->15MB, 805ms)</td></tr>
+ <tr><tD nowrap>-5m:20s</td><td nowrap>Merge (2.4MB->1.9MB, 243ms, 3 segments, score: 1.2)</td></tr>
+</td></tr>
+</table>
+
+<table align=left width=300>
+<tr bgcolor=#cccccc><td>Services</td></tr>
+<tr><Td>
+<table width=100% class=msgtbl>
+ <tr><td nowrap><a href="cluster-master-index.html">ClusterMaster</a> (willow-mail)</td></tr>
+ <tr><td nowrap><a href="cluster-node-index.html">ClusterNode</a> (willow-mail) (<a href="cluster-master-index.html">master</a>)</td></tr>
+ <tr><td nowrap><a href="document-db-index.html">DocumentDB</a> (willow-mail)</td></tr>
+</td></tr>
+</table>
+
+
+<hr>
+
+
+<table align=left width=300>
+<tr bgcolor=#cccccc><td>Current Activity Progress</td></tr>
+<tr><Td>
+<table width=100% class=msgtbl>
+<tr align=center>
+ <td nowrap>elap</td>
+ <td nowrap>eta</td>
+ <td nowrap>MB/s</td>
+ <td nowrap>r/s</td>
+ <td nowrap>progeress</td>
+ <td nowrap colspan=2>info</td>
+</tr>
+
+<tr align=center>
+ <tD nowrap>3m:20s</td>
+ <td nowrap>5m:30s</td>
+ <td nowrap>12</tD>
+ <td nowrap>4210</td>
+ <td nowrap align=left>
+   <DIV class=wsblock style="width:25px;">&nbsp;</DIV>
+   <DIV class=wsblock style="background:#cccccc; width:65px;">&nbsp;</DIV>
+ </td>
+ <td nowrap>Replicate</td>
+ <td nowrap>R2 to N4 (22MB, src:N1,N3)</td>
+</tr>
+
+<tr align=center>
+ <tD nowrap>12m:20s</td>
+ <td nowrap>23m:30s</td>
+ <td nowrap>8</tD>
+ <td nowrap>6313</td>
+ <td nowrap align=left>
+   <DIV class=wsblock style="width:45px;">&nbsp;</DIV>
+   <DIV class=wsblock style="background:#cccccc; width:45px;">&nbsp;</DIV>
+ </td>
+ <td nowrap>Snapshot.Find</td>
+ <td nowrap>nightly-backup (<a href="#">details</a>)</td>
+</tr>
+
+
+</table></td></tr></table>
+
+
+
+</body>
+</html>
