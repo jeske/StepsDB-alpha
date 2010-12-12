@@ -184,10 +184,8 @@ namespace Bend {
 
             long index_id = id_gen.nextTimestamp();
 
-
             this.indicies.Add(index_id, new IndexSpec(index_spec));
         }
-
 
 
         public void Insert(BsonDocument doc) {
@@ -221,6 +219,44 @@ namespace Bend {
             }
         }
 
+        private IEnumerable<BsonDocument> _scanSpecWithIndex(BsonDocument query_doc, long use_index_id) {
+            if (use_index_id == 0) {
+                // primary index scan
+                var scanrange = _scanRangeForQueryAndIndex(query_doc, use_index_id);
+                foreach (var data_rec in next_stage.scanForward(scanrange)) {
+                    BsonDocument doc = _unpackDoc(data_rec.Value);
+                    if (_doesDocMatchQuery(doc, query_doc)) {
+                        yield return doc;
+                    }
+                }
+            } else {
+                IndexSpec index_spec = indicies[use_index_id];
+                // secondary index scan
+                var scanrange = _scanRangeForQueryAndIndex(query_doc, use_index_id);
+                foreach (var idx_rec in next_stage.scanForward(scanrange)) {
+                    // unpack the secondary index rec into a primary key
+                    var pk_lookup_key = new RecordKey().appendKeyPart(new RecordKeyType_Long(0));
+                    for (int x = index_spec.key_parts.Count + 1; x < idx_rec.Key.key_parts.Count; x++) {
+                        pk_lookup_key.appendKeyPart(idx_rec.Key.key_parts[x]);
+                    }
+                    Console.WriteLine("found rec {0}, lookup data {1}", idx_rec.Key, pk_lookup_key);
+                    KeyValuePair<RecordKey, RecordData> data_rec = new KeyValuePair<RecordKey, RecordData>(null, null);
+                    try {
+                        data_rec = _getValueHack(pk_lookup_key);
+                    } catch (KeyNotFoundException) {
+                        // the index didn't point to a valid record, CRAP!
+                        Console.WriteLine("dangling index record");
+                    }
+                    if (data_rec.Key != null) {
+                        BsonDocument doc = _unpackDoc(data_rec.Value);
+                        if (_doesDocMatchQuery(doc, query_doc)) {
+                            yield return doc;
+                        }
+                    }
+                }
+            }
+        }
+
 
         public IEnumerable<BsonDocument> Find(BsonDocument query_doc) {
             // (1) index selection, score all indicies
@@ -247,43 +283,17 @@ namespace Bend {
             }
 
             // (3) execute
-            if (use_index_id == 0) {
-                // primary index scan
-                var scanrange = _scanRangeForQueryAndIndex(query_doc, use_index_id);
-                foreach (var data_rec in next_stage.scanForward(scanrange)) {
-                    BsonDocument doc = _unpackDoc(data_rec.Value);
-                    if (_doesDocMatchQuery(doc, query_doc)) {
-                        yield return doc; 
-                    }                    
-                }
-            } else {
-                IndexSpec index_spec = indicies[use_index_id];
-                // secondary index scan
-                var scanrange = _scanRangeForQueryAndIndex(query_doc, use_index_id);
-                foreach (var idx_rec in next_stage.scanForward(scanrange)) {
-                    // unpack the secondary index rec into a primary key
-                    var pk_lookup_key = new RecordKey().appendKeyPart(new RecordKeyType_Long(0));
-                    for (int x = index_spec.key_parts.Count+1; x < idx_rec.Key.key_parts.Count; x++) {
-                        pk_lookup_key.appendKeyPart(idx_rec.Key.key_parts[x]);
-                    }
-                    Console.WriteLine("found rec {0}, lookup data {1}", idx_rec.Key, pk_lookup_key);
-                    KeyValuePair<RecordKey, RecordData> data_rec = new KeyValuePair<RecordKey, RecordData>(null, null);
-                    try {
-                        data_rec = _getValueHack(pk_lookup_key);                        
-                    } catch (KeyNotFoundException) {
-                        // the index didn't point to a valid record, CRAP!
-                        Console.WriteLine("dangling index record");
-                    }
-                    if (data_rec.Key != null) {
-                        BsonDocument doc = _unpackDoc(data_rec.Value);
-                        if (_doesDocMatchQuery(doc, query_doc)) {
-                            yield return doc;
-                        }
-                    }
-                }
-            }
+            return _scanSpecWithIndex(query_doc, use_index_id);
         }
 
+
+        public int Update(BsonDocument query_doc, BsonDocument change_spec, bool insert_ok, bool multi_ok) {
+            throw new Exception("not impl");
+        }
+
+        public int Replace(BsonDocument query_doc, BsonDocument new_doc, bool insert_ok) {
+            throw new Exception("not impl");
+        }
 
         #endregion
 
