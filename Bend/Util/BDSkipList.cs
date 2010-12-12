@@ -3,11 +3,12 @@
 //
 // authored by David W. Jeske (2008-2010)
 //
-// KNOWN BUGS:
-//   Keys.CopyTo([]) unimplemented
-//  
 // This code is provided without warranty to the public domain. You may use it for any
 // purpose without restriction.
+// 
+// KNOWN BUGS:
+//   Keys.CopyTo([]) unimplemented
+//
 //
 // originally inspired by the public source code:
 // http://www.codersource.net/csharp_skip_list.aspx

@@ -25,16 +25,37 @@ namespace Bend {
 
 
 
+
     public class DocumentDatabaseStage : IStepsDocumentDB {
         IStepsKVDB next_stage;
+        static FastUniqueIds id_gen = new FastUniqueIds();
+        long pk_id = -1;
+        BDSkipList<long,IndexSpec> indicies = new BDSkipList<long,IndexSpec>();
 
-        List<string> pk_spec = null;
-        BDSkipList<long,List<string>> indicies = new BDSkipList<long,List<string>>();
+
+        public struct IndexSpec {
+            public readonly List<string> key_parts;
+            public readonly bool is_primary;
+            public IndexSpec(
+                List<string> key_parts,
+                bool is_primary = false) {
+
+                this.key_parts = key_parts;
+                this.is_primary = is_primary;
+            }
+            public override String ToString() {
+                return String.Format("IndexSpec:{0}({1})",
+                    is_primary ? "primary" : "secondary",
+                    String.Join(",", key_parts));
+            }
+            
+        }
 
         public DocumentDatabaseStage(IStepsKVDB next_stage) {
             this.next_stage = next_stage;
 
-            this.pk_spec = new List<string>{ "_id" };
+            indicies[0] = new IndexSpec(new List<string> { "_id" }, is_primary: true); 
+            pk_id = 0;
 
         }
 
@@ -44,9 +65,10 @@ namespace Bend {
                 index_spec.Add(key);
             }
 
-            long index_id = DateTime.Now.Ticks;
+            long index_id = id_gen.nextTimestamp();
 
-            this.indicies.Add(index_id, index_spec);
+
+            this.indicies.Add(index_id, new IndexSpec(index_spec));
         }
 
         private RecordKeyType _bsonLookupToRecordKeyType(BsonDocument doc, string field_name) {
@@ -65,8 +87,8 @@ namespace Bend {
             throw new Exception("unsupported index type");
         }
 
-        private RecordKey _appendKeypartsForIndex(BsonDocument doc, List<string> index_spec, RecordKey index_key) {            
-            foreach (var index_field_name in index_spec) {
+        private RecordKey _appendKeypartsForIndex(BsonDocument doc, IndexSpec index_spec, RecordKey index_key) {            
+            foreach (var index_field_name in index_spec.key_parts) {
                 index_key.appendKeyPart(
                     _bsonLookupToRecordKeyType(doc, index_field_name));
             }
@@ -80,17 +102,17 @@ namespace Bend {
             doc.WriteTo(ms);  
 
             // write the primary key
+            IndexSpec pk_spec = indicies[this.pk_id];
+
             RecordKey primary_key = new RecordKey()
                 .appendKeyPart(new RecordKeyType_Long(0));
-            _appendKeypartsForIndex(doc, this.pk_spec, primary_key);
+            _appendKeypartsForIndex(doc, pk_spec, primary_key);
             this.next_stage.setValue(primary_key, RecordUpdate.WithPayload(ms.ToArray()));
 
             byte[] encoded_primary_key = primary_key.encode();
 
             // write any other keys
             foreach (var index_spec in indicies) {
-                Assert.AreNotEqual(0, index_spec.Key, "index id can't be zero!");
-
                 // assemble index
                 RecordKey index_key = new RecordKey()
                     .appendKeyPart(new RecordKeyType_Long(index_spec.Key));
@@ -98,7 +120,7 @@ namespace Bend {
 
 
                 // append primary keyparts
-                _appendKeypartsForIndex(doc, this.pk_spec, index_key);
+                _appendKeypartsForIndex(doc, pk_spec, index_key);
 
                 this.next_stage.setValue(index_key, RecordUpdate.WithPayload(new byte[0]));
             }
@@ -120,7 +142,7 @@ namespace Bend {
             }
         }
 
-        private float _scoreIndex(BsonDocument query_doc, List<string> index_spec) {
+        private float _scoreIndex(BsonDocument query_doc, IndexSpec index_spec) {
             float score = 0.0f;
 
             // (1) We walk the prefix of each index against the query and count the 
@@ -128,7 +150,7 @@ namespace Bend {
             // of the query. The longest match becomes the best index to use,
             // and the query is executed against it.
 
-            foreach (var key_part in index_spec) {                
+            foreach (var key_part in index_spec.key_parts) {                
                 if (query_doc.Contains(key_part)) {
                     score += 1.0f;
                 } else {
@@ -139,16 +161,11 @@ namespace Bend {
         }
 
         private ScanRange<RecordKey> _scanRangeForQueryAndIndex(BsonDocument query_doc, long index_id) {
-            var key_prefix = new RecordKey().appendKeyPart(new RecordKeyType_Long(index_id));            
+            var key_prefix = new RecordKey().appendKeyPart(new RecordKeyType_Long(index_id));
 
-            List<string> index_spec;
-            if (index_id == 0) { 
-                index_spec = pk_spec;
-            } else {
-                index_spec = indicies[index_id];
-            }
+            IndexSpec index_spec = indicies[index_id];
 
-            foreach (var index_part in index_spec) {
+            foreach (var index_part in index_spec.key_parts) {
                 key_prefix.appendKeyPart(_bsonLookupToRecordKeyType(query_doc, index_part));                
             }
             
@@ -172,12 +189,9 @@ namespace Bend {
         }
 
         public IEnumerable<BsonDocument> Find(BsonDocument query_doc) {
-            // (1) index selection
+            // (1) index selection, score all indicies
             var scored_indicies = new BDSkipList<ValuePair<float, long>, long>();
-            float pk_score = _scoreIndex(query_doc, this.pk_spec);
-
-            scored_indicies.Add(new ValuePair<float, long>(pk_score, 0), 0);
-             
+                         
             foreach (var index in this.indicies) {
                 float idx_score = _scoreIndex(query_doc, index.Value);
                 scored_indicies.Add(new ValuePair<float, long>(idx_score, index.Key), index.Key);
@@ -187,7 +201,7 @@ namespace Bend {
                 var scored_index = scored_index_entry.Key;
                 Console.WriteLine(" score:{1} idx:{0} spec:{2}",
                     scored_index.value2, scored_index.value1,
-                    String.Join(",", scored_index.value2 == 0 ? pk_spec : indicies[scored_index.value2]));
+                    String.Join(",", indicies[scored_index.value2]));
             }
 
             // (2) create a query-plan to execute
@@ -198,21 +212,18 @@ namespace Bend {
                 use_index_id = best_index_rec.Key.value2;
             }
 
+            // (3) execute
             if (use_index_id == 0) {
                 // PK scan
+                throw new Exception("pk scan not implemented");
             } else {
-                List<string> index_spec;
-                if (use_index_id == 0) {
-                    index_spec = pk_spec;
-                } else {
-                    index_spec = indicies[use_index_id];
-                }
+                IndexSpec index_spec = indicies[use_index_id];
                 // secondary index scan
                 var scanrange = _scanRangeForQueryAndIndex(query_doc, use_index_id);
                 foreach (var idx_rec in next_stage.scanForward(scanrange)) {
                     // unpack the secondary index rec into a primary key
                     var pk_lookup_key = new RecordKey().appendKeyPart(new RecordKeyType_Long(0));
-                    for (int x = index_spec.Count+1; x < idx_rec.Key.key_parts.Count; x++) {
+                    for (int x = index_spec.key_parts.Count+1; x < idx_rec.Key.key_parts.Count; x++) {
                         pk_lookup_key.appendKeyPart(idx_rec.Key.key_parts[x]);
                     }
                     Console.WriteLine("found rec {0}, lookup data {1}", idx_rec.Key, pk_lookup_key);
@@ -228,27 +239,8 @@ namespace Bend {
                     }
                 }
             }
-
-
-            // (3) execute
-            yield break;
         }
-
     }
 }
 
 
-
-
-
-
-
-#if false
-        var buffer = new BsonBuffer();
-        buffer.LoadFrom(tcpClient.GetStream());
-        var reply = new MongoReplyMessage<TDocument>();
-        reply.ReadFrom(buffer);
-        return reply;
-  
-
-#endif

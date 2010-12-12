@@ -59,19 +59,17 @@ namespace Bend {
 
     public class TimestampSnapshotStage : IStepsKVDB {
         IStepsKVDB next_stage;
-        long current_timestamp;
+        
         bool is_frozen;
         long frozen_at_timestamp = 0;
+        private static FastUniqueIds id_gen = new FastUniqueIds();
 
-        private long _nowAsTime_T() {
-            DateTime start_time = new DateTime(1970, 1, 1);
-            return (long)(DateTime.Now - start_time).TotalSeconds;
-        }
+       
+        
 
         public TimestampSnapshotStage(IStepsKVDB next_stage) {
             this.is_frozen = false;
-            this.next_stage = next_stage;
-            this.current_timestamp = (_nowAsTime_T() << 16);
+            this.next_stage = next_stage;            
         }
 
         private TimestampSnapshotStage(IStepsKVDB next_stage, long frozen_at_timestamp) : this(next_stage) {
@@ -79,9 +77,6 @@ namespace Bend {
             this.frozen_at_timestamp = frozen_at_timestamp;
         }
 
-        private long _nextTimestamp() {
-            return Interlocked.Increment(ref this.current_timestamp);
-        }
         
         public void setValue(RecordKey key, RecordUpdate update) {
             // RecordKey key = key.clone();
@@ -90,14 +85,14 @@ namespace Bend {
             }
 
             // (1) get our timestamp
-            long timestamp = this._nextTimestamp();
+            long timestamp = id_gen.nextTimestamp();
             // (2) add our timestamp attribute to the end of the keyspace
             key.appendKeyPart(new RecordKeyType_AttributeTimestamp(timestamp));
             next_stage.setValue(key,update);
         }
 
         public TimestampSnapshotStage getSnapshot() {
-            return new TimestampSnapshotStage(this.next_stage,this._nextTimestamp());            
+            return new TimestampSnapshotStage(this.next_stage,id_gen.nextTimestamp());            
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
