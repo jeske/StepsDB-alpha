@@ -26,7 +26,7 @@ namespace Bend.DBClientTest {
             IStepsDocumentDB doc_db = db_broker.getDocumentDatabase();
 
             doc_db.ensureIndex( new string[] { "name" } );
-            // doc_db.ensureIndex(new string[] { "age"});
+            doc_db.ensureIndex(new string[] { "age"});
 
             doc_db.Insert(new BsonDocument {
                 { "_id" , "user1" },
@@ -53,6 +53,18 @@ namespace Bend.DBClientTest {
             foreach (var doc in doc_db.Find(
                 new BsonDocument {{ "age", 32 }})) {
                     Console.WriteLine(" [{0}] = {1}", count++, doc.ToJson());
+            }
+
+            doc_db.Delete(new BsonDocument {
+                { "age" , 32 }
+            });
+
+
+            raw_db.debugDump();
+
+            foreach (var doc in doc_db.Find(
+                new BsonDocument { { "age", 32 } })) {
+                Console.WriteLine(" [{0}] = {1}", count++, doc.ToJson());
             }
         }
 

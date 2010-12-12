@@ -20,6 +20,7 @@ namespace Bend {
     public interface IStepsDocumentDB {
         void ensureIndex(string[] keys_to_index);        
         void Insert(BsonDocument doc);
+        int Delete(BsonDocument query_doc, int limit = 0);
         IEnumerable<BsonDocument> Find(BsonDocument query_doc);
     }
 
@@ -79,10 +80,11 @@ namespace Bend {
             throw new Exception("unsupported index type");
         }
 
-        private RecordKey _appendKeypartsForIndex(BsonDocument doc, IndexSpec index_spec, RecordKey index_key) {
+        private RecordKey _appendKeypartsForIndexSpec(BsonDocument doc, IndexSpec index_spec, RecordKey index_key) {
             foreach (var index_field_name in index_spec.key_parts) {
                 if (!doc.Contains(index_field_name)) {
-                    break; // stop building the key
+                    index_key.appendKeyPart(
+                        new RecordKeyType_String("")); // should be null
                 }
                 index_key.appendKeyPart(
                     _bsonLookupToRecordKeyType(doc, index_field_name));
@@ -170,55 +172,6 @@ namespace Bend {
             return true;
         }
 
-        #endregion
-
-        // ---------------------------------------------------------------------
-
-        #region Public Interface Methods
-
-        public void ensureIndex(string[] keys_to_index) {
-            List<string> index_spec = new List<string>();
-            foreach (var key in keys_to_index) {
-                index_spec.Add(key);
-            }
-
-            long index_id = id_gen.nextTimestamp();
-
-            this.indicies.Add(index_id, new IndexSpec(index_spec));
-        }
-
-
-        public void Insert(BsonDocument doc) {
-
-            // serialize the BsonDocument
-            var ms = new MemoryStream();
-            doc.WriteTo(ms);
-
-            // write the primary key
-            IndexSpec pk_spec = indicies[this.pk_id];
-
-            RecordKey primary_key = new RecordKey()
-                .appendKeyPart(new RecordKeyType_Long(0));
-            _appendKeypartsForIndex(doc, pk_spec, primary_key);
-            this.next_stage.setValue(primary_key, RecordUpdate.WithPayload(ms.ToArray()));
-
-            byte[] encoded_primary_key = primary_key.encode();
-
-            // write any other keys
-            foreach (var index_spec in indicies) {
-                // assemble index
-                RecordKey index_key = new RecordKey()
-                    .appendKeyPart(new RecordKeyType_Long(index_spec.Key));
-                _appendKeypartsForIndex(doc, index_spec.Value, index_key);
-
-
-                // append primary keyparts
-                _appendKeypartsForIndex(doc, pk_spec, index_key);
-
-                this.next_stage.setValue(index_key, RecordUpdate.WithPayload(new byte[0]));
-            }
-        }
-
         private IEnumerable<BsonDocument> _scanSpecWithIndex(BsonDocument query_doc, long use_index_id) {
             if (use_index_id == 0) {
                 // primary index scan
@@ -257,6 +210,55 @@ namespace Bend {
             }
         }
 
+        #endregion
+
+        // ---------------------------------------------------------------------
+
+        #region Public Interface Methods
+
+        public void ensureIndex(string[] keys_to_index) {
+            List<string> index_spec = new List<string>();
+            foreach (var key in keys_to_index) {
+                index_spec.Add(key);
+            }
+
+            long index_id = id_gen.nextTimestamp();
+
+            this.indicies.Add(index_id, new IndexSpec(index_spec));
+        }
+
+
+        public void Insert(BsonDocument doc) {
+
+            // serialize the BsonDocument
+            var ms = new MemoryStream();
+            doc.WriteTo(ms);
+
+            // write the primary key
+            IndexSpec pk_spec = indicies[this.pk_id];
+
+            RecordKey primary_key = new RecordKey()
+                .appendKeyPart(new RecordKeyType_Long(0));
+            _appendKeypartsForIndexSpec(doc, pk_spec, primary_key);
+            this.next_stage.setValue(primary_key, RecordUpdate.WithPayload(ms.ToArray()));
+
+            byte[] encoded_primary_key = primary_key.encode();
+
+            // write any other keys
+            foreach (var index_spec in indicies) {
+                // assemble index
+                RecordKey index_key = new RecordKey()
+                    .appendKeyPart(new RecordKeyType_Long(index_spec.Key));
+                _appendKeypartsForIndexSpec(doc, index_spec.Value, index_key);
+
+
+                // append primary keyparts
+                _appendKeypartsForIndexSpec(doc, pk_spec, index_key);
+
+                this.next_stage.setValue(index_key, RecordUpdate.WithPayload(new byte[0]));
+            }
+        }
+
 
         public IEnumerable<BsonDocument> Find(BsonDocument query_doc) {
             // (1) index selection, score all indicies
@@ -291,8 +293,53 @@ namespace Bend {
             throw new Exception("not impl");
         }
 
+        private BDSkipList<long, RecordKey> _computeIndexKeysForDoc(BsonDocument doc) {
+            var pk_spec = indicies[pk_id];
+
+            var doc_index_keys = new BDSkipList<long, RecordKey>();
+            foreach (var index_record in this.indicies) {
+                var index_key = new RecordKey()
+                     .appendKeyPart(new RecordKeyType_Long(index_record.Key));
+                _appendKeypartsForIndexSpec(doc, index_record.Value, index_key);
+
+                if (!index_record.Value.is_primary) {
+                    _appendKeypartsForIndexSpec(doc, pk_spec, index_key);
+                }
+
+                doc_index_keys.Add(index_record.Key, index_key);
+            }            
+            return doc_index_keys;
+        }
+
         public int Replace(BsonDocument query_doc, BsonDocument new_doc, bool insert_ok) {
-            throw new Exception("not impl");
+            int count = 0;
+            // compute keys for new document
+            var new_doc_index_keys = _computeIndexKeysForDoc(new_doc);            
+
+            foreach (var found_doc in Find(query_doc)) {
+                // compute all keys for found-doc
+                var found_doc_index_keys = _computeIndexKeysForDoc(found_doc);
+            }
+            return count;
+        }
+
+        public int Delete(BsonDocument query_doc, int limit = 0) {
+            // If delete is handed a FULL document then the delete has to match
+            // all fields, so if  someone changed it in the DB, our delete won't
+            // go through
+
+            int count = 0;
+            foreach (var found_doc in Find(query_doc)) {
+                var found_doc_index_updates = _computeIndexKeysForDoc(found_doc);
+                foreach (var index_update in found_doc_index_updates) {
+                    next_stage.setValue(index_update.Value, RecordUpdate.DeletionTombstone());
+                }
+                count++;
+                if ((limit != 0) && (count > limit)) {
+                    break;
+                }
+            }
+            return count;
         }
 
         #endregion
