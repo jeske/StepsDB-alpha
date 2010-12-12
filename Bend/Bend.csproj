@@ -104,12 +104,15 @@
     <Compile Include="LayerManager\Records\RecordUpdate.cs" />
     <Compile Include="LayerManager\RootMetadata\RangemapManagerTest.cs" />
     <Compile Include="LayerManager\RootMetadata\SegmentDescriptor.cs" />
+    <Compile Include="LogWriter\LogWriter.cs" />
+    <Compile Include="LogWriter\LogWriterTest.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="LayerManager\Records\_RecordTests.cs" />
+    <Compile Include="RegionManager\RegionManager.cs" />
     <Compile Include="RowPipe\Pipe.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -126,9 +129,6 @@
     <Compile Include="Segment\SegmentBlockCompressedTest.cs" />
     <Compile Include="Segment\_SegmentBlockTest.cs" />
     <Compile Include="Segment\SortedSegmentTest.cs" />
-    <Compile Include="LogWriterTest.cs" />
-    <Compile Include="LogWriter.cs" />
-    <Compile Include="RegionManager.cs" />
     <Compile Include="LayerManager\RootMetadata\FreespaceManager.cs" />
     <Compile Include="LayerManager\RootMetadata\RangemapManager.cs" />
     <Compile Include="Segment\SegmentBlockBasicTest.cs" />
