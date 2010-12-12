@@ -133,6 +133,7 @@
     <Compile Include="LayerManager\RootMetadata\RangemapManager.cs" />
     <Compile Include="Segment\SegmentBlockBasicTest.cs" />
     <Compile Include="Util\BDSkipListTest.cs" />
+    <Compile Include="Util\BsonHelper.cs" />
     <Compile Include="Util\Checksum.cs" />
     <Compile Include="Util\FastUniqueIds.cs" />
     <Compile Include="Util\SortedExhaustedCheckExtension.cs" />

@@ -21,6 +21,10 @@ namespace Bend {
         void ensureIndex(string[] keys_to_index);        
         void Insert(BsonDocument doc);
         int Delete(BsonDocument query_doc, int limit = 0);
+        int Update(BsonDocument query_doc, BsonDocument change_spec, 
+            bool insert_ok = false, 
+            bool multi_ok = true, 
+            int limit = 0);
         IEnumerable<BsonDocument> Find(BsonDocument query_doc);
     }
 
@@ -214,6 +218,24 @@ namespace Bend {
             }
         }
 
+        private BDSkipList<long, RecordKey> _computeIndexKeysForDoc(BsonDocument doc) {
+            var pk_spec = indicies[pk_id];
+
+            var doc_index_keys = new BDSkipList<long, RecordKey>();
+            foreach (var index_record in this.indicies) {
+                var index_key = new RecordKey()
+                     .appendKeyPart(new RecordKeyType_Long(index_record.Key));
+                _appendKeypartsForIndexSpec(doc, index_record.Value, index_key);
+
+                if (!index_record.Value.is_primary) {
+                    _appendKeypartsForIndexSpec(doc, pk_spec, index_key);
+                }
+
+                doc_index_keys.Add(index_record.Key, index_key);
+            }
+            return doc_index_keys;
+        }
+
         #endregion
 
         // ---------------------------------------------------------------------
@@ -299,27 +321,70 @@ namespace Bend {
             return _scanSpecWithIndex(query_doc, use_index_id);
         }
 
+        
 
-        public int Update(BsonDocument query_doc, BsonDocument change_spec, bool insert_ok, bool multi_ok) {
-            throw new Exception("not impl");
-        }
+        public int Update(BsonDocument query_doc, BsonDocument change_spec, 
+            bool insert_ok = false, 
+            bool multi_ok = true, 
+            int limit=0) {
+            int count = 0;
+            foreach (var found_doc in Find(query_doc)) {
 
-        private BDSkipList<long, RecordKey> _computeIndexKeysForDoc(BsonDocument doc) {
-            var pk_spec = indicies[pk_id];
+                // compute all the existing key values for the doc we found
+                var found_doc_index_keys = _computeIndexKeysForDoc(found_doc);
 
-            var doc_index_keys = new BDSkipList<long, RecordKey>();
-            foreach (var index_record in this.indicies) {
-                var index_key = new RecordKey()
-                     .appendKeyPart(new RecordKeyType_Long(index_record.Key));
-                _appendKeypartsForIndexSpec(doc, index_record.Value, index_key);
+                // Console.WriteLine("found doc: " + found_doc.ToJson());
 
-                if (!index_record.Value.is_primary) {
-                    _appendKeypartsForIndexSpec(doc, pk_spec, index_key);
+                // apply the updates in the change_spec
+                BsonHelper.applyUpdateCommands(found_doc, change_spec);
+
+                // Console.WriteLine("updated doc: " + found_doc.ToJson());
+
+                // compute the new key values
+                var updated_doc_index_keys = _computeIndexKeysForDoc(found_doc);
+
+                if (updated_doc_index_keys[pk_id].CompareTo(found_doc_index_keys[pk_id]) != 0) {
+                    // if the primary key changed, delete all the old values
+                    foreach (var index_key in found_doc_index_keys) {
+                        next_stage.setValue(index_key.Value, RecordUpdate.DeletionTombstone());
+                    }
+                    found_doc_index_keys.Clear();
+                } else {
+                    // if the primary key did not change, just drop it from the list so we
+                    // trigger a data write below...
+                    found_doc_index_keys.Remove(pk_id);
                 }
 
-                doc_index_keys.Add(index_record.Key, index_key);
-            }            
-            return doc_index_keys;
+                foreach (var index_key_entry in updated_doc_index_keys) {
+                    RecordKey index_key = index_key_entry.Value;
+                    if (!found_doc_index_keys.ContainsKey(index_key_entry.Key) ||
+                        found_doc_index_keys[index_key_entry.Key].CompareTo(index_key) != 0) {
+
+                        // delete the old key
+                        next_stage.setValue(index_key, RecordUpdate.DeletionTombstone());
+                        // add the new one
+                        if (indicies[index_key_entry.Key].is_primary) {
+                            // primary index: save document data
+                            var ms = new MemoryStream();
+                            found_doc.WriteTo(ms);
+                            this.next_stage.setValue(index_key, RecordUpdate.WithPayload(ms.ToArray()));
+                        } else {
+                            // secondary index: append primary keyparts
+                            // TODO: it might be faster to pre-build the primary key and then copy it
+                            // over each time, instead of using this function.                            
+                            this.next_stage.setValue(index_key, RecordUpdate.WithPayload(new byte[0]));
+                            this.next_stage.setValue(found_doc_index_keys[index_key_entry.Key],
+                                RecordUpdate.DeletionTombstone());
+                        }
+                    }
+                }
+
+                count++;
+                if ((limit != 0) && (count > limit)) {
+                    break;
+                }
+            }
+            return count;
         }
 
         public int Replace(BsonDocument query_doc, BsonDocument new_doc, bool insert_ok) {
@@ -341,8 +406,8 @@ namespace Bend {
 
             int count = 0;
             foreach (var found_doc in Find(query_doc)) {
-                var found_doc_index_updates = _computeIndexKeysForDoc(found_doc);
-                foreach (var index_update in found_doc_index_updates) {
+                var found_doc_index_keys = _computeIndexKeysForDoc(found_doc);
+                foreach (var index_update in found_doc_index_keys) {
                     next_stage.setValue(index_update.Value, RecordUpdate.DeletionTombstone());
                 }
                 count++;
