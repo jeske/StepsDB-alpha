@@ -7,5 +7,7 @@ Bend/ThirdParty/*/obj/*
 Bend/ThirdParty/*/bin/*
 Misc/LuceneTest/*/bin/*
 Misc/LuceneTest/*/obj/*
+Misc/MongodbTest/bin/*
+Misc/MongodbTest/obj/*
 *.suo
 *.user
