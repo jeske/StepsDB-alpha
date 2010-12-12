@@ -97,7 +97,6 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="DbgGUI\LayerVisualization.cs" />
-    <Compile Include="LayerManager\Attributes\_AttributeTests.cs" />
     <Compile Include="LayerManager\MergeManagerTest.cs" />
     <Compile Include="LayerManager\MergeManager.cs" />
     <Compile Include="LayerManager\Records\RecordData.cs" />
