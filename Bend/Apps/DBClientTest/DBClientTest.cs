@@ -26,7 +26,7 @@ namespace Bend.DBClientTest {
             IStepsDocumentDB doc_db = db_broker.getDocumentDatabase();
 
             doc_db.ensureIndex( new string[] { "name" } );
-            doc_db.ensureIndex(new string[] { "age"});
+            // doc_db.ensureIndex(new string[] { "age"});
 
             doc_db.Insert(new BsonDocument {
                 { "_id" , "user1" },

@@ -89,6 +89,9 @@ namespace Bend {
 
         private RecordKey _appendKeypartsForIndex(BsonDocument doc, IndexSpec index_spec, RecordKey index_key) {            
             foreach (var index_field_name in index_spec.key_parts) {
+                if (!doc.Contains(index_field_name)) {
+                    break; // stop building the key
+                }
                 index_key.appendKeyPart(
                     _bsonLookupToRecordKeyType(doc, index_field_name));
             }
@@ -165,8 +168,11 @@ namespace Bend {
 
             IndexSpec index_spec = indicies[index_id];
 
-            foreach (var index_part in index_spec.key_parts) {
-                key_prefix.appendKeyPart(_bsonLookupToRecordKeyType(query_doc, index_part));                
+            foreach (var index_part_name in index_spec.key_parts) {
+                if (!query_doc.Contains(index_part_name)) {
+                    break;
+                }
+                key_prefix.appendKeyPart(_bsonLookupToRecordKeyType(query_doc, index_part_name));                
             }
             
             return new ScanRange<RecordKey>(key_prefix, RecordKey.AfterPrefix(key_prefix), null);
@@ -186,6 +192,19 @@ namespace Bend {
             var ms = new MemoryStream(data.data);
             var doc = BsonDocument.ReadFrom(ms);
             return doc;
+        }
+        
+        private bool _doesDocMatchQuery(BsonDocument doc, BsonDocument query_doc) {            
+            foreach (var query_field in query_doc) {
+                if (!doc.Contains(query_field.Name)) {
+                    return false;
+                }
+                var doc_field = doc.GetElement(query_field.Name);
+                if (!doc_field.Value.Equals(query_field.Value)) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public IEnumerable<BsonDocument> Find(BsonDocument query_doc) {
@@ -214,8 +233,14 @@ namespace Bend {
 
             // (3) execute
             if (use_index_id == 0) {
-                // PK scan
-                throw new Exception("pk scan not implemented");
+                // primary index scan
+                var scanrange = _scanRangeForQueryAndIndex(query_doc, use_index_id);
+                foreach (var data_rec in next_stage.scanForward(scanrange)) {
+                    BsonDocument doc = _unpackDoc(data_rec.Value);
+                    if (_doesDocMatchQuery(doc, query_doc)) {
+                        yield return doc; 
+                    }                    
+                }
             } else {
                 IndexSpec index_spec = indicies[use_index_id];
                 // secondary index scan
@@ -235,7 +260,10 @@ namespace Bend {
                         Console.WriteLine("dangling index record");
                     }
                     if (data_rec.Key != null) {
-                        yield return _unpackDoc(data_rec.Value);
+                        BsonDocument doc = _unpackDoc(data_rec.Value);
+                        if (_doesDocMatchQuery(doc, query_doc)) {
+                            yield return doc;
+                        }
                     }
                 }
             }
