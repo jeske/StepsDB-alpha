@@ -10,47 +10,9 @@ using System;
 using MongoDB.Bson;
 
 namespace Bend {
-
     public class BsonHelper {
 
-        private static void _applySet(BsonDocument doc, BsonDocument changes) {
-            foreach (var field in changes) {
-                doc.Set(field.Name, field.Value);
-            }
-        }
-        
-
-        private static void _applyInc(BsonDocument doc, BsonDocument changes) {
-            foreach (var field in changes) {
-                if (!field.Value.IsNumeric) {
-                    throw new Exception(String.Format("update $inc field not numeric: {0}:{1}",
-                        field.Name, field.Value.ToJson()));
-                }
-                if (doc.Contains(field.Name)) {                       
-                    var element = doc.GetElement(field.Name);
-                    if (element.Value.IsNumeric) {
-                        switch (element.Value.BsonType) {
-                            case BsonType.Int64:                                
-                                element.Value = element.Value.AsInt64 + field.Value.AsInt64;
-                                break;
-                            case BsonType.Int32:
-                                element.Value = element.Value.AsInt32 + field.Value.AsInt32;
-                                break;
-                            case BsonType.Double:
-                                element.Value = element.Value.AsDouble + field.Value.AsDouble;
-                                break;
-
-                            // ?? case BsonType.Timestamp:
-                            default:
-                                throw new Exception("unknown numeric type: " + element.Value.BsonType);
-                        }
-                        continue; // goto the next increment int he loop
-                    }
-                }
-                // we couldn't increment, so set! 
-                doc.Set(field.Name, field.Value);
-            }
-        }
+        #region Main applyUpdateCommands() Entry Point
 
         public static void applyUpdateCommands(BsonDocument doc, BsonDocument change_spec) {
             foreach (var field in change_spec) {
@@ -99,5 +61,50 @@ namespace Bend {
                 }
             }
         }
+
+        #endregion
+
+        #region Private Apply Implementations
+
+        private static void _applySet(BsonDocument doc, BsonDocument changes) {
+            foreach (var field in changes) {
+                doc.Set(field.Name, field.Value);
+            }
+        }
+        
+
+        private static void _applyInc(BsonDocument doc, BsonDocument changes) {
+            foreach (var field in changes) {
+                if (!field.Value.IsNumeric) {
+                    throw new Exception(String.Format("update $inc field not numeric: {0}:{1}",
+                        field.Name, field.Value.ToJson()));
+                }
+                if (doc.Contains(field.Name)) {                       
+                    var element = doc.GetElement(field.Name);
+                    if (element.Value.IsNumeric) {
+                        switch (element.Value.BsonType) {
+                            case BsonType.Int64:                                
+                                element.Value = element.Value.AsInt64 + field.Value.AsInt64;
+                                break;
+                            case BsonType.Int32:
+                                element.Value = element.Value.AsInt32 + field.Value.AsInt32;
+                                break;
+                            case BsonType.Double:
+                                element.Value = element.Value.AsDouble + field.Value.AsDouble;
+                                break;
+
+                            // ?? case BsonType.Timestamp:
+                            default:
+                                throw new Exception("unknown numeric type: " + element.Value.BsonType);
+                        }
+                        continue; // goto the next increment int he loop
+                    }
+                }
+                // we couldn't increment, so set! 
+                doc.Set(field.Name, field.Value);
+            }
+        }
+
+        #endregion
     }
 }
