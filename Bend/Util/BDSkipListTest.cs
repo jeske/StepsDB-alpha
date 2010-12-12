@@ -18,8 +18,8 @@ namespace BendTests {
     using Bend;
     using NUnit.Framework;
 
-
-    public partial class A00_UtilTest {
+    [TestFixture]
+    public class A00_BDSkipListTest {
         class CustomComparableToString : IComparable<string> {
             string value;
             public CustomComparableToString(string value) {

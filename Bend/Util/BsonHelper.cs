@@ -1,5 +1,5 @@
 ﻿
-// BsonHelper - a thread-safe bi-directional skiplist
+// BsonHelper - an evaluation engine for MongoDB style update commands
 //
 // authored by David W. Jeske (2008-2010)
 //
