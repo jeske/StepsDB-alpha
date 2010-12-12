@@ -1,7 +1,33 @@
 ﻿
+-------------------[  admin UI ideas ]----------------------------------------
+
+What to show in admin ui?
+
+- disk usage per server
+
+- generation size
+- working segment size
+- checkpoint state/ progress
+- merge state / progress - merge plans
+- query load (read/write) (broken down by keyrange or service)
+
+- range splits / progress
+- range traffic
+- range migration / progress / throttle control
+- distributed
+
+- Cache state
+- memtable state
+
+- map reduce info
+- net con machine stats history
+
+- logical services running (docdb, snapshots)
+- logical service tasks / progress ( index build, long query )
+
+https://www.cloudkick.com/site_media/images/home_tour/graphs.png
+
 -------------------[  atomic segment changes ]----------------------------------------
-
-
 
 I can create a special kind of atomic write-group that lets you make a set of changes that will all be written in the same transaction log packet. As a result, the whole write-group with either all apply, or not apply. I can't use this for user-transactions, because a user-transaction could write 200MB+ of data -- too much to fit in a log packet. However, segment pointer changes are boundable (max of N segments per merge, max bytes per key, etc.)
 
@@ -44,7 +70,10 @@ Pipeline multi dim results
 
  "Life Beyond Distributed Transactions"
   - http://web.mit.edu/tibbetts/Public/CIDR_2007_Proceedings/papers/cidr07p1
+  - http://blog.xebia.com/2010/07/22/life-beyond-distributed-transactions/
 
+Java Distributed cache/transaction broker
+  - http://www.hazelcast.com/product.jsp
 
 
 -------------------[  field based record interface ]----------------------------
@@ -93,6 +122,14 @@ http://www.javarants.com/2010/06/30/havrobase-a-searchable-evolvable-entity-stor
 doc generation
 
 http://www.codeproject.com/KB/cs/csharpcommentinganddocs.aspx
+
+  
+  Q) What makes a good merge?
+   -> the size of the 'new' data is a reasonable fraction of the biggest generation being pushed into.
+     -> EX: 1 key from A-M to be merged into a full block - BAD
+     -> EX: 5MB of keys from A-M to be merged into 5MB of keys from A-M - GOOD (50% write efficiency)
+   -> the adjacency of blocks on disk (streaming read)
+   -> the percentage of live data in the block is low. (?? can we avoid this with recirculation?)
 
 
 

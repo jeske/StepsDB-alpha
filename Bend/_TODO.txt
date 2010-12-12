@@ -5,18 +5,17 @@
        can we do a 1-level histo merge? Seems like we can.
   - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
 
-  - FieldedDocumentStoreStage
-     
+  - FieldedDocumentStoreStage     
      - check for duplicate/redundant index during create
 	 - persist/reload/update database-stored index config    
+	 - snapshot/log-replay stage (for online index create)
+	    - online-index-create
      - code for index create
      - consistent index create w/snapshot
      - "safe" index drop (don't drop out from underneath anyone)
      - more expressive queries (not just equality match)
-     - sort-order control
+     - Find "order by"
      - index-order control (ascending/descending index parts)
-	 - snapshot/log-replay stage (for online index create)
-	    - online-index-create
 
 
  - Replication System Bringup
