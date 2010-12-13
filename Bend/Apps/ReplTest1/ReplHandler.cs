@@ -152,8 +152,8 @@ namespace Bend {
         }
         public class LogStatus {
             public string server_guid;
-            public string log_commit_head;
-            public string oldest_entry_pointer;
+            public RecordKeyType log_commit_head;
+            public RecordKeyType oldest_entry_pointer;
             // public string newest_pending_entry_pointer;
             public override string ToString() {
                 return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
@@ -172,18 +172,18 @@ namespace Bend {
             var oldestlogrow = db.FindNext(log_prefix_key, false);
             if (oldestlogrow.Key.isSubkeyOf(log_prefix_key)) {
                 log_status.oldest_entry_pointer =
-                    ((RecordKeyType_String)oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]).GetString();
+                    (oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
             } else {
-                log_status.oldest_entry_pointer = "";
+                log_status.oldest_entry_pointer = new RecordKeyType_RawBytes(new byte[0]);
             }
 
             // newest log entry for this log
             var newestlogrow = db.FindPrev(RecordKey.AfterPrefix(log_prefix_key), false);
             if (newestlogrow.Key.isSubkeyOf(log_prefix_key)) {
                 log_status.log_commit_head =
-                    ((RecordKeyType_String)newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]).GetString();
+                    (newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
             } else {
-                log_status.log_commit_head = "";
+                log_status.log_commit_head = new RecordKeyType_RawBytes(new byte[0]);
             }
 
             Console.WriteLine("_statusForLog returning: " + log_status);
@@ -240,7 +240,7 @@ namespace Bend {
             // (3) replay from the commit heads
 
             foreach (var ls in srvr_log_status) {
-                string log_start_key = "";
+                RecordKeyType log_start_key = new RecordKeyType_RawBytes(new byte[0]);
                 if (our_log_status_dict.ContainsKey(ls.server_guid)) {
                     log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
                 }
@@ -299,8 +299,8 @@ namespace Bend {
 
         private IEnumerable<KeyValuePair<RecordKey,RecordData>> fetchLogEntries(
                         string log_server_guid, 
-                        string log_start_key, 
-                        string log_end_key) {
+                        RecordKeyType log_start_key, 
+                        RecordKeyType log_end_key) {
 
             var rk_start = new RecordKey()
                 .appendParsedKey(ctx.prefix_hack)

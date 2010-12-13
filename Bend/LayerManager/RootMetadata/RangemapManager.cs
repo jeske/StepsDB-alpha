@@ -455,6 +455,7 @@ namespace Bend
                         cur_key,
                         direction_is_forward,
                         layer,
+
                         segrk,
                         handledIndexRecords,
                         num_generations,
@@ -465,7 +466,7 @@ namespace Bend
                 }
                 DateTime end = DateTime.Now;
 
-#if DEBUG_CURSORS || DEBUG_CURSORS_LOW || true
+#if DEBUG_CURSORS || DEBUG_CURSORS_LOW
             Console.WriteLine("segmentWalkCursorSetup({0}) took {1}ms", cur_key, (((end - start).TotalMilliseconds)));
 #endif
 #if DEBUG_CURSORS
