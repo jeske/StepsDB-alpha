@@ -29,7 +29,7 @@ namespace BendTests {
         public void TestSetup() {
             System.GC.Collect(); // cause full collection to try and dispose/free filehandles
         }
-
+        
         [Test]  // $inc
         public void T00_TestIncrement() {
 

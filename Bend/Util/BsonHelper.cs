@@ -149,10 +149,7 @@ namespace Bend {
                     doc.Remove(field_name);
                 }
             }
-            
-
         }
-
         #endregion
     }
 }
