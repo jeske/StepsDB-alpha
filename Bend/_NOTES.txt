@@ -43,6 +43,28 @@ With (2), that leaves the question of how to get the freed segments onto the fre
 
 (b) In the past I had been considering doing snapshots that would potentially keep old segments around. This might justify a different way of trapping these records before they were actually added back onto the freelist. However, I've since changed my thinking, as I think these needs are probably better served by using attributes and letting merge progress  continue to keep things as merged as possible. 
 
+-------------------[  willowmail schema ]----------------------------------------
+
+sqlite:
+
+mb_msgdata (mnum) -> data
+mb_thread (thr_id, mnum) -> thread_rec, (mnum, message_id)
+mb_labelidx (label, last_activity, thr_id) -> ()
+mb_subjauthorthr (date, author, subject) -> thr_id
+mb_labels (label_id) -> (label_id, label_name, numThreads, numNewThreads, ...)
+mb_options (key) -> (value)
+mb_addressbook (email) -> (email, name, last_received_from, last_sent_to)
+mb_accounts (eaid) -> (pop/imap config info)
+
+
+StepsDocumentDB:
+
+mb_msgdata (mnum) -> (data)   <- need gridFS
+mb_thread_summary (thr_id,mnum) -> per-message-in-thread-record   <- could be one 'document' per thread
+mb_labelidx (label, last_activity, thr_id)    <- could be an index on mb_thr_summary IF one-doc
+mb_subauthorthr (date,author,subject) -> thr_id <- could be an index on mb_thr_summary if one-doc
+mb_labels (label_id) -> label-info
+
 
 -------------------[  speeding up text index ]----------------------------
 
