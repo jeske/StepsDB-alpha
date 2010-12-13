@@ -33,9 +33,7 @@ namespace Bend {
                             _applyInc(doc, field.Value.AsBsonDocument);
                             break;
                         case "$unset":
-                            if (doc.Contains(field.Name)) {
-                                doc.Remove(field.Name);
-                            }
+                            _applyUnset(doc, field.Value.AsBsonDocument);
                             break;
                         case "$push":
                         case "$pushAll":
@@ -134,6 +132,25 @@ namespace Bend {
                 // we couldn't increment, so set! 
                 doc.Set(field_name, field.Value);
             }
+        }
+
+
+
+        private static void _applyUnset(BsonDocument topdoc, BsonDocument changes) {
+            // TODO: this is going to create the entire document path going down
+            //   to the unset, but that's NOT what what we should do.
+
+            foreach (var field in changes) {
+                string field_name;
+                BsonDocument doc;
+                _traverseToField(topdoc, field.Name, out field_name, out doc);
+
+                if (doc.Contains(field_name)) {
+                    doc.Remove(field_name);
+                }
+            }
+            
+
         }
 
         #endregion
