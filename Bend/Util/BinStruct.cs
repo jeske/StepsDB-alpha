@@ -20,7 +20,7 @@ namespace Bend {
 
 
             // http://www.megasolutions.net/cSharp/Using-reflection-to-show-all-fields-values-of-a-struct_-69838.aspx
-            public static void writeStruct(Object obj, Stream output) {
+            public static void writeStruct<E>(E obj, Stream output) where E : struct{
                 BinaryWriter w = new BinaryWriter(output);
                 Type otype = obj.GetType();
                 // MemberInfo[] members = otype.GetMembers();
@@ -38,7 +38,7 @@ namespace Bend {
             }
 
             // http://mmarinov.blogspot.com/2007/01/reflection-modify-value-types-by.html
-            public static E  readStruct<E>(Stream input) where E: struct{
+            public static E  readStruct<E>(Stream input) where E: struct {
                 BinaryReader r = new BinaryReader(input);
                 E val = new E();
 
@@ -55,7 +55,7 @@ namespace Bend {
                     }
                     else if (t == typeof(System.Int32)) {
                         // f.SetValueDirect(vref, r.ReadInt32());                    
-                        f.SetValue(oval, r.ReadUInt32());
+                        f.SetValue(oval, r.ReadInt32());
                     }
                     else {
                         throw new Exception("unimplemented");
@@ -64,6 +64,25 @@ namespace Bend {
                 // return val;
                 return (E)oval;
             }
+
+        public static int structSize<T>(ref T stobj) where T : struct {
+                int size = 0;
+                Type otype = stobj.GetType();
+                // MemberInfo[] members = otype.GetMembers();
+                FieldInfo[] fields = otype.GetFields();
+                foreach (FieldInfo f in fields) {
+                    Type t = f.FieldType;
+                    if (t == typeof(System.UInt32)) {                        
+                        size += sizeof(System.UInt32);
+                    } else if (t == typeof(System.Int32)) {
+                        size += sizeof(System.Int32);
+                    } else {                        
+                        throw new Exception("unimplemented");
+                    }
+                }
+            return size;
+        }
+
 
     }
 

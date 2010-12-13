@@ -4,6 +4,7 @@
   - Q: If we use "minValidGenForBlock(int below_topgen)" to set a merge block output, 
        can we do a 1-level histo merge? Seems like we can.
   - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
+  - FIX: SegmentReader should actually use an enumerator for scanForward!!! 
 
   - FieldedDocumentStoreStage     
      - check for duplicate/redundant index during create

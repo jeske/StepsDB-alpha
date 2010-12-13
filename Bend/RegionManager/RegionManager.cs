@@ -36,42 +36,10 @@ namespace Bend
     }
 
     // read only block access abstraction
-    public class BlockAccessor
-    {
-        byte[] data;
-        int seek_pointer;
-        
-        public BlockAccessor(byte[] data) {            
-            this.data = data;
-            seek_pointer = 0;
+    public class BlockAccessor : MemoryStream
+    {        
+        public BlockAccessor(byte[] data) : base(data) {                        
         }
-
-        public int Length {
-            get { return data.Length; }
-        }
-        public int Position {
-            get { return seek_pointer; }
-        }
-
-        public void Seek(int pos, SeekOrigin origin) {
-            if (origin == SeekOrigin.Begin) {
-                seek_pointer = pos;
-            } else {
-                throw new Exception("not implemented");
-            }
-        }
-
-        public byte ReadByte() {
-            return data[seek_pointer++];
-        }
-
-        public int Read(byte[] buf, int buf_offset, int count) {
-            int num_to_copy = Math.Min(this.data.Length - buf_offset, count);
-            Buffer.BlockCopy(this.data, this.seek_pointer, buf, buf_offset, num_to_copy);
-            return num_to_copy;
-        }
-        
-
     }
 
 

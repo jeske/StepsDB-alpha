@@ -127,6 +127,8 @@
     </Compile>
     <Compile Include="Segment\SegmentBlockCompressed.cs" />
     <Compile Include="Segment\SegmentBlockCompressedTest.cs" />
+    <Compile Include="Segment\SegmentBlockRecordOffsetList.cs" />
+    <Compile Include="Segment\SegmentBlockRecordOffsetListTests.cs" />
     <Compile Include="Segment\_SegmentBlockTest.cs" />
     <Compile Include="Segment\SortedSegmentTest.cs" />
     <Compile Include="LayerManager\RootMetadata\FreespaceManager.cs" />

@@ -30,6 +30,8 @@ namespace Bend
     // Our goal is to bound the uncompressed size, since we need to be able
     // to quickly uncompress the block. 
 
+    // TODO: change this as a streaming gzip, instead of writing it all to a memory
+    //     stream first and then shoving it through gzip second.
 
     class SegmentBlockCompressedEncoder : ISegmentBlockEncoder
     {
@@ -71,7 +73,7 @@ namespace Bend
     {
         public static BlockAccessor decode(BlockAccessor block) {
             byte[] data = new byte[block.Length];
-            if (block.Read(data,0,block.Length) != block.Length) {
+            if (block.Read(data,0,(int)block.Length) != block.Length) {
                 throw new Exception("BlockAccessor partial read");
             }
             MemoryStream ms = new MemoryStream(data);
