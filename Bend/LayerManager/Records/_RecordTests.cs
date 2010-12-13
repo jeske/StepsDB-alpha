@@ -334,6 +334,22 @@ namespace BendTests
     }
 
 
+    [TestFixture]
+    public class A02_RecordKeyType_Field {
+        [Test]
+        public void T02_RecordKeyTypes_RawBytes() {
+            byte[] alist = new byte[] { 0, 2, 3, 4, 5 };
+            byte[] blist = new byte[] { 0, 2, 3 };
+
+            var alist_key = new RecordKeyType_RawBytes(alist);
+            var blist_key = new RecordKeyType_RawBytes(blist);
+
+            Assert.True(alist_key.CompareTo(blist_key) > 0, "alist should be greater");
+            Assert.True(blist_key.CompareTo(alist_key) < 0, "blist should be less");
+        }
+
+
+    }
 
     [TestFixture]
     public class ZZ_Todo_RecordTypesTest {
@@ -378,6 +394,8 @@ namespace BendTests
             //       transaction-attribute merge.
             Assert.Fail("implement tombstones with attributes");
         }
+
+
     }
 
 }
@@ -387,6 +405,8 @@ namespace BendPerfTest {
 
     [TestFixture]
     public class A01_RecordTypesTest {
+
+        
         [Test]
         public void T12_RecordKeyDecodePerfTest() {
             RecordKey rk = new RecordKey().appendParsedKey(".data/test/unpack/with/lots/of/parts");
@@ -429,8 +449,6 @@ namespace BendPerfTest {
                 Assert.Less(500000, rec_per_s, "minimum records per second of unpack");
 
             }
-
-
 
         }
 

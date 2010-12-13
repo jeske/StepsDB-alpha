@@ -244,11 +244,11 @@ namespace Bend
                     // equal length and equal
                     return 0;
                 }
-                if ((pos > this.value.Length) && (pos == conv_target.value.Length)) {
+                if (pos == conv_target.value.Length) {
                     // equal and conv_target shorter, we're greater
                     return 1;
                 }
-                if ((pos > conv_target.value.Length) && (pos == this.value.Length)) {
+                if (pos == this.value.Length) {
                     // equal and we are shorter, we're less
                     return -1;
                 }
