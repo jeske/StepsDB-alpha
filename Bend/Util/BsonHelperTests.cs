@@ -19,6 +19,10 @@ namespace BendTests {
     using NUnit.Framework;
 
 
+    /*
+     * http://www.mongodb.org/display/DOCS/Updating
+     */
+
     [TestFixture]
     public class A00_BsonHelperTests {
         [SetUp]
