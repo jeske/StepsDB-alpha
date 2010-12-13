@@ -93,6 +93,7 @@
     <Content Include="_BUGS.txt" />
     <Compile Include="Database\StepsDatabase.cs" />
     <Compile Include="Database\StepsDocumentDB.cs" />
+    <Compile Include="Database\StepsReplDB.cs" />
     <Compile Include="DbgGUI\DbgGUI.cs">
       <SubType>Form</SubType>
     </Compile>

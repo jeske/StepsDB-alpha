@@ -28,17 +28,40 @@ namespace BendTests {
 
         [Test]  // $inc
         public void T00_TestIncrement() {
-            var doc1 = new BsonDocument{ { "count", 4 } };
 
-            var update_cmds = new BsonDocument{ { "$inc", new BsonDocument{ { "count" , 5 } } } };
+            // basic $inc
+            {
+                var doc1 = new BsonDocument { { "count", 4 } };
+                var update_cmds = new BsonDocument { { "$inc", new BsonDocument { { "count", 5 } } } };
+                var doc2 = new BsonDocument { { "count", 9 } };
 
-            var doc2 = new BsonDocument{ { "count", 9 } };
+                Assert.True(!doc2.Equals(doc1), "(basic inc) shouldn't be equal before apply");
+                BsonHelper.applyUpdateCommands(doc1, update_cmds);
+                Assert.True(doc2.Equals(doc1), "(basic inc) inc didn't apply");
 
-            Assert.True(!doc2.Equals(doc1), "shouldn't be equal before apply");
-            
-            BsonHelper.applyUpdateCommands(doc1, update_cmds);
+            }
 
-            Assert.True(doc2.Equals(doc1), "inc didn't apply");
+            // $inc a.b.c + 2
+            {
+
+                var doc1 = new BsonDocument { 
+                 { "a", new BsonDocument {
+                     { "count" , 4 }
+                   } 
+                 }}; 
+
+
+                var update_cmds = new BsonDocument { { "$inc", new BsonDocument { { "a.count", 5 } } } };
+                var doc2 = new BsonDocument { 
+                 { "a", new BsonDocument {
+                     { "count" , 9 }
+                   } 
+                 }}; 
+
+                Assert.True(!doc2.Equals(doc1), "(nested key inc) shouldn't be equal before apply");
+                BsonHelper.applyUpdateCommands(doc1, update_cmds);
+                Assert.True(doc2.Equals(doc1), "(nested key inc) inc didn't apply");
+            }
 
         }
     }
