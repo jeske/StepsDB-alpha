@@ -13,9 +13,9 @@ namespace Bend.DBClientTest {
         
         static void Main(string[] args) {
 
-            document_db_test();
+            // document_db_test();
 
-            // snapshot_test();
+            snapshot_test();
         }
 
 
@@ -80,12 +80,12 @@ namespace Bend.DBClientTest {
 
             IStepsKVDB generic_db = db_broker.getSnapshotDatabase();
 
-            TimestampSnapshotStage db = (TimestampSnapshotStage)generic_db;
+            StepsStageSnapshot db = (StepsStageSnapshot)generic_db;
 
             db.setValue(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("blah-t0"));
 
-            TimestampSnapshotStage db_snap = db.getSnapshot();
+            StepsStageSnapshot db_snap = db.getSnapshot();
 
             db.setValue(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("blah-t1"));

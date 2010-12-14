@@ -40,7 +40,7 @@ namespace Bend {
         }
 
         public IStepsKVDB getSnapshotDatabase() {
-            return new TimestampSnapshotStage(new SubsetStage(new RecordKeyType_String("SNAPDB"), this.db));
+            return new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String("SNAPDB"), this.db));
         }
 
         public ReplHandler getReplicatedDatabase_Fresh(string server_guid) {

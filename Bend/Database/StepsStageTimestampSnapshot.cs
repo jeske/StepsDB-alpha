@@ -15,32 +15,26 @@ using Bend;
 
 namespace Bend {
 
-    interface IStepsSnapshotKVDB : IStepsKVDB {
 
-    }
-
-    public class StepsStageSnapshot : IStepsSnapshotKVDB {
+    public class TimestampSnapshotStage : IStepsSnapshotKVDB {
 
         #region Instance Data and Constructors
 
         IStepsKVDB next_stage;
 
         bool is_frozen;
-        long frozen_at_snapshotnumber = 0;
+        long frozen_at_timestamp = 0;
         private static FastUniqueIds id_gen = new FastUniqueIds();
-        long current_snapshot;
 
-        public StepsStageSnapshot(IStepsKVDB next_stage) {
+        public TimestampSnapshotStage(IStepsKVDB next_stage) {
             this.is_frozen = false;
             this.next_stage = next_stage;
-            this.current_snapshot = id_gen.nextTimestamp();
         }
 
-        private StepsStageSnapshot(IStepsKVDB next_stage, long frozen_at_snapshotnumber)
+        private TimestampSnapshotStage(IStepsKVDB next_stage, long frozen_at_timestamp)
             : this(next_stage) {
             this.is_frozen = true;
-            this.frozen_at_snapshotnumber = frozen_at_snapshotnumber;
-
+            this.frozen_at_timestamp = frozen_at_timestamp;
         }
 
         #endregion
@@ -50,21 +44,18 @@ namespace Bend {
         public void setValue(RecordKey key, RecordUpdate update) {
             // RecordKey key = key.clone();
             if (this.is_frozen) {
-                throw new Exception("snapshot not writable! " + this.frozen_at_snapshotnumber);
+                throw new Exception("snapshot not writable! " + this.frozen_at_timestamp);
             }
-            // add our snapshot_number to the end of the keyspace
-            key.appendKeyPart(new RecordKeyType_AttributeTimestamp(this.current_snapshot));
+
+            // (1) get our timestamp
+            long timestamp = id_gen.nextTimestamp();
+            // (2) add our timestamp attribute to the end of the keyspace
+            key.appendKeyPart(new RecordKeyType_AttributeTimestamp(timestamp));
             next_stage.setValue(key, update);
         }
 
-        public StepsStageSnapshot getSnapshot() {
-            long previous_snapshot;
-            lock (this) {
-                previous_snapshot = this.current_snapshot;
-                this.current_snapshot = id_gen.nextTimestamp();
-            }
-
-            return new StepsStageSnapshot(this.next_stage, previous_snapshot);
+        public TimestampSnapshotStage getSnapshot() {
+            return new TimestampSnapshotStage(this.next_stage, id_gen.nextTimestamp());
         }
 
         public KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
@@ -119,10 +110,10 @@ namespace Bend {
                 last_key = row.Key;
 
                 if (this.is_frozen) {
-                    Console.WriteLine("Frozen Snapshot(0x{0:X}) stage saw: {1}",
-                        this.frozen_at_snapshotnumber, row);
+                    Console.WriteLine("Frozen Snapshot({0}) stage saw: {1}",
+                        this.frozen_at_timestamp, row);
                 } else {
-                    Console.WriteLine("Snapshot stage saw: {0}", row);
+                    Console.WriteLine("Timestamp Snapshot stage saw: {0}", row);
                 }
                 RecordKeyType_AttributeTimestamp our_attr =
                     (RecordKeyType_AttributeTimestamp)row.Key.key_parts[row.Key.key_parts.Count - 1];
@@ -144,7 +135,7 @@ namespace Bend {
                 // record the current record
 
                 if (cur_timestamp > max_valid_timestamp) {
-                    if (this.is_frozen && (cur_timestamp > this.frozen_at_snapshotnumber)) {
+                    if (this.is_frozen && (cur_timestamp > this.frozen_at_timestamp)) {
                         continue;
                     }
 
