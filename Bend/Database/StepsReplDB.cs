@@ -172,6 +172,14 @@ namespace Bend {
                 .appendKeyPart("DATA-INSTANCE-ID"),
                 RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
 
+            // record the "start of fresh log" record
+
+            db.setValue(new RecordKey()
+                .appendKeyPart("_logs")
+                .appendKeyPart(ctx.server_guid)
+                .appendKeyPart(new RecordKeyType_Long(0)),
+                RecordUpdate.WithPayload(new byte[0]));
+
             ReplHandler repl = new ReplHandler(db, ctx);
 
             repl.state = ReplState.active; // TODO: is this the right way to become active?            
@@ -190,6 +198,14 @@ namespace Bend {
                 .appendKeyPart("_config")
                 .appendKeyPart("DATA-INSTANCE-ID"),
                 RecordUpdate.WithPayload(join_info.data_instance_id));
+
+            // init a clean log 
+            db.setValue(new RecordKey()
+                .appendKeyPart("_logs")
+                .appendKeyPart(ctx.server_guid)
+                .appendKeyPart(new RecordKeyType_Long(0)),
+                RecordUpdate.WithPayload(new byte[0]));
+
 
             foreach (var seed_server in join_info.seed_servers) {
                 db.setValue(new RecordKey()
@@ -509,6 +525,11 @@ namespace Bend {
             Console.WriteLine(" fetchLogEntries: start {0}  end {1}", rk_start, rk_end);
 
             foreach (var logrow in next_stage.scanForward(scanrange)) {
+                var logstamp = logrow.Key.key_parts[2];
+                if (logstamp.CompareTo(log_start_key) == 0) {
+                    // skip the common log key (though we should probably have a checksum check
+                    continue;
+                }
                 yield return logrow;
             }
         }

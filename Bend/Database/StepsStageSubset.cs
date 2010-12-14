@@ -70,7 +70,9 @@ namespace Bend {
                 new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), 
                 null);
 
+#if DEBUG_SUBSET
             Console.WriteLine("subset stage scan: " + new_scanner);            
+#endif
             foreach (var rec in next_stage.scanForward(new_scanner)) {            
                 if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
                     // Console.WriteLine("SubsetStage.scanForward: no more records");

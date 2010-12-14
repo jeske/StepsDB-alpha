@@ -116,7 +116,7 @@ namespace Bend {
 
             foreach (KeyValuePair<RecordKey, RecordData> row in scan_enumerable) {                
 
-#if DEBUG_SNAPSHOT_SCAN || true
+#if DEBUG_SNAPSHOT_SCAN
                 if (this.is_frozen) {
                     Console.WriteLine("Frozen Snapshot(0x{0:X}) stage saw: {1}",
                         this.frozen_at_snapshotnumber, row);
