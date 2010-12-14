@@ -11,6 +11,10 @@ using System.Threading;
 using Bend;
 
 
+
+// TODO: need to generate a new LOG server-guid EVERYTIME we restart a log, to be sure we don't
+//        collide with our old log.
+
 /*
  * TODO: 
  * 
@@ -447,9 +451,14 @@ namespace Bend {
             // (3) replay logs from the commit heads
 
             foreach (var ls in srvr_log_status) {
-                RecordKeyType log_start_key = new RecordKeyType_Long(0);
+                RecordKeyType_Long log_start_key = new RecordKeyType_Long(0);
                 if (our_log_status_dict.ContainsKey(ls.server_guid)) {
                     log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
+                }
+
+                if (ls.server_guid.Equals(this.getServerGuid())) {
+                    // don't try to fecth entries for our own log!! 
+                    continue;
                 }
 
                 foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
@@ -457,7 +466,18 @@ namespace Bend {
                     RecordKeyType_Long keypart = (RecordKeyType_Long)last_keypart;
 
                     long logstamp = keypart.GetLong();
-                    this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
+
+                    if (logstamp.CompareTo(log_start_key.GetLong()) == 0) {                        
+                        // if it is the magic "start of log" record, then just record it
+                        if (logstamp == 0) {
+                            this._recordLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
+                        } else {
+                            // check and make sure the first log entry actually matches our recorded entry
+                            // otherwise there is a log-sync mismatch! 
+                        }
+                    } else {
+                        this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
+                    }
                 }              
             }
 
@@ -522,15 +542,24 @@ namespace Bend {
 
             var scanrange = new ScanRange<RecordKey>(rk_start, RecordKey.AfterPrefix(rk_end), null);
 
-            Console.WriteLine(" fetchLogEntries: start {0}  end {1}", rk_start, rk_end);
+            Console.WriteLine(" fetchLogEntries for ({0}): start {1}  end {2}", 
+                log_server_guid, rk_start, rk_end);
+
+            bool matched_first = false;
 
             foreach (var logrow in next_stage.scanForward(scanrange)) {
-                var logstamp = logrow.Key.key_parts[2];
-                if (logstamp.CompareTo(log_start_key) == 0) {
-                    // skip the common log key (though we should probably have a checksum check
-                    continue;
+                if (!matched_first) {
+                    // the first logrow needs to match the log_start_key, or there was a gap in the log!!
+                    var logstamp = logrow.Key.key_parts[2];
+                    if (logstamp.CompareTo(log_start_key) != 0) {
+                        throw new Exception("log start gap!");
+                    }
+                    matched_first = true;
                 }
                 yield return logrow;
+            }
+            if (!matched_first) {
+                throw new Exception("log start gap!");
             }
         }
 
@@ -717,6 +746,14 @@ namespace Bend {
             }
         }
 
+        private void _recordLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
+            RecordKey logkey = new RecordKey()
+            .appendKeyPart("_logs")
+            .appendKeyPart(from_server_guid)
+            .appendKeyPart(new RecordKeyType_Long(logstamp));
+
+            next_stage.setValue(logkey, logdata);
+        }
 
         public void applyLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
             // (0) unpack the data
@@ -724,13 +761,8 @@ namespace Bend {
             ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
 
             // (1) add it to our copy of that server's log
-            RecordKey logkey = new RecordKey()
-            .appendKeyPart("_logs")
-            .appendKeyPart(from_server_guid)
-            .appendKeyPart(new RecordKeyType_Long(logstamp));
 
-            next_stage.setValue(logkey, logdata);
-
+            this._recordLogEntry(from_server_guid, logstamp, logdata);
             // (2) add it to the database
 
             foreach (var kvp in decoder.sortedWalk()) {
