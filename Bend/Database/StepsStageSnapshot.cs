@@ -53,7 +53,10 @@ namespace Bend {
             }
             // add our snapshot_number to the end of the keyspace            
             key.appendKeyPart(new RecordKeyType_AttributeTimestamp(this.current_snapshot));
-            next_stage.setValue(key, update);
+            // wrap the update into a sub-update, mostly because tombstones need to be "real" records
+            // to us
+            var sub_update = RecordUpdate.WithPayload(update.encode());
+            next_stage.setValue(key, sub_update);
         }
 
         public IStepsKVDB getSnapshot() {
@@ -100,6 +103,9 @@ namespace Bend {
 
         #region Private Members
 
+
+        // TODO: properly implement applyUpdate by getting qualifying records and performing
+        //   applyUpdate to build the record
         private IEnumerable<KeyValuePair<RecordKey, RecordData>> _scan(IScanner<RecordKey> scanner, bool direction_is_forward) {
             long max_valid_timestamp = 0;
             var max_valid_record = new KeyValuePair<RecordKey, RecordData>(null, null);
@@ -128,21 +134,26 @@ namespace Bend {
                     (RecordKeyType_AttributeTimestamp)row.Key.key_parts[row.Key.key_parts.Count - 1];
                 long cur_timestamp = our_attr.GetLong();
 
+                // unwrap our key
                 // remove our timestamp keypart
                 // TODO: THIS IS A SUPER HACK AND STOP DOING IT!!! 
                 row.Key.key_parts.RemoveAt(row.Key.key_parts.Count - 1);
                 RecordKey clean_key = row.Key;
 
+                // unwrap our data
+                var clean_update = RecordUpdate.FromEncodedData(row.Value.data);
+
                 if (last_key == null) {
                     last_key = clean_key;
                 } else if (clean_key.CompareTo(last_key) != 0) {
                     if (max_valid_record.Key != null) {
-                        yield return max_valid_record;
+                        if (max_valid_record.Value.State != RecordDataState.DELETED) {
+                            yield return max_valid_record;
+                        }
                         max_valid_record = new KeyValuePair<RecordKey, RecordData>(null, null);
                         max_valid_timestamp = 0;
                         last_key = clean_key;
-                    }   
-              
+                    }                 
                 }
 
                 // record the current record
@@ -153,7 +164,9 @@ namespace Bend {
                     }
 
                     max_valid_timestamp = cur_timestamp;
-                    max_valid_record = new KeyValuePair<RecordKey, RecordData>(clean_key, row.Value);
+                    RecordData rec_data = new RecordData(RecordDataState.NOT_PROVIDED, clean_key);
+                    rec_data.applyUpdate(clean_update);
+                    max_valid_record = new KeyValuePair<RecordKey, RecordData>(clean_key, rec_data);
                 }
             }
 
@@ -234,11 +247,11 @@ namespace BendTests {
 
         [Test]
         public void T000_TestBasic_SnapshotTombstones() {
+            var raw_db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\snapts");
             var snap_db = new StepsStageSnapshot(
                new StepsStageSubset(
                    new RecordKeyType_String("snapdb"),
-                   new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\snapts")));
-
+                   raw_db));
 
             snap_db.setValue(new RecordKey().appendParsedKey("b/1"), RecordUpdate.DeletionTombstone());
             snap_db.setValue(new RecordKey().appendParsedKey("a/1"), RecordUpdate.WithPayload("data1"));
@@ -247,8 +260,11 @@ namespace BendTests {
 
             snap_db.setValue(new RecordKey().appendParsedKey("a/1"), RecordUpdate.DeletionTombstone());
 
+            raw_db.debugDump();
+
             int count = 0;
-            foreach (var row in snap_db.scanForward(ScanRange<RecordKey>.All())) {                
+            foreach (var row in snap_db.scanForward(ScanRange<RecordKey>.All())) {
+                Console.WriteLine("found record: " + row);
                 count++;
             }
             Assert.AreEqual(0, count, "deletion tombstones didn't work in snapshot");
