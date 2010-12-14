@@ -90,9 +90,8 @@ namespace Bend.ReplTest1 {
             
             repl_2.Shutdown();
 
-            waitUntilState(raw_db, repl_2, ReplHandler.ReplState.shutdown);
-
             // wait until repl2 is really shutdown
+            waitUntilState(raw_db, repl_2, ReplHandler.ReplState.shutdown);
 
 
             // make sure our log does not continue from repl_2 logs
@@ -103,33 +102,41 @@ namespace Bend.ReplTest1 {
 
             Console.WriteLine("----------------[ reinit server 2 ]-----------------------------");
 
-            repl_2 = db_factory.getReplicatedDatabase_Resume("guid2");            
-            
-            // wait until it comes online
+            repl_2 = db_factory.getReplicatedDatabase_Resume("guid2");
+
+            waitUntilActive(raw_db, repl_2);
 
             Thread.Sleep(7000);
             
             raw_db.debugDump();
 
-            Thread.Sleep(7000);
+            Thread.Sleep(7000);            
+
+            // Environment.Exit(1);  // exit
+            repl_2.setValueParsed("d/1", "20");
+            repl_1.setValueParsed("c/1", "10");
+            Thread.Sleep(1000);
+
+            repl_2.truncateLogs_Hack();
+            repl_1.truncateLogs_Hack();
+
+            Console.WriteLine("----------------[ both logs should be truncated ]-----------------------------");
 
             raw_db.debugDump();
-
-            Environment.Exit(1);  // exit
-
-
 
             Console.WriteLine("----------------[ create server 3 ]-----------------------------");
            
             ReplHandler repl_3 = db_factory.getReplicatedDatabase_Join("guid3", "guid2");
-                
+
+            Thread.Sleep(7000);
             raw_db.debugDump();
 
-            repl_3.setValueParsed("/qq", "10");
+            repl_3.setValueParsed("q/1", "10");
+            Thread.Sleep(7000);
             raw_db.debugDump();
 
-            Console.WriteLine("waiting for key");
-            Console.ReadKey();
+
+
             Console.WriteLine("quitting..");
             Environment.Exit(0);
         }

@@ -102,6 +102,8 @@ namespace Bend {
         public static Random myrnd = new Random();
 
         Thread worker;
+        bool should_shutdown = false;
+
         public enum ReplState {
             init,        // bringup
             rebuild,     // it's safe to just copy everything from someone else
@@ -126,7 +128,7 @@ namespace Bend {
             this.rnd = new Random();
             this.pusher = new ReplPusher(this);
             this.ctx = ctx;
-
+           
 
             try {
 
@@ -243,7 +245,7 @@ namespace Bend {
         public void Shutdown() {
             // remove us from the connector
             ctx.connector.unregisterServer(ctx.server_guid);
-            this.state = ReplState.do_shutdown;
+            this.should_shutdown = true;            
         }
         public class LogStatus {
             public string server_guid;
@@ -400,6 +402,19 @@ namespace Bend {
             .appendKeyPart("MY-SERVER-ID"),
             RecordUpdate.WithPayload(ctx.server_guid));
 
+            // (6) and write a fresh entry for our log
+
+            next_stage.setValue(new RecordKey()
+                .appendKeyPart("_logs")
+                .appendKeyPart(ctx.server_guid)
+                .appendKeyPart(new RecordKeyType_Long(0)),
+                RecordUpdate.WithPayload(new byte[0]));
+
+            // record ourself as a seed/log 
+            next_stage.setValue(new RecordKey()
+                .appendKeyPart("_config").appendKeyPart("seeds").appendKeyPart(ctx.server_guid),
+                RecordUpdate.WithPayload(""));
+
             Console.WriteLine("Rebuild({0}): finished, sending to init", ctx.server_guid);
             this.state = ReplState.init; // now we should be able to log resume!! 
         }
@@ -436,7 +451,7 @@ namespace Bend {
             bool can_log_replay = true;
             bool need_resolve = false;
             ReplHandler srvr;
-
+            List<string> rebuild_reasons = new List<string>();
             try {
                 srvr = pusher.getRandomSeed();
             } catch (ReplPusher.NoServersAvailableException) {
@@ -471,16 +486,27 @@ namespace Bend {
                 ctx.server_guid,String.Join(",",srvr_log_status));
             foreach (var ls in srvr_log_status) {                
                 if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
-                    // we are missing an entire log, we need a full rebuild!
-                    can_log_replay = false;
+                    // we are missing an entire log...
+                    if (ls.oldest_entry_pointer.GetLong().Equals(0)) {
+                        // it's the magic start of log pointer, so we can resume from it
+                    } else {
+                        // otherwise, we need a full rebuild!
+                        rebuild_reasons.Add(String.Format("we are entirely missing log data: {0}", ls));
+                        can_log_replay = false;
+                    }
                 } else {
                     // if our log_head is before their oldest_entry, we need a full rebuild! 
                     var our_ls = our_log_status_dict[ls.server_guid];                    
                     if (our_ls.log_commit_head.CompareTo(ls.oldest_entry_pointer) < 0) {
+                        rebuild_reasons.Add(String.Format("log:{0}, our log_head:{1} < their oldest:{2}", 
+                            ls.server_guid,our_ls.log_commit_head,ls.oldest_entry_pointer));
                         can_log_replay = false;
                     }
                     if (our_ls.log_commit_head.CompareTo(ls.log_commit_head) > 0) {
                         // we have newer log entries than they do for at least one log!!
+                        rebuild_reasons.Add(String.Format("log:{0}, our log_head:{1} > their head:{2} need resolve",
+                            ls.server_guid, our_ls.log_commit_head, ls.log_commit_head));
+
                         need_resolve = true;
                     }
 
@@ -491,13 +517,13 @@ namespace Bend {
             if (!can_log_replay) {
                 if (!need_resolve) {
                     // schedule a full rebuild
-                    Console.WriteLine("Repl({0}) logs don't match, we need a full rebuild;", 
-                        ctx.server_guid);
+                    Console.WriteLine("Repl({0}) logs don't match, we need a full rebuild. Reasons: {1}", 
+                        ctx.server_guid, String.Join(",",rebuild_reasons));
                     this.state = ReplState.rebuild;
                     return;
                 } else {
-                    Console.WriteLine("Repl({0}) our log has newer changes than somebody, schedule a resolve!!",
-                        ctx.server_guid);
+                    Console.WriteLine("Repl({0}) our log has newer changes than somebody, schedule a resolve. Reasons: {1}",
+                        ctx.server_guid, String.Join(",",rebuild_reasons));
                     this.state = ReplState.resolve;
                     return;
                 }
@@ -553,6 +579,9 @@ namespace Bend {
             // Make sure we try to stay connnected to all seeds so we can push writes to them
             // as fast as possible.
             pusher.scanSeeds();
+            if (this.should_shutdown) {
+                this.state = ReplState.do_shutdown;
+            }
 
             switch (this.state) {
                 case ReplState.init:
