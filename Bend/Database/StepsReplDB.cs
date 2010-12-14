@@ -74,13 +74,11 @@ namespace Bend {
                 // nothing to remove
             }
         }
-
     }
 
     public class ServerContext {
         public string server_guid;
-        public ServerConnector connector;
-        public string prefix_hack;
+        public ServerConnector connector;        
     }
 
 
@@ -112,7 +110,9 @@ namespace Bend {
             return String.Format("ReplHandler({0}:{1})", this.ctx.server_guid, this.state.ToString());
         }
 
-        public ReplHandler(LayerManager db, ServerContext ctx) {
+        #region Constructors
+
+        public ReplHandler(IStepsKVDB db, ServerContext ctx) {
             this.next_stage = db;
             this.rnd = new Random();
             this.pusher = new ReplPusher(this);
@@ -121,7 +121,7 @@ namespace Bend {
 
             try {
 
-                var di_rk = new RecordKey().appendParsedKey(ctx.prefix_hack)
+                var di_rk = new RecordKey()
                     .appendKeyPart("_config")
                     .appendKeyPart("DATA-INSTANCE-ID");
                 var rec = db.FindNext(di_rk, true);
@@ -148,6 +148,67 @@ namespace Bend {
             worker.Start();
         }
 
+        public static ReplHandler InitResume(IStepsKVDB db, ServerContext ctx) {
+            ReplHandler repl = new ReplHandler(db, ctx);
+            return repl;
+        }
+
+        public static ReplHandler InitFresh(IStepsKVDB db, ServerContext ctx) {
+            // init fresh
+
+            // record our instance ID
+            db.setValue(new RecordKey()
+                .appendKeyPart("_config")
+                .appendKeyPart("MY-SERVER-ID"),
+                RecordUpdate.WithPayload(ctx.server_guid));
+
+            // create and record a new instance ID
+            db.setValue(new RecordKey()
+                .appendKeyPart("_config")
+                .appendKeyPart("DATA-INSTANCE-ID"),
+                RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
+
+            ReplHandler repl = new ReplHandler(db, ctx);
+
+            repl.state = ReplState.active; // TODO: is this the right way to become active?            
+            return repl;
+
+        }
+
+        public static ReplHandler InitJoin(IStepsKVDB db, ServerContext ctx, string seed_name) {
+
+            // connect to the other server, get his instance id, exchange seeds
+            ReplHandler seed = ctx.connector.getServerHandle(seed_name);
+            ReplHandler.JoinInfo join_info = seed.requestToJoin(ctx.server_guid);
+
+            // record the join result
+            db.setValue(new RecordKey()
+                .appendKeyPart("_config")
+                .appendKeyPart("DATA-INSTANCE-ID"),
+                RecordUpdate.WithPayload(join_info.data_instance_id));
+
+            foreach (var seed_server in join_info.seed_servers) {
+                db.setValue(new RecordKey()
+                    .appendKeyPart("_config")
+                    .appendKeyPart("seeds")
+                    .appendKeyPart(seed_server),
+                    RecordUpdate.WithPayload(""));
+            }
+
+            Console.WriteLine("InitJoin: server ({0}) joining seeds ({1})",
+                ctx.server_guid, String.Join(",", join_info.seed_servers));
+
+            ReplHandler repl = new ReplHandler(db, ctx);
+            return repl;
+        }
+
+        #endregion
+
+        // ---------------------------
+        public string getServerGuid() {
+            return this.ctx.server_guid;
+        }
+
         public void Shutdown() {
             // remove us from the connector
             ctx.connector.unregisterServer(ctx.server_guid);
@@ -166,27 +227,36 @@ namespace Bend {
             var log_status = new LogStatus();
             log_status.server_guid = server_guid;
 
-            var log_prefix_key = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
+            var log_prefix_key = new RecordKey()                
                 .appendKeyPart("_logs")
                 .appendKeyPart(server_guid);
             // first log entry for this log
-            var oldestlogrow = next_stage.FindNext(log_prefix_key, false);
-            if (oldestlogrow.Key.isSubkeyOf(log_prefix_key)) {
-                log_status.oldest_entry_pointer =
-                    (oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
-            } else {
+            
+            try {
+                var oldestlogrow = next_stage.FindNext(log_prefix_key, false);
+                if (oldestlogrow.Key.isSubkeyOf(log_prefix_key)) {
+                    log_status.oldest_entry_pointer =
+                        (oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
+                } else {
+                    log_status.oldest_entry_pointer = new RecordKeyType_RawBytes(new byte[0]);
+                }
+            } catch (KeyNotFoundException) {
                 log_status.oldest_entry_pointer = new RecordKeyType_RawBytes(new byte[0]);
             }
 
             // newest log entry for this log
-            var newestlogrow = next_stage.FindPrev(RecordKey.AfterPrefix(log_prefix_key), false);
-            if (newestlogrow.Key.isSubkeyOf(log_prefix_key)) {
-                log_status.log_commit_head =
-                    (newestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
-            } else {
+            try {
+                var newestlogrow = next_stage.FindPrev(RecordKey.AfterPrefix(log_prefix_key), false);
+                if (newestlogrow.Key.isSubkeyOf(log_prefix_key)) {
+                    log_status.log_commit_head =
+                        (newestlogrow.Key.key_parts[newestlogrow.Key.key_parts.Count - 1]);
+                } else {
+                    log_status.log_commit_head = new RecordKeyType_RawBytes(new byte[0]);
+                }
+            } catch (KeyNotFoundException) {
                 log_status.log_commit_head = new RecordKeyType_RawBytes(new byte[0]);
             }
+
 
             Console.WriteLine("_statusForLog returning: " + log_status);
 
@@ -194,8 +264,7 @@ namespace Bend {
         }
 
         IEnumerable<LogStatus> getStatusForLogs() {
-            var seeds_prefix = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
+            var seeds_prefix = new RecordKey()                
                 .appendParsedKey("_config/seeds");
 
             var scanrange = new ScanRange<RecordKey>(seeds_prefix,
@@ -304,8 +373,7 @@ namespace Bend {
                         RecordKeyType log_start_key,
                         RecordKeyType log_end_key) {
 
-            var rk_start = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
+            var rk_start = new RecordKey()                
                 .appendKeyPart("_logs")
                 .appendKeyPart(log_server_guid);
 
@@ -313,8 +381,7 @@ namespace Bend {
                 rk_start.appendKeyPart(log_start_key);
             }
 
-            var rk_end = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
+            var rk_end = new RecordKey()                
                 .appendKeyPart("_logs")
                 .appendKeyPart(log_server_guid);
             if (!log_start_key.Equals("")) {
@@ -332,13 +399,11 @@ namespace Bend {
 
 
         private byte[] fetchLogEntries_block(string log_server_guid, string log_start_key, string log_end_key) {
-            var rk_start = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
+            var rk_start = new RecordKey()                
                 .appendKeyPart("_logs")
                 .appendKeyPart(log_server_guid)
                 .appendKeyPart(log_start_key);
-            var rk_end = RecordKey.AfterPrefix(new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
+            var rk_end = RecordKey.AfterPrefix(new RecordKey()                
                 .appendKeyPart("_logs")
                 .appendKeyPart(log_server_guid)
                 .appendKeyPart(log_end_key));
@@ -391,64 +456,11 @@ namespace Bend {
         }
 
 
-        public static ReplHandler InitFresh(LayerManager db, ServerContext ctx) {
-            // init fresh
-
-            // record our instance ID
-            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                .appendKeyPart("_config")
-                .appendKeyPart("MY-SERVER-ID"),
-                RecordUpdate.WithPayload(ctx.server_guid));
-
-            // create and record a new instance ID
-            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                .appendKeyPart("_config")
-                .appendKeyPart("DATA-INSTANCE-ID"),
-                RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
-
-            ReplHandler repl = new ReplHandler(db, ctx);
-
-            repl.state = ReplState.active; // TODO: is this the right way to become active?            
-            return repl;
-
-        }
-
-        public static ReplHandler InitResume(LayerManager db, ServerContext ctx) {
-            ReplHandler repl = new ReplHandler(db, ctx);
-            return repl;
-        }
-
-        public static ReplHandler InitJoin(LayerManager db, ServerContext ctx, string seed_name) {
-
-            // connect to the other server, get his instance id, exchange seeds
-            ReplHandler seed = ctx.connector.getServerHandle(seed_name);
-            ReplHandler.JoinInfo join_info = seed.requestToJoin(ctx.server_guid);
-
-            // record the join result
-            db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                .appendKeyPart("_config")
-                .appendKeyPart("DATA-INSTANCE-ID"),
-                RecordUpdate.WithPayload(join_info.data_instance_id));
-
-            foreach (var seed_server in join_info.seed_servers) {
-                db.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
-                    .appendKeyPart("_config")
-                    .appendKeyPart("seeds")
-                    .appendKeyPart(seed_server),
-                    RecordUpdate.WithPayload(""));
-            }
-
-            Console.WriteLine("InitJoin: server ({0}) joining seeds ({1})",
-                ctx.server_guid, String.Join(",", join_info.seed_servers));
-
-            ReplHandler repl = new ReplHandler(db, ctx);
-            return repl;
-        }
 
 
         public JoinInfo requestToJoin(string server_guid) {
             // (1) record his guid
-            next_stage.setValue(new RecordKey().appendParsedKey(ctx.prefix_hack)
+            next_stage.setValue(new RecordKey()
                 .appendKeyPart("_config").appendKeyPart("seeds").appendKeyPart(server_guid),
                 RecordUpdate.WithPayload(""));
 
@@ -457,7 +469,7 @@ namespace Bend {
             ji.data_instance_id = this.data_instance_id;
 
             ji.seed_servers = new List<string>();
-            var seed_key_prefix = new RecordKey().appendParsedKey(ctx.prefix_hack)
+            var seed_key_prefix = new RecordKey()
                 .appendKeyPart("_config")
                 .appendKeyPart("seeds");
             foreach (var row in next_stage.scanForward(new ScanRange<RecordKey>(seed_key_prefix, RecordKey.AfterPrefix(seed_key_prefix), null))) {
@@ -514,7 +526,6 @@ namespace Bend {
             public void scanSeeds() {
                 // Console.WriteLine("** seed scan {0}", myhandler.ctx.server_guid);
                 var seed_key_prefix = new RecordKey()
-                    .appendParsedKey(myhandler.ctx.prefix_hack)
                     .appendKeyPart("_config")
                     .appendKeyPart("seeds");
                 foreach (var row in myhandler.next_stage.scanForward(
@@ -563,7 +574,6 @@ namespace Bend {
 
             // (1) add it to our copy of that server's log
             RecordKey logkey = new RecordKey()
-            .appendParsedKey(ctx.prefix_hack)
             .appendKeyPart("_logs")
             .appendKeyPart(from_server_guid)
             .appendKeyPart(logstamp);
@@ -574,7 +584,6 @@ namespace Bend {
 
             foreach (var kvp in decoder.sortedWalk()) {
                 RecordKey local_data_key = new RecordKey()
-                    .appendParsedKey(ctx.prefix_hack)
                     .appendKeyPart("_data");
                 foreach (var part in kvp.Key.key_parts) {
                     local_data_key.appendKeyPart(part);
@@ -600,7 +609,6 @@ namespace Bend {
 
             byte[] logstamp = Lsd.numberToLsd(timestamp, 35);
             RecordKey logkey = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_logs")
                 .appendKeyPart(ctx.server_guid)
                 .appendKeyPart(logstamp);
@@ -630,7 +638,6 @@ namespace Bend {
             Console.WriteLine("writing data entry: {0} = {1}",
                 skey, supdate);
             RecordKey private_record_key = new RecordKey()
-                .appendParsedKey(ctx.prefix_hack)
                 .appendKeyPart("_data");
             foreach (var part in skey.key_parts) {
                 private_record_key.appendKeyPart(part);

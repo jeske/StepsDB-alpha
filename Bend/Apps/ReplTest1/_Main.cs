@@ -59,43 +59,27 @@ namespace Bend.ReplTest1 {
 
         static void do_test() {
             Console.WriteLine("ReplTest1 startup...");
-            LayerManager db = new LayerManager(InitMode.NEW_REGION, @"C:\BENDtst\repl");
-            Random rnd = new Random();
-            ServerConnector connector = new ServerConnector();
+            LayerManager raw_db = new LayerManager(InitMode.NEW_REGION, @"C:\BENDtst\repl");
+            StepsDatabase db_factory = new StepsDatabase(raw_db);
 
             Console.WriteLine("----------------[ init two servers together, write some records ]-----------------");
 
-            ServerContext ctx_1 = new ServerContext();         
-            ctx_1.server_guid = ".guid1-" + rnd.Next();
-            ctx_1.prefix_hack = ctx_1.server_guid + "/repl";
-            ctx_1.connector = connector;
-            ReplHandler repl_1 = null;
-            try {
-                 repl_1 = ReplHandler.InitFresh(db, ctx_1);
-            } catch (Exception e) {
-                db.debugDump();
-                Console.WriteLine(e);
-                Environment.Exit(1);
-            }
+            ReplHandler repl_1 = db_factory.getReplicatedDatabase_Fresh("guid1");
 
-            waitUntilActive(db, repl_1);
+            waitUntilActive(raw_db, repl_1);
             repl_1.setValueParsed("a/1", "1");
 
-
-            ServerContext ctx_2 = new ServerContext();
-            ctx_2.server_guid = ".guid2-" + rnd.Next();
-            ctx_2.prefix_hack = ctx_2.server_guid + "/repl";
-            ctx_2.connector = connector;
-            ReplHandler repl_2 = ReplHandler.InitJoin(db, ctx_2, ctx_1.server_guid);
-            waitUntilActive(db, repl_2);
+            ReplHandler repl_2 = db_factory.getReplicatedDatabase_Join("guid2", repl_1.getServerGuid());
+                
+            waitUntilActive(raw_db, repl_2);
             repl_2.setValueParsed("a/2", "5");
 
             Console.WriteLine("-----------------");
-            db.debugDump();
+            raw_db.debugDump();
 
             Thread.Sleep(7000);
 
-            db.debugDump();
+            raw_db.debugDump();
 
             
             Console.WriteLine("-----------------[ remove one server, write some records ]----------------");
@@ -105,36 +89,30 @@ namespace Bend.ReplTest1 {
             // wait until repl2 is really shutdown
 
             repl_1.setValueParsed("c/1", "10");
-            db.debugDump();
+            raw_db.debugDump();
 
             Console.WriteLine("----------------[ reinit server 2 ]-----------------------------");
 
-            repl_2 = ReplHandler.InitResume(db, ctx_2);
+            repl_2 = db_factory.getReplicatedDatabase_Resume("guid2");            
             
             // wait until it comes online
 
             Thread.Sleep(7000);
             
-            db.debugDump();
+            raw_db.debugDump();
 
             Thread.Sleep(7000);
 
-            db.debugDump();
+            raw_db.debugDump();
 
             Environment.Exit(1);
-
-            
-
-            ServerContext ctx_3 = new ServerContext();
-            ctx_3.server_guid = ".guid3-" + rnd.Next();
-            ctx_3.prefix_hack = ctx_2.server_guid + "/repl";
-            ctx_3.connector = connector;
-            ReplHandler repl_3 = ReplHandler.InitJoin(db, ctx_3, ctx_2.server_guid);            
-
-            db.debugDump();
+           
+            ReplHandler repl_3 = db_factory.getReplicatedDatabase_Join("guid3", "guid2");
+                
+            raw_db.debugDump();
 
             repl_3.setValueParsed("/qq", "10");
-            db.debugDump();
+            raw_db.debugDump();
 
             Console.WriteLine("waiting for key");
             Console.ReadKey();

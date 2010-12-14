@@ -38,13 +38,30 @@ namespace Bend {
         }
         public KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
             var nested_keytest = new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(keytest);
-            return next_stage.FindNext(nested_keytest, equal_ok);
+            var rec = next_stage.FindNext(nested_keytest, equal_ok);
+            if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
+                throw new KeyNotFoundException("SubsetStage.FindNext: no more records");
+            }
+            RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey)rec.Key.key_parts[1];
+
+            // strip off the prefix
+
+            return new KeyValuePair<RecordKey, RecordData>(orig_key.GetRecordKey(), rec.Value);
 
         }
 
         public KeyValuePair<RecordKey, RecordData> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
             var nested_keytest = new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(keytest);
-            return next_stage.FindPrev(nested_keytest, equal_ok);
+            var rec = next_stage.FindPrev(nested_keytest, equal_ok);
+
+            if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
+                throw new KeyNotFoundException("SubsetStage.FindPrev: no more records");
+            }
+            RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey)rec.Key.key_parts[1];
+           
+            // strip off the prefix
+
+            return new KeyValuePair<RecordKey, RecordData>(orig_key.GetRecordKey(), rec.Value);
 
         }
 
@@ -55,6 +72,10 @@ namespace Bend {
                 new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), null);
 
             foreach (var rec in next_stage.scanForward(new_scanner)) {
+            
+                if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
+                    throw new KeyNotFoundException("SubsetStage.scanForward: no more records");
+                }                
                 RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey)rec.Key.key_parts[1];
 
                 yield return new KeyValuePair<RecordKey, RecordData>(orig_key.GetRecordKey(), rec.Value);
