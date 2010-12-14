@@ -165,8 +165,6 @@ namespace Bend {
         }
 
         #endregion
-
-
     }
 
 }

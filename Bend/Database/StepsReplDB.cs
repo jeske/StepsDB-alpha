@@ -108,9 +108,10 @@ namespace Bend {
             resolve,     // we have newer entries than someone else
             active,      // ready to serve queries
             error,       // catastrophic error, so just stop
-            shutdown     // shutting down
+            do_shutdown,
+            shutdown     // shutdown down
         };
-        private ReplState state = ReplState.init;
+        private volatile ReplState state = ReplState.init;
         public ReplState State { get { return state; } }
 
 
@@ -242,6 +243,7 @@ namespace Bend {
         public void Shutdown() {
             // remove us from the connector
             ctx.connector.unregisterServer(ctx.server_guid);
+            this.state = ReplState.do_shutdown;
         }
         public class LogStatus {
             public string server_guid;
@@ -365,8 +367,8 @@ namespace Bend {
             //     so we don't lose our seeds and config info
             Console.WriteLine("Rebuild({0}): deleting our keys", ctx.server_guid);
             foreach (var row in this.next_stage.scanForward(ScanRange<RecordKey>.All())) {
-                this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());
                 Console.WriteLine("   Rebuild({0}): deleting {1}", ctx.server_guid, row);
+                this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());                
             }
 
             // (2) re-record our data-instance id, so we don't get confused
@@ -580,6 +582,12 @@ namespace Bend {
                 case ReplState.error:
             
                     Console.WriteLine("Repl({0}): error, stalled", ctx.server_guid);
+                    break;
+                case ReplState.do_shutdown:
+                    // do whatever cleanup we need
+                    this.state = ReplState.shutdown;
+                    break;
+                case ReplState.shutdown:
                     break;
                 default:
                     // UNKNOWN ReplState

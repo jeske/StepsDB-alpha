@@ -34,26 +34,29 @@ namespace Bend.ReplTest1 {
         }
 
         public static void waitUntilActive(LayerManager db, ReplHandler srvr) {
+            waitUntilState(db, srvr, ReplHandler.ReplState.active);
+        }
+
+        public static void waitUntilState(LayerManager db, ReplHandler srvr, ReplHandler.ReplState state) {
 
             for (int x = 0; x < 20; x++) {
-                if (srvr.State == ReplHandler.ReplState.active) {
+                if (srvr.State == state) {
                     break;
                 }
-                if (srvr.State == ReplHandler.ReplState.shutdown) {
-                    Console.WriteLine("waiting for ({0}) to become active.. and he shutdown!!! quitting");
-                    Environment.Exit(1);
-                }
-                Console.WriteLine("waiting for ({0}) to become active.. (currently: {1})", 
-                    srvr.ToString(),srvr.State);
-                db.debugDump();
+                Console.WriteLine("waiting for ({0}) to become {1}.. (currently: {2})", 
+                    srvr.ToString(),state, srvr.State);
+                
                 Thread.Sleep(1000);
             }
-            if (srvr.State != ReplHandler.ReplState.active) {
-                Console.WriteLine("server({0}) failed to become active, aborting test", srvr.ToString());
+            if (srvr.State != state) {
+                db.debugDump();
+                Console.WriteLine("server({0}) failed to become {1}, aborting test", 
+                    srvr.ToString(), state);
+                
                 Environment.Exit(1);
             }
 
-            Console.WriteLine("Server ({0}) is now active!", srvr);
+            Console.WriteLine("Server ({0}) is now {1}!", srvr, state);
 
         }
 
@@ -86,6 +89,8 @@ namespace Bend.ReplTest1 {
 
             
             repl_2.Shutdown();
+
+            waitUntilState(raw_db, repl_2, ReplHandler.ReplState.shutdown);
 
             // wait until repl2 is really shutdown
 
