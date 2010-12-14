@@ -48,7 +48,7 @@ namespace Bend {
             ctx.server_guid = server_guid;
             ctx.connector = connector;
 
-            return ReplHandler.InitFresh(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db), ctx);
+            return ReplHandler.InitFresh(new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db)), ctx);
         }
 
         public ReplHandler getReplicatedDatabase_Join(string new_server_guid, string join_server_guid) {
@@ -57,7 +57,7 @@ namespace Bend {
             ctx.connector = connector;
 
             return ReplHandler.InitJoin(
-                new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db),
+                new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db)),
                 ctx,
                 join_server_guid);
         }
@@ -67,7 +67,9 @@ namespace Bend {
             ctx.server_guid = server_guid;
             ctx.connector = connector;
 
-            return ReplHandler.InitResume(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db), ctx);
+            return ReplHandler.InitResume(
+                new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db)), 
+                ctx);
         }
 
     }

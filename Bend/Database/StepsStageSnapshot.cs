@@ -15,7 +15,7 @@ using Bend;
 
 namespace Bend {
 
-    interface IStepsSnapshotKVDB : IStepsKVDB {
+    public interface IStepsSnapshotKVDB : IStepsKVDB {
         IStepsKVDB getSnapshot();
     }
 
@@ -33,7 +33,7 @@ namespace Bend {
         public StepsStageSnapshot(IStepsKVDB next_stage) {
             this.is_frozen = false;
             this.next_stage = next_stage;
-            this.current_snapshot = id_gen.nextTimestamp();
+            this.current_snapshot = id_gen.nextTimestamp();   // TODO: init this from our config info, not a new snapshot number! 
         }
 
         private StepsStageSnapshot(IStepsKVDB next_stage, long frozen_at_snapshotnumber)
@@ -118,12 +118,14 @@ namespace Bend {
             foreach (KeyValuePair<RecordKey, RecordData> row in scan_enumerable) {
                 last_key = row.Key;
 
+#if DEBUG_SNAPSHOT_SCAN
                 if (this.is_frozen) {
                     Console.WriteLine("Frozen Snapshot(0x{0:X}) stage saw: {1}",
                         this.frozen_at_snapshotnumber, row);
                 } else {
                     Console.WriteLine("Snapshot stage saw: {0}", row);
                 }
+#endif
                 RecordKeyType_AttributeTimestamp our_attr =
                     (RecordKeyType_AttributeTimestamp)row.Key.key_parts[row.Key.key_parts.Count - 1];
                 long cur_timestamp = our_attr.GetLong();

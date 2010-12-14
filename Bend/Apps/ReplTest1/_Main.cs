@@ -105,7 +105,11 @@ namespace Bend.ReplTest1 {
 
             raw_db.debugDump();
 
-            Environment.Exit(1);
+            Environment.Exit(1);  // exit
+
+
+
+            Console.WriteLine("----------------[ create server 3 ]-----------------------------");
            
             ReplHandler repl_3 = db_factory.getReplicatedDatabase_Join("guid3", "guid2");
                 

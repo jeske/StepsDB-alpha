@@ -86,21 +86,25 @@ namespace Bend {
 
 
     public class ReplHandler {
-        IStepsKVDB next_stage;
+        IStepsSnapshotKVDB next_stage;        
         ServerContext ctx;
 
         Random rnd;
         ReplPusher pusher;
         string data_instance_id;
 
+        private static FastUniqueIds id_gen = new FastUniqueIds();
+
         public static Random myrnd = new Random();
 
         Thread worker;
         public enum ReplState {
-            init,
-            rebuild,
-            active,
-            shutdown
+            init,        // bringup
+            rebuild,     // it's safe to just copy everything from someone else
+            resolve,     // we have newer entries than someone else
+            active,      // ready to serve queries
+            error,       // catastrophic error, so just stop
+            shutdown     // shutting down
         };
         private ReplState state = ReplState.init;
         public ReplState State { get { return state; } }
@@ -112,7 +116,7 @@ namespace Bend {
 
         #region Constructors
 
-        public ReplHandler(IStepsKVDB db, ServerContext ctx) {
+        public ReplHandler(IStepsSnapshotKVDB db, ServerContext ctx) {
             this.next_stage = db;
             this.rnd = new Random();
             this.pusher = new ReplPusher(this);
@@ -148,12 +152,12 @@ namespace Bend {
             worker.Start();
         }
 
-        public static ReplHandler InitResume(IStepsKVDB db, ServerContext ctx) {
+        public static ReplHandler InitResume(IStepsSnapshotKVDB db, ServerContext ctx) {
             ReplHandler repl = new ReplHandler(db, ctx);
             return repl;
         }
 
-        public static ReplHandler InitFresh(IStepsKVDB db, ServerContext ctx) {
+        public static ReplHandler InitFresh(IStepsSnapshotKVDB db, ServerContext ctx) {
             // init fresh
 
             // record our instance ID
@@ -175,7 +179,7 @@ namespace Bend {
 
         }
 
-        public static ReplHandler InitJoin(IStepsKVDB db, ServerContext ctx, string seed_name) {
+        public static ReplHandler InitJoin(IStepsSnapshotKVDB db, ServerContext ctx, string seed_name) {
 
             // connect to the other server, get his instance id, exchange seeds
             ReplHandler seed = ctx.connector.getServerHandle(seed_name);
@@ -215,8 +219,8 @@ namespace Bend {
         }
         public class LogStatus {
             public string server_guid;
-            public RecordKeyType log_commit_head;
-            public RecordKeyType oldest_entry_pointer;
+            public RecordKeyType_Long log_commit_head;
+            public RecordKeyType_Long oldest_entry_pointer;
             // public string newest_pending_entry_pointer;
             public override string ToString() {
                 return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
@@ -236,12 +240,12 @@ namespace Bend {
                 var oldestlogrow = next_stage.FindNext(log_prefix_key, false);
                 if (oldestlogrow.Key.isSubkeyOf(log_prefix_key)) {
                     log_status.oldest_entry_pointer =
-                        (oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
+                        ((RecordKeyType_Long)oldestlogrow.Key.key_parts[oldestlogrow.Key.key_parts.Count - 1]);
                 } else {
-                    log_status.oldest_entry_pointer = new RecordKeyType_RawBytes(new byte[0]);
+                    log_status.oldest_entry_pointer = new RecordKeyType_Long(0);
                 }
             } catch (KeyNotFoundException) {
-                log_status.oldest_entry_pointer = new RecordKeyType_RawBytes(new byte[0]);
+                log_status.oldest_entry_pointer = new RecordKeyType_Long(0);
             }
 
             // newest log entry for this log
@@ -249,16 +253,16 @@ namespace Bend {
                 var newestlogrow = next_stage.FindPrev(RecordKey.AfterPrefix(log_prefix_key), false);
                 if (newestlogrow.Key.isSubkeyOf(log_prefix_key)) {
                     log_status.log_commit_head =
-                        (newestlogrow.Key.key_parts[newestlogrow.Key.key_parts.Count - 1]);
+                        ((RecordKeyType_Long)newestlogrow.Key.key_parts[newestlogrow.Key.key_parts.Count - 1]);
                 } else {
-                    log_status.log_commit_head = new RecordKeyType_RawBytes(new byte[0]);
+                    log_status.log_commit_head = new RecordKeyType_Long(0);
                 }
             } catch (KeyNotFoundException) {
-                log_status.log_commit_head = new RecordKeyType_RawBytes(new byte[0]);
+                log_status.log_commit_head = new RecordKeyType_Long(0);
             }
 
 
-            Console.WriteLine("_statusForLog returning: " + log_status);
+            // Console.WriteLine("_statusForLog returning: " + log_status);
 
             return log_status;
         }
@@ -284,60 +288,143 @@ namespace Bend {
 
         }
 
-        private void erasePendingLogEntries() {
-            // TODO: erase all log entries newer than the commit_head
-            // someday this might be an MVCC abort/rollback
+        public string getDataInstanceId() {
+            return this.data_instance_id;
+        }
+
+        private void worker_fullRebuild() {
+
+            // (1) clear our keyspace
+
+            // TODO: How do we trigger a reinit on a new prefix, so we don't
+            //   have to actually delete everything??  Maybe we can make SubsetStage
+            //   capable of clearing by dropping the old prefix-id?  Or maybe we will 
+            //   use built-in support for a range-deletion-tombstone? 
+
+            // TODO: how do we verify that this isn't going to lose important information?
+
+            // TODO: probably should just delete/copy _data and _logs
+            Console.WriteLine("Rebuild({0}): deleting our keys", ctx.server_guid);
+            foreach (var row in this.next_stage.scanForward(ScanRange<RecordKey>.All())) {
+                this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());
+            }
+
+            // (2) re-record our data-instance id
+            next_stage.setValue(new RecordKey()
+            .appendKeyPart("_config")
+            .appendKeyPart("DATA-INSTANCE-ID"),
+            RecordUpdate.WithPayload(this.data_instance_id));
+
+            // (3) ask for a snapshot
+
+            // TODO: make sure servers are only listed as seeds when they are "active". 
+            
+            ReplHandler srvr = pusher.getRandomSeed();
+
+
+            // (4) then copy the snapshot
+
+            // TODO: make sure we get data keys before logs, or that we do something to
+            //      be sure to know whether this copy completes successfully or not.
+            // TODO: probably want to record our copy-progress, so we can continue copy after
+            //      restart without having to do it from scratch!! 
+
         }
 
         private void worker_logResume() {
+            bool can_log_replay = true;
+            bool need_resolve = false;
+            ReplHandler srvr;
+
+            try {
+                srvr = pusher.getRandomSeed();
+            } catch (ReplPusher.NoServersAvailableException) {
+                // TODO: How will the first resume decide he is current enough to go active if there is
+                //   no Seed?
+                Console.WriteLine("Repl({0}): no servers available for log resume, waiting...",
+                    ctx.server_guid);
+                return;
+            }
+            // (0) check that our data-instance-ids match
+
+            if (srvr.getDataInstanceId().CompareTo(this.data_instance_id) != 0) {
+                this.state = ReplState.error;
+                return;
+            }
+
 
             // (1) see if we can resume from our commit_head pointers                    
-            var our_log_status_dict = new Dictionary<string, LogStatus>();
-            foreach (var ls in this.getStatusForLogs()) {
-                our_log_status_dict[ls.server_guid] = ls;
+            var our_log_status_dict = new Dictionary<string, LogStatus>();            
+            List<LogStatus> client_log_status = this.getStatusForLogs().ToList();
+
+            Console.WriteLine("worker_logResume({0}) - ourlogs: {1}",
+                ctx.server_guid,String.Join(",",client_log_status));
+               
+            foreach (var ls in client_log_status) {
+                our_log_status_dict[ls.server_guid] = ls;                
             }
 
-            ReplHandler srvr = pusher.getRandomSeed();
+            
             List<LogStatus> srvr_log_status = srvr.getStatusForLogs().ToList();
-            foreach (var ls in srvr_log_status) {
+            Console.WriteLine("worker_logResume({0}) - serverlogs: {1}",
+                ctx.server_guid,String.Join(",",srvr_log_status));
+            foreach (var ls in srvr_log_status) {                
                 if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
                     // we are missing an entire log, we need a full rebuild!
+                    can_log_replay = false;
+                } else {
+                    // if our log_head is before their oldest_entry, we need a full rebuild! 
+                    var our_ls = our_log_status_dict[ls.server_guid];                    
+                    if (our_ls.log_commit_head.CompareTo(ls.oldest_entry_pointer) < 0) {
+                        can_log_replay = false;
+                    }
+                    if (our_ls.log_commit_head.CompareTo(ls.log_commit_head) > 0) {
+                        // we have newer log entries than they do for at least one log!!
+                        need_resolve = true;
+                    }
 
-                    Console.WriteLine("** logs don't match, in theory we should do full rebuild;");
-                    // this.state = ReplState.rebuild;
-                    // return;
+                }
+
+            }
+
+            if (!can_log_replay) {
+                if (!need_resolve) {
+                    // schedule a full rebuild
+                    Console.WriteLine("Repl({0}) logs don't match, we need a full rebuild;", 
+                        ctx.server_guid);
+                    this.state = ReplState.rebuild;
+                    return;
+                } else {
+                    Console.WriteLine("Repl({0}) our log has newer changes than somebody, schedule a resolve!!",
+                        ctx.server_guid);
+                    this.state = ReplState.resolve;
+                    return;
                 }
             }
-            // (3) replay from the commit heads
+
+            // (3) replay logs from the commit heads
 
             foreach (var ls in srvr_log_status) {
-                RecordKeyType log_start_key = new RecordKeyType_RawBytes(new byte[0]);
+                RecordKeyType log_start_key = new RecordKeyType_Long(0);
                 if (our_log_status_dict.ContainsKey(ls.server_guid)) {
                     log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
                 }
 
                 foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
                     RecordKeyType last_keypart = logrow.Key.key_parts[logrow.Key.key_parts.Count - 1];
-                    RecordKeyType_RawBytes keypart = (RecordKeyType_RawBytes)last_keypart;
+                    RecordKeyType_Long keypart = (RecordKeyType_Long)last_keypart;
 
-                    byte[] logstamp = keypart.GetBytes();
+                    long logstamp = keypart.GetLong();
                     this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
-                }
-
-                /*
-                if (data.Length > 0) {
-                    BlockAccessor ba = new BlockAccessor(data);
-                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
-                    foreach (var kv in decoder.sortedWalk()) {
-                        Console.WriteLine("log apply: " + kv);
-                    }
-                    Environment.Exit(1);
-                    throw new Exception("NOT YET IMPLEMENTED");
-                }
-                 * */
-
-                // Environment.Exit(1);
+                }              
             }
+
+            // TODO: double check our log heads
+            if (this.state != ReplState.active) {
+                Console.WriteLine("** Server {0} becoming ACTIVE!!", ctx.server_guid);
+                state = ReplState.active;  // we are up to date and online!! 
+            }
+
         }
 
         private void workerFunc() {
@@ -348,23 +435,26 @@ namespace Bend {
             if (this.state == ReplState.init) {
                 // we are initializing.... check our log state and see if we need a full rebuild                    
 
-                // (2) erase our pending entries (those newer than commit heads)
-                //     TODO: check them instead of erasing
-
-                this.erasePendingLogEntries();
-
                 worker_logResume();
-                Console.WriteLine("** Server {0} becoming ACTIVE!!", ctx.server_guid);
-                state = ReplState.active;  // we are up to date and online!! 
             } else if (this.state == ReplState.rebuild) {
                 // we need a FULL rebuild
-                Console.WriteLine("TODO: do full rebuild");
-            } else {
+                Console.WriteLine("full rebuild started");
+
+                worker_fullRebuild();
+            } else if (this.state == ReplState.resolve) {
+                Console.WriteLine("Repl({0}): resolve needed!!", ctx.server_guid);
+
+            } else if (this.state == ReplState.active) {
                 // we are just running!! 
                 ctx.connector.registerServer(ctx.server_guid, this);
 
                 // pop back to init to check log tails
                 worker_logResume();
+            } else if (this.state == ReplState.error) {
+                Console.WriteLine("Repl({0}): error, stalled", ctx.server_guid);
+            } else {
+                // UNKNOWN ReplState
+                throw new Exception("unknown ReplState: " + this.state.ToString());
             }
         }
 
@@ -499,6 +589,10 @@ namespace Bend {
                 servers = new HashSet<string>();
                 myhandler = handler;
             }
+            public class NoServersAvailableException : Exception {
+                public NoServersAvailableException(string e) : base(e) { }
+            };
+
             public void addServer(string server_guid) {
                 if (server_guid.CompareTo(myhandler.ctx.server_guid) == 0) {
                     // we can't add ourself!!
@@ -519,7 +613,7 @@ namespace Bend {
                     }
                 }
                 if (available_servers.Count == 0) {
-                    throw new KeyNotFoundException("getRandomSeed: no servers avaialble");
+                    throw new NoServersAvailableException("getRandomSeed: no servers avaialble");
                 }
                 ReplHandler[] srvr_array = available_servers.ToArray();
                 int pick = myhandler.rnd.Next(available_servers.Count);
@@ -555,7 +649,7 @@ namespace Bend {
                 }
             }
 
-            public void pushNewLogEntry(byte[] logstamp, RecordUpdate logdata) {
+            public void pushNewLogEntry(long logstamp, RecordUpdate logdata) {
                 foreach (var server_guid in servers) {
                     try {
                         ReplHandler srvr = myhandler.ctx.connector.getServerHandle(server_guid);
@@ -570,7 +664,7 @@ namespace Bend {
         }
 
 
-        public void applyLogEntry(string from_server_guid, byte[] logstamp, RecordUpdate logdata) {
+        public void applyLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
             // (0) unpack the data
             BlockAccessor ba = new BlockAccessor(logdata.data);
             ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
@@ -579,7 +673,7 @@ namespace Bend {
             RecordKey logkey = new RecordKey()
             .appendKeyPart("_logs")
             .appendKeyPart(from_server_guid)
-            .appendKeyPart(logstamp);
+            .appendKeyPart(new RecordKeyType_Long(logstamp));
 
             next_stage.setValue(logkey, logdata);
 
@@ -608,13 +702,12 @@ namespace Bend {
             // (1) write our repl log entry
 
             DateTime now = DateTime.Now;
-            long timestamp = (now.Ticks * 100000) + now.Millisecond + rnd.Next(100);
-
-            byte[] logstamp = Lsd.numberToLsd(timestamp, 35);
+            long logstamp = id_gen.nextTimestamp();
+            
             RecordKey logkey = new RecordKey()
                 .appendKeyPart("_logs")
                 .appendKeyPart(ctx.server_guid)
-                .appendKeyPart(logstamp);
+                .appendKeyPart(new RecordKeyType_Long(logstamp));
 
             // (1.1) pack the key/value together into the log entry
             byte[] packed_update;

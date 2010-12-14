@@ -83,7 +83,19 @@ namespace Bend {
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner) {
-            throw new Exception("NOT IMPLEMENTED");
+            var new_scanner = new ScanRange<RecordKey>(
+               new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genLowestKeyTest()),
+               new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), null);
+
+            foreach (var rec in next_stage.scanBackward(new_scanner)) {
+
+                if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
+                    throw new KeyNotFoundException("SubsetStage.scanBackward: no more records");
+                }
+                RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey)rec.Key.key_parts[1];
+
+                yield return new KeyValuePair<RecordKey, RecordData>(orig_key.GetRecordKey(), rec.Value);
+            }
         }
     }
 
