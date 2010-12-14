@@ -78,7 +78,7 @@ namespace Bend.ReplTest1 {
             }
 
             waitUntilActive(db, repl_1);
-            repl_1.setValueParsed("/a/1", "1");
+            repl_1.setValueParsed("a/1", "1");
 
 
             ServerContext ctx_2 = new ServerContext();
@@ -87,7 +87,7 @@ namespace Bend.ReplTest1 {
             ctx_2.connector = connector;
             ReplHandler repl_2 = ReplHandler.InitJoin(db, ctx_2, ctx_1.server_guid);
             waitUntilActive(db, repl_2);
-            repl_2.setValueParsed("/a/2", "5");
+            repl_2.setValueParsed("a/2", "5");
 
             Console.WriteLine("-----------------");
             db.debugDump();
@@ -103,7 +103,7 @@ namespace Bend.ReplTest1 {
 
             // wait until repl2 is really shutdown
 
-            repl_1.setValueParsed("/c/1", "10");
+            repl_1.setValueParsed("c/1", "10");
             db.debugDump();
 
             Console.WriteLine("----------------[ reinit server 2 ]-----------------------------");

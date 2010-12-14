@@ -608,7 +608,7 @@ namespace Bend
             // first, print all our keys
             foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
                 String value_str = kvp.Value.ToString();
-                if (value_str.Length < 40) {
+                if (value_str.Length < 50) {
                     Console.WriteLine(indent + kvp.Key + " : " + value_str);
                 } else {
                     Console.WriteLine(indent + kvp.Key + " : " + value_str.Substring(0,10) + "..[" + (value_str.Length-40) + " more bytes]");
