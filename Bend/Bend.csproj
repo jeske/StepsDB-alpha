@@ -94,6 +94,8 @@
     <Compile Include="Database\StepsDatabase.cs" />
     <Compile Include="Database\StepsDocumentDB.cs" />
     <Compile Include="Database\StepsReplDB.cs" />
+    <Compile Include="Database\StepsStageSnapshot.cs" />
+    <Compile Include="Database\StepsStageSubset.cs" />
     <Compile Include="DbgGUI\DbgGUI.cs">
       <SubType>Form</SubType>
     </Compile>
