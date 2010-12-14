@@ -33,6 +33,10 @@
 // FURTHERMORE, this skiplist is extended to a doubly-linked skiplist, so we can traverse
 // efficiently in either direction.
 
+//
+//  Threading related info...
+//  http://www.albahari.com/threading/part4.aspx
+//
 
 
 using System;
