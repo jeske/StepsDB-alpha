@@ -85,7 +85,7 @@ namespace Bend.DBClientTest {
             db.setValue(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("blah-t0"));
 
-            StepsStageSnapshot db_snap = db.getSnapshot();
+            IStepsKVDB db_snap = db.getSnapshot();
 
             db.setValue(new RecordKey().appendParsedKey("test/1"),
                 RecordUpdate.WithPayload("blah-t1"));

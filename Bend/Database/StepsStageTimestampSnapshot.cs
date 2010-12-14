@@ -54,7 +54,7 @@ namespace Bend {
             next_stage.setValue(key, update);
         }
 
-        public TimestampSnapshotStage getSnapshot() {
+        public IStepsKVDB getSnapshot() {
             return new TimestampSnapshotStage(this.next_stage, id_gen.nextTimestamp());
         }
 

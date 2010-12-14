@@ -16,7 +16,7 @@ using Bend;
 namespace Bend {
 
     interface IStepsSnapshotKVDB : IStepsKVDB {
-
+        IStepsKVDB getSnapshot();
     }
 
     public class StepsStageSnapshot : IStepsSnapshotKVDB {
@@ -57,7 +57,7 @@ namespace Bend {
             next_stage.setValue(key, update);
         }
 
-        public StepsStageSnapshot getSnapshot() {
+        public IStepsKVDB getSnapshot() {
             long previous_snapshot;
             lock (this) {
                 previous_snapshot = this.current_snapshot;

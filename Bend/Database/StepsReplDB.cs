@@ -422,6 +422,9 @@ namespace Bend {
                 packed_log_records = writer.ToArray();
             }
 
+            // IF there are no log entries... BLOCK! 
+
+
             return packed_log_records;
         }
 
