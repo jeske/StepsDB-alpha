@@ -84,11 +84,16 @@ namespace Bend.ReplTest1 {
             
             Console.WriteLine("-----------------[ remove one server, write some records ]----------------");
 
+            
             repl_2.Shutdown();
 
             // wait until repl2 is really shutdown
 
-            repl_1.setValueParsed("c/1", "10");
+
+            // make sure our log does not continue from repl_2 logs
+            repl_1.setValueParsed("c/1", "10");            
+            repl_1.truncateLogs_Hack();
+            
             raw_db.debugDump();
 
             Console.WriteLine("----------------[ reinit server 2 ]-----------------------------");

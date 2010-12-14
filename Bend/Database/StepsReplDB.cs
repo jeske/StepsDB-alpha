@@ -177,12 +177,18 @@ namespace Bend {
                 RecordUpdate.WithPayload(Lsd.numberToLsd(ReplHandler.myrnd.Next(), 15)));
 
             // record the "start of fresh log" record
-
+                        
             db.setValue(new RecordKey()
                 .appendKeyPart("_logs")
                 .appendKeyPart(ctx.server_guid)
                 .appendKeyPart(new RecordKeyType_Long(0)),
                 RecordUpdate.WithPayload(new byte[0]));
+
+            // record ourself as a seed/log 
+            db.setValue(new RecordKey()
+                .appendKeyPart("_config").appendKeyPart("seeds").appendKeyPart(ctx.server_guid),
+                RecordUpdate.WithPayload(""));
+
 
             ReplHandler repl = new ReplHandler(db, ctx);
 
@@ -245,6 +251,22 @@ namespace Bend {
             public override string ToString() {
                 return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
             }
+        }
+        public class LogEntry {
+            public long logstamp;
+            public string server_guid;
+            public byte[] data;            
+        }
+
+        private LogEntry _decodeLogEntry(RecordKey key, RecordData data) {
+            var le = new LogEntry();
+            if (!((RecordKeyType_String)key.key_parts[0]).GetString().Equals("_logs")) {
+                throw new Exception("_decodeLogEntry: handed non-log entry: " + key.ToString());
+            }
+            le.server_guid = ((RecordKeyType_String)key.key_parts[1]).GetString();
+            le.logstamp = ((RecordKeyType_Long)key.key_parts[2]).GetLong();
+            le.data = data.data;
+            return le;
         }
 
         private LogStatus _statusForLog(string server_guid) {
@@ -366,15 +388,46 @@ namespace Bend {
             
             // TODO: need to be able to see tombstones in this scan!! 
             foreach (var row in snapshot.scanForward(ScanRange<RecordKey>.All())) {
-                Console.WriteLine("    + Rebuild setValue: {0}", row);
+                Console.WriteLine("    + Rebuild({0}) setValue: {1}", ctx.server_guid, row);
                 this.next_stage.setValue(row.Key,RecordUpdate.WithPayload(row.Value.data));
             }
+
+            // (5) make sure to record our server-id correctly
+            next_stage.setValue(new RecordKey()
+            .appendKeyPart("_config")
+            .appendKeyPart("MY-SERVER-ID"),
+            RecordUpdate.WithPayload(ctx.server_guid));
+
+            Console.WriteLine("Rebuild({0}): finished, sending to init", ctx.server_guid);
             this.state = ReplState.init; // now we should be able to log resume!! 
         }
 
         public IStepsKVDB getSnapshot() {
             Console.WriteLine("Repl({0}): getSnapshot() returning new snapshot", ctx.server_guid);
             return this.next_stage.getSnapshot();
+        }
+
+        public void truncateLogs_Hack() {
+            // we want to erase all log entries except the last to cause a gap
+            // force others to full rebuild
+
+            foreach (var ls in this.getStatusForLogs()) {
+                var scan_old_log_entries = new ScanRange<RecordKey>(
+                    new RecordKey().appendKeyPart("_logs").appendKeyPart(ls.server_guid),
+                    new RecordKey().appendKeyPart("_logs").appendKeyPart(ls.server_guid).appendKeyPart(ls.log_commit_head),
+                    null);
+
+                foreach (var row in this.next_stage.scanForward(scan_old_log_entries)) {
+                    // make sure we stop before we delete the last entry
+                    LogEntry le = _decodeLogEntry(row.Key, row.Value);
+                    if (le.logstamp.Equals(ls.log_commit_head)) {
+                        // we reached the head... 
+                        break;
+                    }
+                    this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());
+                    Console.WriteLine("   truncateLogs({0}): deleting {1}", ctx.server_guid, row);
+                }
+            }
         }
 
         private void worker_logResume() {
@@ -457,28 +510,33 @@ namespace Bend {
                 }
 
                 if (ls.server_guid.Equals(this.getServerGuid())) {
-                    // don't try to fecth entries for our own log!! 
+                    // don't try to fecth entries for our own log. 
+                    // TODO: check for agreement about our log entries.
                     continue;
                 }
 
-                foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
-                    RecordKeyType last_keypart = logrow.Key.key_parts[logrow.Key.key_parts.Count - 1];
-                    RecordKeyType_Long keypart = (RecordKeyType_Long)last_keypart;
+                try {
+                    foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
+                        RecordKeyType last_keypart = logrow.Key.key_parts[logrow.Key.key_parts.Count - 1];
+                        RecordKeyType_Long keypart = (RecordKeyType_Long)last_keypart;
 
-                    long logstamp = keypart.GetLong();
+                        long logstamp = keypart.GetLong();
 
-                    if (logstamp.CompareTo(log_start_key.GetLong()) == 0) {                        
-                        // if it is the magic "start of log" record, then just record it
-                        if (logstamp == 0) {
-                            this._recordLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
+                        if (logstamp.CompareTo(log_start_key.GetLong()) == 0) {
+                            // if it is the magic "start of log" record, then just record it
+                            if (logstamp == 0) {
+                                this._recordLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
+                            } else {
+                                // check and make sure the first log entry actually matches our recorded entry
+                                // otherwise there is a log-sync mismatch! 
+                            }
                         } else {
-                            // check and make sure the first log entry actually matches our recorded entry
-                            // otherwise there is a log-sync mismatch! 
+                            this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
                         }
-                    } else {
-                        this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
                     }
-                }              
+                } catch (LogException) {
+                    // just goto the next log for now...
+                }
             }
 
             // TODO: double check our log heads
@@ -494,30 +552,44 @@ namespace Bend {
             // as fast as possible.
             pusher.scanSeeds();
 
-            if (this.state == ReplState.init) {
-                // we are initializing.... check our log state and see if we need a full rebuild                    
+            switch (this.state) {
+                case ReplState.init:
+            
+                    // we are initializing.... check our log state and see if we need a full rebuild                    
+                    Console.WriteLine("Repl({0}): log resume", ctx.server_guid);
+                    worker_logResume();
+                    break;
+                case ReplState.rebuild:
 
-                worker_logResume();
-            } else if (this.state == ReplState.rebuild) {
-                // we need a FULL rebuild
-                Console.WriteLine("full rebuild started");
 
-                worker_fullRebuild();
-            } else if (this.state == ReplState.resolve) {
-                Console.WriteLine("Repl({0}): resolve needed!!", ctx.server_guid);
+                    // we need a FULL rebuild
+                    Console.WriteLine("Repl({0}): full rebuild started", ctx.server_guid);
+                    worker_fullRebuild();
+                    Console.WriteLine("Repl({0}): full rebuild finished", ctx.server_guid);
+                    break;
+                case ReplState.resolve:
+                    Console.WriteLine("Repl({0}): resolve needed!!", ctx.server_guid);
+                    break;
+                case ReplState.active:
+                    // we are just running!! 
+                    ctx.connector.registerServer(ctx.server_guid, this);
 
-            } else if (this.state == ReplState.active) {
-                // we are just running!! 
-                ctx.connector.registerServer(ctx.server_guid, this);
-
-                // pop back to init to check log tails
-                worker_logResume();
-            } else if (this.state == ReplState.error) {
-                Console.WriteLine("Repl({0}): error, stalled", ctx.server_guid);
-            } else {
-                // UNKNOWN ReplState
-                throw new Exception("unknown ReplState: " + this.state.ToString());
+                    // pop back to init to check log tails
+                    worker_logResume();
+                    break;
+                case ReplState.error:
+            
+                    Console.WriteLine("Repl({0}): error, stalled", ctx.server_guid);
+                    break;
+                default:
+                    // UNKNOWN ReplState
+                    throw new Exception("unknown ReplState: " + this.state.ToString());
+                    break;
             }
+        }
+
+        public class LogException : Exception {
+            public LogException(String info) : base(info) { }
         }
 
         private IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
@@ -552,14 +624,14 @@ namespace Bend {
                     // the first logrow needs to match the log_start_key, or there was a gap in the log!!
                     var logstamp = logrow.Key.key_parts[2];
                     if (logstamp.CompareTo(log_start_key) != 0) {
-                        throw new Exception("log start gap!");
+                        throw new LogException("log start gap!");
                     }
                     matched_first = true;
                 }
                 yield return logrow;
             }
             if (!matched_first) {
-                throw new Exception("log start gap!");
+                throw new LogException("no log entries!");
             }
         }
 
