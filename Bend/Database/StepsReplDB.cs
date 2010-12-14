@@ -402,15 +402,17 @@ namespace Bend {
             .appendKeyPart("MY-SERVER-ID"),
             RecordUpdate.WithPayload(ctx.server_guid));
 
-            // (6) and write a fresh entry for our log
+            // (6) if our log is empty, write our log-start
+            LogStatus status = this._statusForLog(ctx.server_guid);
+            if (status.log_commit_head.GetLong().CompareTo(0) == 0) {
+                next_stage.setValue(new RecordKey()
+                    .appendKeyPart("_logs")
+                    .appendKeyPart(ctx.server_guid)
+                    .appendKeyPart(new RecordKeyType_Long(0)),
+                    RecordUpdate.WithPayload(new byte[0]));
+            }
 
-            next_stage.setValue(new RecordKey()
-                .appendKeyPart("_logs")
-                .appendKeyPart(ctx.server_guid)
-                .appendKeyPart(new RecordKeyType_Long(0)),
-                RecordUpdate.WithPayload(new byte[0]));
-
-            // record ourself as a seed/log 
+            // (7) make sure there is a seed/log entry for ourselves
             next_stage.setValue(new RecordKey()
                 .appendKeyPart("_config").appendKeyPart("seeds").appendKeyPart(ctx.server_guid),
                 RecordUpdate.WithPayload(""));
@@ -482,8 +484,9 @@ namespace Bend {
 
             
             List<LogStatus> srvr_log_status = srvr.getStatusForLogs().ToList();
-            Console.WriteLine("worker_logResume({0}) - serverlogs: {1}",
-                ctx.server_guid,String.Join(",",srvr_log_status));
+            Console.WriteLine("worker_logResume({0}) - serverlogs({1}): {2}",
+                ctx.server_guid, srvr.getServerGuid(),
+                String.Join(",",srvr_log_status));
             foreach (var ls in srvr_log_status) {                
                 if (!our_log_status_dict.ContainsKey(ls.server_guid)) {
                     // we are missing an entire log...

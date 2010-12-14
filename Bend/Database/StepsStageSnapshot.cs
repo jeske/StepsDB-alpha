@@ -158,7 +158,9 @@ namespace Bend {
             }
 
             if (max_valid_record.Key != null) {
-                yield return max_valid_record;
+                if (max_valid_record.Value.State != RecordDataState.DELETED) {
+                    yield return max_valid_record;
+                }
                 max_valid_record = new KeyValuePair<RecordKey, RecordData>(null, null);
                 max_valid_timestamp = 0;
             }
@@ -229,5 +231,29 @@ namespace BendTests {
             }
 
         }
+
+        [Test]
+        public void T000_TestBasic_SnapshotTombstones() {
+            var snap_db = new StepsStageSnapshot(
+               new StepsStageSubset(
+                   new RecordKeyType_String("snapdb"),
+                   new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\snapts")));
+
+
+            snap_db.setValue(new RecordKey().appendParsedKey("b/1"), RecordUpdate.DeletionTombstone());
+            snap_db.setValue(new RecordKey().appendParsedKey("a/1"), RecordUpdate.WithPayload("data1"));
+
+            var snapshot = snap_db.getSnapshot();
+
+            snap_db.setValue(new RecordKey().appendParsedKey("a/1"), RecordUpdate.DeletionTombstone());
+
+            int count = 0;
+            foreach (var row in snap_db.scanForward(ScanRange<RecordKey>.All())) {                
+                count++;
+            }
+            Assert.AreEqual(0, count, "deletion tombstones didn't work in snapshot");
+
+        }
+
     }
 }
