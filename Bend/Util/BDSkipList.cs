@@ -29,10 +29,12 @@
 //
 // NOTE: this is space inefficient for small K,V because we allocate a linked list node 
 // for EVERY K,V, plus every skiplist jump point.
-
+//
 // FURTHERMORE, this skiplist is extended to a doubly-linked skiplist, so we can traverse
 // efficiently in either direction.
-
+//
+//
+// might be better to change it to spinlocks or reader/writer locks
 //
 //  Threading related info...
 //  http://www.albahari.com/threading/part4.aspx
