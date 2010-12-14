@@ -15,6 +15,9 @@ using Bend;
 
 namespace Bend {
 
+    // 
+    // TODO: change subset not to use a NESTED key, it should just use a prefix addition
+
     class SubsetStage : IStepsKVDB {
         readonly IStepsKVDB next_stage;
         readonly RecordKeyType_String subset_name;
@@ -33,6 +36,19 @@ namespace Bend {
 
             next_stage.setValue(newkey, update);
         }
+        public KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
+            var nested_keytest = new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(keytest);
+            return next_stage.FindNext(nested_keytest, equal_ok);
+
+        }
+
+        public KeyValuePair<RecordKey, RecordData> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
+            var nested_keytest = new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(keytest);
+            return next_stage.FindPrev(nested_keytest, equal_ok);
+
+        }
+
+
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
             var new_scanner = new ScanRange<RecordKey>(
                 new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genLowestKeyTest()),
