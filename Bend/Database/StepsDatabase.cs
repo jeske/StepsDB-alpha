@@ -36,11 +36,11 @@ namespace Bend {
         }
 
         public IStepsDocumentDB getDocumentDatabase() {
-            return new DocumentDatabaseStage(new SubsetStage(new RecordKeyType_String("DOCDB"), this.db));
+            return new DocumentDatabaseStage(new StepsStageSubset(new RecordKeyType_String("DOCDB"), this.db));
         }
 
         public IStepsKVDB getSnapshotDatabase() {
-            return new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String("SNAPDB"), this.db));
+            return new StepsStageSnapshot(new StepsStageSubset(new RecordKeyType_String("SNAPDB"), this.db));
         }
 
         public ReplHandler getReplicatedDatabase_Fresh(string server_guid) {
@@ -48,7 +48,7 @@ namespace Bend {
             ctx.server_guid = server_guid;
             ctx.connector = connector;
 
-            return ReplHandler.InitFresh(new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db)), ctx);
+            return ReplHandler.InitFresh(new StepsStageSnapshot(new StepsStageSubset(new RecordKeyType_String(ctx.server_guid), this.db)), ctx);
         }
 
         public ReplHandler getReplicatedDatabase_Join(string new_server_guid, string join_server_guid) {
@@ -56,8 +56,10 @@ namespace Bend {
             ctx.server_guid = new_server_guid;
             ctx.connector = connector;
 
+
+
             return ReplHandler.InitJoin(
-                new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db)),
+                new StepsStageSnapshot(new StepsStageSubset(new RecordKeyType_String(ctx.server_guid), this.db)),
                 ctx,
                 join_server_guid);
         }
@@ -68,7 +70,7 @@ namespace Bend {
             ctx.connector = connector;
 
             return ReplHandler.InitResume(
-                new StepsStageSnapshot(new SubsetStage(new RecordKeyType_String(ctx.server_guid), this.db)), 
+                new StepsStageSnapshot(new StepsStageSubset(new RecordKeyType_String(ctx.server_guid), this.db)),
                 ctx);
         }
 

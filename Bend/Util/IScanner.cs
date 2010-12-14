@@ -82,6 +82,9 @@ namespace Bend
                 return highkey;
             }
         }
+        public override String ToString() {
+            return String.Format("ScanRange( {0} -> {1} )", lowkey, highkey);
+        }
     }
 
     

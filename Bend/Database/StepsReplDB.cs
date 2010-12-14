@@ -293,6 +293,22 @@ namespace Bend {
         }
 
         private void worker_fullRebuild() {
+            ReplHandler srvr;
+            // TODO: make sure servers are only listed as seeds when they are "active". 
+            try {
+                srvr = pusher.getRandomSeed();
+                // double check that we didn't get ourself, because that won't work
+                if (srvr.getServerGuid().CompareTo(this.getServerGuid()) == 0) {
+                    Console.WriteLine("******************* ERROR: getRandomSeed() returned US when we're trying to full rebuild");
+                    this.state = ReplState.error;
+                    return;
+                }
+            } catch (ReplPusher.NoServersAvailableException) {
+                Console.WriteLine("Repl({0}): fullRebuild - no servers available... return to init",
+                    ctx.server_guid);
+                this.state = ReplState.init;
+                return;
+            }
 
             // (1) clear our keyspace
 
@@ -304,12 +320,13 @@ namespace Bend {
             // TODO: how do we verify that this isn't going to lose important information?
 
             // TODO: probably should just delete/copy _data and _logs
+            //     so we don't lose our seeds and config info
             Console.WriteLine("Rebuild({0}): deleting our keys", ctx.server_guid);
             foreach (var row in this.next_stage.scanForward(ScanRange<RecordKey>.All())) {
                 this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());
             }
 
-            // (2) re-record our data-instance id
+            // (2) re-record our data-instance id, so we don't get confused
             next_stage.setValue(new RecordKey()
             .appendKeyPart("_config")
             .appendKeyPart("DATA-INSTANCE-ID"),
@@ -317,10 +334,7 @@ namespace Bend {
 
             // (3) ask for a snapshot
 
-            // TODO: make sure servers are only listed as seeds when they are "active". 
-            
-            ReplHandler srvr = pusher.getRandomSeed();
-
+            IStepsKVDB snapshot = srvr.getSnapshot();
 
             // (4) then copy the snapshot
 
@@ -328,7 +342,18 @@ namespace Bend {
             //      be sure to know whether this copy completes successfully or not.
             // TODO: probably want to record our copy-progress, so we can continue copy after
             //      restart without having to do it from scratch!! 
+            
+            // TODO: need to be able to see tombstones in this scan!! 
+            foreach (var row in snapshot.scanForward(ScanRange<RecordKey>.All())) {
+                Console.WriteLine("    + Rebuild setValue: {0}", row);
+                this.next_stage.setValue(row.Key,RecordUpdate.WithPayload(row.Value.data));
+            }
+            this.state = ReplState.init; // now we should be able to log resume!! 
+        }
 
+        public IStepsKVDB getSnapshot() {
+            Console.WriteLine("Repl({0}): getSnapshot() returning new snapshot", ctx.server_guid);
+            return this.next_stage.getSnapshot();
         }
 
         private void worker_logResume() {
@@ -341,7 +366,7 @@ namespace Bend {
             } catch (ReplPusher.NoServersAvailableException) {
                 // TODO: How will the first resume decide he is current enough to go active if there is
                 //   no Seed?
-                Console.WriteLine("Repl({0}): no servers available for log resume, waiting...",
+                Console.WriteLine("Repl({0}): no servers available for log resume...",
                     ctx.server_guid);
                 return;
             }
@@ -625,6 +650,8 @@ namespace Bend {
                 var seed_key_prefix = new RecordKey()
                     .appendKeyPart("_config")
                     .appendKeyPart("seeds");
+
+                // scan our config list of seeds
                 foreach (var row in myhandler.next_stage.scanForward(
                     new ScanRange<RecordKey>(seed_key_prefix,
                         RecordKey.AfterPrefix(seed_key_prefix), null))) {
@@ -640,10 +667,15 @@ namespace Bend {
                     if (!servers.Contains(sname))
                         try {
                             ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);
-                            this.addServer(sname);
-                            Console.WriteLine("** scan seed, server {0} pusher, added seed {1}", myhandler.ctx.server_guid,
-                                sname);
+                            // only add this as a seed if it's active! 
+                            if (srvr.state == ReplState.active) {
+                                this.addServer(sname);
+                                Console.WriteLine("** scan seed, server {0} pusher, added seed {1}", myhandler.ctx.server_guid,
+                                    sname);
+                            }
+
                         } catch (KeyNotFoundException) {
+                            // server handle not found by connector
                         }
 
                 }

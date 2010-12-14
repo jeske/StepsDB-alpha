@@ -18,15 +18,14 @@ namespace Bend {
     // 
     // TODO: change subset not to use a NESTED key, it should just use a prefix addition
 
-    class SubsetStage : IStepsKVDB {
+    class StepsStageSubset : IStepsKVDB {
         readonly IStepsKVDB next_stage;
         readonly RecordKeyType_String subset_name;
 
-        public SubsetStage(RecordKeyType_String subset_name, IStepsKVDB next_stage) {
+        public StepsStageSubset(RecordKeyType_String subset_name, IStepsKVDB next_stage) {
             this.next_stage = next_stage;
             this.subset_name = subset_name;
         }
-
 
         public void setValue(RecordKey key, RecordUpdate update) {
             // RecordKey key = key.clone();
@@ -65,16 +64,17 @@ namespace Bend {
 
         }
 
-
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner) {
             var new_scanner = new ScanRange<RecordKey>(
                 new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genLowestKeyTest()),
-                new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), null);
+                new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), 
+                null);
 
-            foreach (var rec in next_stage.scanForward(new_scanner)) {
-            
+            Console.WriteLine("subset stage scan: " + new_scanner);            
+            foreach (var rec in next_stage.scanForward(new_scanner)) {            
                 if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
-                    throw new KeyNotFoundException("SubsetStage.scanForward: no more records");
+                    // Console.WriteLine("SubsetStage.scanForward: no more records");
+                    yield break;                    
                 }                
                 RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey)rec.Key.key_parts[1];
 
@@ -88,9 +88,9 @@ namespace Bend {
                new RecordKeyComparator().appendKeyPart(this.subset_name).appendKeyPart(scanner.genHighestKeyTest()), null);
 
             foreach (var rec in next_stage.scanBackward(new_scanner)) {
-
                 if (this.subset_name.CompareTo(rec.Key.key_parts[0]) != 0) {
-                    throw new KeyNotFoundException("SubsetStage.scanBackward: no more records");
+                    // Console.WriteLine("SubsetStage.scanBackward: no more records");
+                    yield break;                    
                 }
                 RecordKeyType_RecordKey orig_key = (RecordKeyType_RecordKey)rec.Key.key_parts[1];
 
@@ -99,4 +99,58 @@ namespace Bend {
         }
     }
 
+}
+
+
+namespace BendTests {
+    using NUnit.Framework;
+    using Bend;
+
+    [TestFixture]
+    public class A04_StepsDatabase_SubsetStage {
+        [SetUp]
+        public void TestSetup() {
+        }
+
+
+        [Test]
+        public void T000_TestBasic_SubsetScanAll() {
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\subset");
+
+            var stage1 = new StepsStageSubset(new RecordKeyType_String("stage1"), db);
+            var stage2 = new StepsStageSubset(new RecordKeyType_String("stage2"), db);
+
+            string[] keys = new string[] { "1", "2", "3" };
+
+
+            foreach (var key in keys) {
+                stage1.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.WithPayload("st1 data:" + key));
+                stage2.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.WithPayload("st2 data:" + key));
+            }
+
+            // TODO: check the data contents also to make sure we actually saw the right rows
+            {
+                int count = 0;
+                foreach (var row in stage1.scanForward(ScanRange<RecordKey>.All())) {
+                    var row_key_val = ((RecordKeyType_String)row.Key.key_parts[0]).GetString();
+                    Assert.AreEqual(keys[count], row_key_val, "scan key mismatch");
+                    Console.WriteLine("scanned: " + row);
+                    count++;
+                }
+                Assert.AreEqual(keys.Length, count, "incorrect number of keys in stage1 scan");
+            }
+
+            {
+                int count = 0;
+                foreach (var row in stage2.scanForward(ScanRange<RecordKey>.All())) {
+                    var row_key_val = ((RecordKeyType_String)row.Key.key_parts[0]).GetString();
+                    Assert.AreEqual(keys[count], row_key_val, "scan key mismatch");
+                    Console.WriteLine("scanned: " + row);
+                    count++;
+                }
+                Assert.AreEqual(keys.Length, count, "incorrect number of keys in stage2 scan");
+            }
+
+        }
+    }
 }
