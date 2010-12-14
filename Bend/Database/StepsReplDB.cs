@@ -15,6 +15,10 @@ using Bend;
 // TODO: need to generate a new LOG server-guid EVERYTIME we restart a log, to be sure we don't
 //        collide with our old log.
 
+// TODO: make sure non-active servers will never respond to getServerLogStatus() requests
+
+// TODO: fix repl-full-copy so it doesn't jsut happen to work because data happens before logs in the keyspace! 
+
 /*
  * TODO: 
  * 
@@ -331,7 +335,6 @@ namespace Bend {
 
                 yield return _statusForLog(server_guid);
             }
-
         }
 
         public string getDataInstanceId() {
