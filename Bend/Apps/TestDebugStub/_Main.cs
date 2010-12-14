@@ -43,9 +43,12 @@ namespace MyTestStub {
             // testclass.T00_RecordKeyEquality();
             // testclass.T11_RecordKey_ComposableIComparableTest();
 
-            var testclass = new A02_RecordKeyType_Field();
-            testclass.T02_RecordKeyTypes_RawBytes();
+            // var testclass = new A02_RecordKeyType_Field();
+            // testclass.T02_RecordKeyTypes_RawBytes();
 
+
+            var testclass = new A04_StepsDatabase_StageSnapshot();
+            testclass.T000_TestBasic_SnapshotScanAll();
 
             // fetchHitsTest();
 

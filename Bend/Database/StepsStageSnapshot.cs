@@ -47,12 +47,11 @@ namespace Bend {
 
         #region Public IStepsKVDB interface
 
-        public void setValue(RecordKey key, RecordUpdate update) {
-            // RecordKey key = key.clone();
+        public void setValue(RecordKey key, RecordUpdate update) {            
             if (this.is_frozen) {
                 throw new Exception("snapshot not writable! " + this.frozen_at_snapshotnumber);
             }
-            // add our snapshot_number to the end of the keyspace
+            // add our snapshot_number to the end of the keyspace            
             key.appendKeyPart(new RecordKeyType_AttributeTimestamp(this.current_snapshot));
             next_stage.setValue(key, update);
         }
@@ -115,10 +114,9 @@ namespace Bend {
                 scan_enumerable = next_stage.scanBackward(scanner);
             }
 
-            foreach (KeyValuePair<RecordKey, RecordData> row in scan_enumerable) {
-                last_key = row.Key;
+            foreach (KeyValuePair<RecordKey, RecordData> row in scan_enumerable) {                
 
-#if DEBUG_SNAPSHOT_SCAN
+#if DEBUG_SNAPSHOT_SCAN || true
                 if (this.is_frozen) {
                     Console.WriteLine("Frozen Snapshot(0x{0:X}) stage saw: {1}",
                         this.frozen_at_snapshotnumber, row);
@@ -135,12 +133,16 @@ namespace Bend {
                 row.Key.key_parts.RemoveAt(row.Key.key_parts.Count - 1);
                 RecordKey clean_key = row.Key;
 
-                if (last_key != null && clean_key.CompareTo(last_key) != 0) {
+                if (last_key == null) {
+                    last_key = clean_key;
+                } else if (clean_key.CompareTo(last_key) != 0) {
                     if (max_valid_record.Key != null) {
                         yield return max_valid_record;
                         max_valid_record = new KeyValuePair<RecordKey, RecordData>(null, null);
                         max_valid_timestamp = 0;
-                    }
+                        last_key = clean_key;
+                    }   
+              
                 }
 
                 // record the current record
@@ -149,7 +151,6 @@ namespace Bend {
                     if (this.is_frozen && (cur_timestamp > this.frozen_at_snapshotnumber)) {
                         continue;
                     }
-
 
                     max_valid_timestamp = cur_timestamp;
                     max_valid_record = new KeyValuePair<RecordKey, RecordData>(clean_key, row.Value);
@@ -168,4 +169,67 @@ namespace Bend {
 
     }
 
+}
+
+
+namespace BendTests {
+    using NUnit.Framework;
+    using Bend;
+
+    [TestFixture]
+    public class A04_StepsDatabase_StageSnapshot {
+        [SetUp]
+        public void TestSetup() {
+        }
+
+        [Test]
+        public void T000_TestBasic_SnapshotScanAll() {
+
+            // TODO: right now we have to make a subset stage, because otherwise
+            //   we see the .ROOT keyspace. Perhaps we should make prefixes
+            //   an automatic part of stage instantiation!?!?
+
+            var snap_db = new StepsStageSnapshot(
+                new StepsStageSubset(
+                    new RecordKeyType_String("snapdb"),
+                    new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\snap")));
+                        
+            string[] keys = new string[] { "1/2/3", "1/3/4", "1/5/3" };
+
+            foreach (var key in keys) {
+                snap_db.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.WithPayload("snap1 data:" + key));            
+            }
+
+            // TODO: check the data contents also to make sure we actually saw the right rows
+            {
+                int count = 0;
+                foreach (var row in snap_db.scanForward(ScanRange<RecordKey>.All())) {
+                    var match_key = new RecordKey().appendParsedKey(keys[count]);
+                    Assert.True(match_key.CompareTo(row.Key) == 0, "scan key mismatch");
+                    Console.WriteLine("scanned: " + row);
+                    count++;
+                }
+                Assert.AreEqual(keys.Length, count, "incorrect number of keys in stage1 scan");
+            }
+
+            var snap1 = snap_db.getSnapshot();
+
+            foreach (var key in keys) {
+                var newkey = new RecordKey().appendParsedKey(key).appendParsedKey("snap2");
+                snap_db.setValue(newkey, RecordUpdate.WithPayload("snap2 data:" + key));
+            }
+
+            {
+                int count = 0;
+                foreach (var row in snap1.scanForward(ScanRange<RecordKey>.All())) {
+                    var match_key = new RecordKey().appendParsedKey(keys[count]);
+                    Assert.True(match_key.CompareTo(row.Key) == 0, "scan key mismatch");
+                    Console.WriteLine("scanned: " + row);
+                    count++;
+                }
+                Assert.AreEqual(keys.Length, count, "incorrect number of keys in snap scan");
+            }
+
+        }
+    }
 }

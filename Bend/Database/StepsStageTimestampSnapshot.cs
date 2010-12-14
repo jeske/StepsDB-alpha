@@ -106,9 +106,7 @@ namespace Bend {
                 scan_enumerable = next_stage.scanBackward(scanner);
             }
 
-            foreach (KeyValuePair<RecordKey, RecordData> row in scan_enumerable) {
-                last_key = row.Key;
-
+            foreach (KeyValuePair<RecordKey, RecordData> row in scan_enumerable) {                
                 if (this.is_frozen) {
                     Console.WriteLine("Frozen Snapshot({0}) stage saw: {1}",
                         this.frozen_at_timestamp, row);
@@ -124,12 +122,15 @@ namespace Bend {
                 row.Key.key_parts.RemoveAt(row.Key.key_parts.Count - 1);
                 RecordKey clean_key = row.Key;
 
-                if (last_key != null && clean_key.CompareTo(last_key) != 0) {
+                if (last_key == null) {
+                    last_key = clean_key;
+                } else if (clean_key.CompareTo(last_key) != 0) {                    
                     if (max_valid_record.Key != null) {
                         yield return max_valid_record;
                         max_valid_record = new KeyValuePair<RecordKey, RecordData>(null, null);
                         max_valid_timestamp = 0;
-                    }
+                        last_key = clean_key;                      
+                    }                    
                 }
 
                 // record the current record

@@ -324,6 +324,7 @@ namespace Bend {
             Console.WriteLine("Rebuild({0}): deleting our keys", ctx.server_guid);
             foreach (var row in this.next_stage.scanForward(ScanRange<RecordKey>.All())) {
                 this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());
+                Console.WriteLine("   Rebuild({0}): deleting {1}", ctx.server_guid, row);
             }
 
             // (2) re-record our data-instance id, so we don't get confused

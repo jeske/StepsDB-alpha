@@ -107,7 +107,7 @@ namespace BendTests {
     using Bend;
 
     [TestFixture]
-    public class A04_StepsDatabase_SubsetStage {
+    public class A04_StepsDatabase_StageSubset {
         [SetUp]
         public void TestSetup() {
         }
@@ -120,8 +120,7 @@ namespace BendTests {
             var stage1 = new StepsStageSubset(new RecordKeyType_String("stage1"), db);
             var stage2 = new StepsStageSubset(new RecordKeyType_String("stage2"), db);
 
-            string[] keys = new string[] { "1", "2", "3" };
-
+            string[] keys = new string[] { "1/2/3", "1/3/4", "1/5/3" };
 
             foreach (var key in keys) {
                 stage1.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.WithPayload("st1 data:" + key));
@@ -132,8 +131,8 @@ namespace BendTests {
             {
                 int count = 0;
                 foreach (var row in stage1.scanForward(ScanRange<RecordKey>.All())) {
-                    var row_key_val = ((RecordKeyType_String)row.Key.key_parts[0]).GetString();
-                    Assert.AreEqual(keys[count], row_key_val, "scan key mismatch");
+                    var match_key = new RecordKey().appendParsedKey(keys[count]);
+                    Assert.True(match_key.CompareTo(row.Key) == 0, "scan key mismatch");
                     Console.WriteLine("scanned: " + row);
                     count++;
                 }
@@ -143,8 +142,8 @@ namespace BendTests {
             {
                 int count = 0;
                 foreach (var row in stage2.scanForward(ScanRange<RecordKey>.All())) {
-                    var row_key_val = ((RecordKeyType_String)row.Key.key_parts[0]).GetString();
-                    Assert.AreEqual(keys[count], row_key_val, "scan key mismatch");
+                    var match_key = new RecordKey().appendParsedKey(keys[count]);
+                    Assert.True(match_key.CompareTo(row.Key) == 0, "scan key mismatch");
                     Console.WriteLine("scanned: " + row);
                     count++;
                 }
