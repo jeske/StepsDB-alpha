@@ -78,6 +78,17 @@ ideas how to improve this:
 (2) prefix-key-removal outside block handler.... I want to make sortedsegment try to create blocks that have the same prefix, and thus don't need to know the prefix. This way, searches/scans within the block will only need to decode the unique-keyparts inside that block. They won't need to even touch the prefix keyparts which are all the same. For keys like "zindex/WORD/DOCID", this should make scanning about 6x faster, because it won't need to do decoding or object allocation for the "zindex/WORD" part for every hit, only the "DOCID". 
 
 (3) eliminate deep virtual method call wind/unwind for every hit. Right now the bottom level produces a hit, and the top level decides if it is "big enough" for every hit. This is about 5 levels of virtual method calls. I can eliminate this by having search implement a "match spec" that it hands down into the iteration.. so the bottom level can just call the matcher to check entries. 
+
+-------------------[  IDL solutions ]----------------------------
+
+1) write a parser generator that spits out XML or HDF
+2) use a templating technology like XSLT or Clearsilver to produce per-language stubs 
+   instead of impossible to read C++/Java code..
+
+* consider using grammatica
+
+   http://grammatica.percederberg.net/doc/index.html
+
                              
 -------------------[  ideas ]----------------------------
 

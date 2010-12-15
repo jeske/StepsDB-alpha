@@ -9,5 +9,7 @@ Misc/LuceneTest/*/bin/*
 Misc/LuceneTest/*/obj/*
 Misc/MongodbTest/bin/*
 Misc/MongodbTest/obj/*
+Misc/ThriftTest/*/*/obj/*
+Misc/ThriftTest/*/*/bin/*
 *.suo
 *.user
