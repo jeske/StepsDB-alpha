@@ -708,6 +708,8 @@ namespace Bend
                 highestKeyTest = new ScanRange<RecordKey>.maxKey();
             }
 
+            // TODO: introduce a data-prefix to prevent callers from seeing the ".ROOT" data.
+
             return rangemapmgr.getRecord_LowLevel_Cursor(
                 lowestKeyTest,
                 highestKeyTest,
