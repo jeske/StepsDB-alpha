@@ -47,8 +47,11 @@ namespace Bend
     // TODO: consider what this class is for long term. Right now it's just a needless wrapper
     //  around IScannableDictionary. However, we intend at some point for it to collect
     //  statistics which can help us predict which segment/block choices to make when we
-    //  write out the segment.    
+    //  write out the segment.  
     //
+    // TODO: this should probably be responsible for doing "merges" of record updates into
+    //     an existing record, if the same key already exists.
+    //   
     // Long term, we might want to have a prefix-compressed in-memory format. The current
     // format bloats when we have lots of very big keys.
 
