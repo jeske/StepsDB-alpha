@@ -37,6 +37,9 @@
     <Reference Include="Bend">
       <HintPath>..\..\obj\Release\Bend.dll</HintPath>
     </Reference>
+    <Reference Include="ICSharpCode.SharpZipLib">
+      <HintPath>..\..\..\ThirdParty\Lib\ICSharpCode.SharpZipLib.dll</HintPath>
+    </Reference>
     <Reference Include="nunit.framework, Version=2.5.9.10320, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\ThirdParty\NUnit\nunit.framework.dll</HintPath>
