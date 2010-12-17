@@ -130,7 +130,7 @@ namespace BendTests
         long TEST_BLOCK_LENGTH = 1 * 1024 * 1024; // 1MB
 
         [Test]
-        public void T00_SegmentIndex_EncodeDecode() {
+        public void T00_SegmentIndex_IndividualBlock_EncodeDecode() {
             string[] block_start_keys = { "test/1/2/3/4", "test/1/2/3/5" };
             int[] block_start_pos = { 0, 51 };
             int[] block_end_pos = { 50, 190 };
@@ -167,6 +167,68 @@ namespace BendTests
             }
 
         }
+
+
+        [Test]
+        public void T01_SortedSegment_ScanTest() {
+
+            // we need a: IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> 
+            var input_records = new BDSkipList<RecordKey, RecordUpdate>();
+            string[] keys = { "a/b/c/d", "b/c/d/e" };
+
+            var region_mgr = new RegionExposedFiles(InitMode.NEW_REGION,@"C:\BENDtst\SSScanTest");
+            IRegion region_reader = null;
+
+            int region_address = 1;
+
+            foreach (var key in keys) {
+                input_records.Add(new RecordKey().appendParsedKey(key), RecordUpdate.WithPayload("data:" + key));
+            }
+
+            // (1) OPEN A SEGMENT WRITER
+
+            SegmentWriter segmentWriter = new SegmentWriter(input_records);
+
+            while (segmentWriter.hasMoreData()) {
+                // if (region_address != 0) {
+                //     Assert.Fail("the keys didn't fit into a single segment, UGH!");
+                // }
+                DateTime start = DateTime.Now;
+                // allocate new segment address from freespace
+                IRegion writer = region_mgr.writeFreshRegionAddr(region_address++, 512 * 1024);                
+                Stream wstream = writer.getNewAccessStream();
+                SegmentWriter.WriteInfo wi = segmentWriter.writeToStream(wstream);
+
+                wstream.Flush();  // TODO: flush at the end of all segment writing, not for each one
+                wstream.Close();
+                writer.Dispose(); // make sure the region closes
+
+                double elapsed = (DateTime.Now - start).TotalSeconds;
+                Console.WriteLine("segmentWritten with {0} keys in {1} seconds {2} keys/second",
+                    wi.key_count, elapsed, (double)wi.key_count / elapsed);
+
+                // reopen the segment for reading
+                region_reader = region_mgr.readRegionAddrNonExcl(writer.getStartAddress());                
+            }
+
+            Assert.IsNotNull(region_reader, "UGH, region reader is null!");
+
+            // (2) OPEN A SEGMENT READER
+            var seg_reader = new SegmentReader(region_reader);
+
+            int count = 0;
+            foreach (var row in seg_reader.scanForward(ScanRange<RecordKey>.All())) {                
+                Console.WriteLine("rec : " + row);                
+                Assert.True(
+                    row.Key.CompareTo(new RecordKey().appendParsedKey(keys[count++])) == 0,
+                    "record key did not match");
+            }
+            Assert.AreEqual(keys.Length,count,"wrong number of records scanned");
+
+        }
+
+
+
         [Test]
         public void T02_BuilderReader() {
             byte[] databuffer;
@@ -277,6 +339,8 @@ namespace BendTests
             }
 
         }
+
+        
 
         public void T03_RangeScan_Helper(ISortedSegment segbase,PipeStagePartition p, int records_written, string title) {
             IScannable<RecordKey, RecordUpdate> segment = (IScannable<RecordKey, RecordUpdate>)segbase;

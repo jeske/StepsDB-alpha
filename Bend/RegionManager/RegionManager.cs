@@ -199,7 +199,7 @@ namespace Bend
                 throw new Exception("first time init needs NEW_REGION paramater");
             }
             if (!Directory.Exists(dir_path)) {
-                Console.WriteLine("LayerManager, creating directory: " + dir_path);
+                Console.WriteLine("RegionExposedFiles, creating directory: " + dir_path);
                 Directory.CreateDirectory(dir_path);
             }
         }
