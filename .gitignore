@@ -5,11 +5,11 @@ Bend/Apps/*/obj/*
 Bend/Apps/*/bin/*
 Bend/ThirdParty/*/obj/*
 Bend/ThirdParty/*/bin/*
-Misc/LuceneTest/*/bin/*
-Misc/LuceneTest/*/obj/*
-Misc/MongodbTest/bin/*
-Misc/MongodbTest/obj/*
-Misc/ThriftTest/*/*/obj/*
-Misc/ThriftTest/*/*/bin/*
+Misc/*/obj/*
+Misc/*/bin/*
+Misc/*/*/obj/*
+Misc/*/*/bin/*
+Misc/*/*/*/obj/*
+Misc/*/*/*/bin/*
 *.suo
 *.user
