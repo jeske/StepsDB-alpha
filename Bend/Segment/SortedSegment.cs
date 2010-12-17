@@ -306,6 +306,34 @@ namespace Bend
             return decoder.FindPrev(keytest, equal_ok);
         }
 
+
+        private IEnumerable<_SegBlock> _scanRangePointerFor(
+            IScannableDictionary<RecordKey, _SegBlock> _blocks,
+            IScanner<RecordKey> scanner) {
+            IComparable<RecordKey> lowestKeyTest = null;
+            IComparable<RecordKey> highestKeyTest = null;
+            if (scanner != null) {
+                lowestKeyTest = scanner.genLowestKeyTest();
+                highestKeyTest = scanner.genHighestKeyTest();
+            }
+
+            KeyValuePair<RecordKey, _SegBlock> cur = new KeyValuePair<RecordKey,_SegBlock>(null,null);
+            var keystart = lowestKeyTest;
+
+            try {
+                cur = _blocks.FindPrev(keystart, true);                
+            } catch (KeyNotFoundException) {
+            }
+            if (cur.Key != null) {
+                yield return cur.Value;
+            }
+
+            foreach (var idx_entry in _blocks.scanForward(scanner)) {
+                yield return idx_entry.Value;
+            }
+        }
+            
+
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanForward(IScanner<RecordKey> scanner) {
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
@@ -313,28 +341,20 @@ namespace Bend
                 lowestKeyTest = scanner.genLowestKeyTest();
                 highestKeyTest = scanner.genHighestKeyTest();
             }
+
             
-            KeyValuePair<RecordKey, RecordUpdate> cursor;
-            try {
-                cursor = FindNext(lowestKeyTest, true);
-            } catch (KeyNotFoundException) {
-                yield break;
+
+            if (blocks.Count == 0) {
+                System.Console.WriteLine("index has no blocks!");
+                throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindNext");
             }
 
-            while (true) {
-                if (highestKeyTest.CompareTo(cursor.Key) >= 0) {
-                    yield return cursor;
-                } else {
-                    yield break;
+            foreach (var block_ptr in _scanRangePointerFor(blocks,scanner)) {
+                ISegmentBlockDecoder decoder = openBlock(block_ptr);
+                foreach (var rec in decoder.scanForward(scanner)) {
+                    yield return rec;
                 }
-
-                try {
-                    cursor = FindNext(cursor.Key, false);
-                } catch (KeyNotFoundException) {
-                    yield break;
-                }
-            }
-               
+            }               
         }
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> scanBackward(IScanner<RecordKey> scanner) {
