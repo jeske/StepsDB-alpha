@@ -16,7 +16,7 @@ namespace RemotingTest1Srv {
         string doSomething(string test);        
     }
 
-    public class MyServer : MarshalByRefObject, IServer  {
+    public class MyServer : IServer  {
         public string doSomething(string test) {
             Console.WriteLine("Server received: {0}", test);
             return String.Format("Server did: {0}", test);
@@ -30,7 +30,7 @@ namespace RemotingTest1Srv {
             ChannelServices.RegisterChannel(serverChannel);
             RemotingConfiguration.ApplicationName = "TestServer";
             RemotingConfiguration.RegisterWellKnownServiceType(
-                typeof(MyServer), "MyServerUri", WellKnownObjectMode.SingleCall);
+                typeof(IServer), "MyServerUri", WellKnownObjectMode.SingleCall);
 
             // Parse the channel's URI.
             string[] urls = serverChannel.GetUrlsForUri("MyServerUri");
