@@ -15,7 +15,8 @@ public class CSTest {
       CSTContext cs = new CSTContext(h);
       
       Console.WriteLine("parsing file");
-      cs.parseFile("test.cst");
+      // cs.parseFile("test.cst");
+      cs.parseString(" foo.1 = <?cs var:foo.1 ?> ");
 
       Console.WriteLine("render file");
       Console.WriteLine(cs.render());

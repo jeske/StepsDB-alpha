@@ -2,15 +2,21 @@
 using System;
 using System.Runtime.InteropServices;
 
+
+
+
+// PInvoke Tutorial
+// http://msdn.microsoft.com/en-us/library/aa288468(v=vs.71).aspx
+
 namespace Clearsilver {
 
 // opaque types
 internal unsafe struct HDF {};
-internal unsafe struct NEOERR {};
 internal unsafe struct STRING {};
+internal unsafe struct NEOERR {};
 
 
-public unsafe class Hdf {
+public unsafe class Hdf : IDisposable {
 
   [DllImport("libneo", EntryPoint="hdf_init")]
   private static extern unsafe NEOERR* hdf_init(HDF **foo);
@@ -71,6 +77,7 @@ public unsafe class Hdf {
         return value;
     }
 
+#if false
     public void test() {
        hdf_set_value(hdf_root,"b","1");
        // hdf_read_file(hdf_root,"test.hdf");
@@ -81,12 +88,26 @@ public unsafe class Hdf {
        // Console.WriteLine("object name {0}", 
        // Marshal.PtrToStringAnsi((IntPtr)n->name));
     }
+#endif
+
+    // cleanup the unmanaged data when we are freed
+    [DllImport("libneo")]
+    extern static unsafe void hdf_destroy(HDF** hdf);
+    private unsafe void hdfDestroy() {
+        fixed (HDF** phdf = &hdf_root) {
+            hdf_destroy(phdf);
+        }
+    }
+
+    public void Dispose() {
+        this.hdfDestroy();
+    }
 
 };
 
 unsafe struct CSPARSE {};
 
-public class CSTContext {
+public class CSTContext : IDisposable {
    unsafe CSPARSE *csp;
    unsafe public CSTContext(Hdf hdf) {
      fixed (CSPARSE **csp_ptr = &csp) {
@@ -98,7 +119,7 @@ public class CSTContext {
    extern static unsafe NEOERR *cs_init (CSPARSE **parse, HDF *hdf);
 
    public unsafe void parseFile(string filename) {
-      cs_parse_file(csp,filename);
+       NeoErr.hNE(cs_parse_file(csp, filename));
    }
 
    [DllImport("libneo")]
@@ -106,11 +127,15 @@ public class CSTContext {
        [MarshalAs(UnmanagedType.LPStr)] 
        string path);
 
-//   [DllImport("libneo")]
-//   extern static unsafe NEOERR *cs_parse_string (CSPARSE *parse, 
-//                    char *buf, 
-//                    size_t blen);
+   [DllImport("libneo")]
+   extern static unsafe NEOERR *cs_parse_string (CSPARSE *parse,
+       [MarshalAs(UnmanagedType.LPStr)] 
+                    string buffer, 
+                    int buf_len);
 
+   public unsafe void parseString(string data) {
+       NeoErr.hNE(cs_parse_string(csp, data, data.Length));
+   }
 
    //  NEOERR *cs_render (CSPARSE *parse, void *ctx, CSOUTFUNC cb);
    //  typedef NEOERR* (*CSOUTFUNC)(void *ctx, char *more_str_bytes);
@@ -121,16 +146,25 @@ public class CSTContext {
            [MarshalAs(UnmanagedType.FunctionPtr)]
            CSOUTFUNC cb);
 
-   private unsafe delegate NEOERR* CSOUTFUNC(void* ctx, sbyte* more_bytes);
+   // http://www.gamedev.net/community/forums/topic.asp?topic_id=270670
+
+
+   [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+   private unsafe delegate NEOERR* CSOUTFUNC(void* ctx, STRING* more_bytes);
 
    private class OutputBuilder {
       private string output = "";
-      public unsafe NEOERR* handleOutput(void* ctx, sbyte* more_bytes) {
+       
+      public unsafe NEOERR* handleOutput(void* ctx, STRING* more_bytes) {
            // add the more_bytes to the current string buffer
+          Console.WriteLine("handleOutput called {0:X} {1:X}", (IntPtr)ctx, (IntPtr)more_bytes);
 
-           output += new String(more_bytes);
-           // Console.WriteLine("handleOutput called");
-           return null;
+          string data = Marshal.PtrToStringAnsi((IntPtr)more_bytes);
+          Console.WriteLine("data: " + data);
+
+          output += data;
+           
+          return null;
       }
       public string result() {
          return output;
@@ -138,15 +172,23 @@ public class CSTContext {
    }
 
    public unsafe string render() {
-     OutputBuilder ob = new OutputBuilder();
-     cs_render(csp,null,new CSOUTFUNC(ob.handleOutput));
+     OutputBuilder ob = new OutputBuilder();      
+     NeoErr.hNE(cs_render(csp, null, 
+       new CSOUTFUNC(ob.handleOutput)));
      return ob.result();
    }
 
-
    [DllImport("libneo")]
    extern static unsafe void cs_destroy (CSPARSE **parse);
+   private unsafe void csDestroy() {
+       fixed (CSPARSE **pcsp = &csp) {
+           cs_destroy(pcsp);
+       }
+   }
 
+   public void Dispose() {
+       this.csDestroy();
+   }
 };
 
 
