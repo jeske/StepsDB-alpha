@@ -5,8 +5,10 @@ using System.Runtime.InteropServices;
 namespace Clearsilver {
 
 // opaque types
-public unsafe struct HDF {};
-public unsafe struct NEOERR {};
+internal unsafe struct HDF {};
+internal unsafe struct NEOERR {};
+internal unsafe struct STRING {};
+
 
 public unsafe class Hdf {
 
@@ -24,8 +26,8 @@ public unsafe class Hdf {
   // char* hdf_get_value (HDF *hdf, char *name, char *defval)
 
   [DllImport("libneo")]
-  [return: MarshalAs(UnmanagedType.LPStr)] 
-  private static unsafe extern string hdf_get_value(HDF *hdf,
+  // [return: MarshalAs(UnmanagedType.LPStr)] 
+  private static unsafe extern STRING* hdf_get_value(HDF *hdf,
        [MarshalAs(UnmanagedType.LPStr)] 
         string name,
        [MarshalAs(UnmanagedType.LPStr)] 
@@ -50,21 +52,23 @@ public unsafe class Hdf {
 
   // -----------------------------------------------------------
 
-    public HDF *hdf_root;
+    internal unsafe HDF *hdf_root;
 
     public Hdf() {
-      fixed (HDF **hdf_ptr = &hdf_root) {
-	hdf_init(hdf_ptr);
+      fixed (HDF **hdf_ptr = &hdf_root) {          
+	        hdf_init(hdf_ptr);            
       }
       // Console.WriteLine((int)hdf_root);
     }
 
-    public void setValue(string name,string value) {
-         hdf_set_value(hdf_root,name,value);
-         
+    public void setValue(string name,string value) {        
+         hdf_set_value(hdf_root,name,value);         
     }
-    public string getValue(string name,string defvalue) {
-         return hdf_get_value(hdf_root,name,defvalue);
+    public string getValue(string name,string defvalue) {        
+        STRING *x = hdf_get_value(hdf_root,name,defvalue);
+        // this allows us to marshall out the string value without freeing it
+        string value = Marshal.PtrToStringAnsi((IntPtr)x);        
+        return value;
     }
 
     public void test() {

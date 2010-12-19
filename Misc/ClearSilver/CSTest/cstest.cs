@@ -13,9 +13,12 @@ public class CSTest {
       Console.WriteLine("foo.2 = {0}", h.getValue("foo.2","def"));
 
       CSTContext cs = new CSTContext(h);
-//      cs.parseFile("test.cst");
-      Console.WriteLine(cs.render());
       
+      Console.WriteLine("parsing file");
+      cs.parseFile("test.cst");
+
+      Console.WriteLine("render file");
+      Console.WriteLine(cs.render());
       return 0;
    }
   
