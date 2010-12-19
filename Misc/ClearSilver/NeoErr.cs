@@ -7,7 +7,9 @@ using System.Text;
 // http://msdn.microsoft.com/en-us/library/aa288468(v=vs.71).aspx
 
 namespace Clearsilver {
-
+    // opaque types
+    internal unsafe struct STR { };
+    internal unsafe struct NEOERR { };
 
     // from Clearsilver neo_err.h
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet=CharSet.Ansi)]
@@ -76,7 +78,7 @@ namespace Clearsilver {
             string msg_tb = null;
             STRING neo_string;
             try {            
-             buf = Marshal.AllocHGlobal(8000);
+             buf = Marshal.AllocHGlobal(8000);             
              Marshal.Copy(empty_string, 0, buf, 1);
              neo_string.buf = (STR *)buf;
              neo_string.len = 0;

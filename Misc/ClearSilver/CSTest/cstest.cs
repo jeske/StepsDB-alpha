@@ -7,6 +7,7 @@ using Clearsilver;
 public class CSTest {
 
    public static byte[] loadFileHandler(Hdf hdf, string fname) {
+       Console.WriteLine("my load file handler for: " + fname);
        return File.ReadAllBytes(fname);      
    }
    public static int Main(string[] argv) {
@@ -15,6 +16,11 @@ public class CSTest {
 
       h.setValue("foo.1","1");
       h.setValue("foo.2","2");
+
+      h.registerFileLoad(new Hdf.loadFileDelegate(loadFileHandler));
+
+      h.readFile("test.hdf");
+
       Console.WriteLine("foo.2 = {0}", h.getValue("foo.2","def"));
 
       CSTContext cs = new CSTContext(h);
