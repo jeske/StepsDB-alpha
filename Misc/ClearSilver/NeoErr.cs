@@ -30,7 +30,15 @@ namespace Clearsilver {
         public int len;
         public int max;
     }
-
+    public class NeoException : Exception {
+        public string reason;
+        public string full_traceback;
+        public NeoException(string r, string tb)
+            : base(r) {
+                this.reason = r;
+                this.full_traceback = tb;
+        }
+    }
 
     internal class NeoErr {
 
@@ -44,9 +52,18 @@ namespace Clearsilver {
         [DllImport("libneo")]
         private static unsafe extern void nerr_error_traceback(NEOERR* err, STRING* info);
 
+        [DllImport("libneo")]
+        private static unsafe extern NEOERR* nerr_raisef(string func, string file, int lineno, int error,
+            string format); // this is really a varargs function!
+
+
         // this free's the error chain
         [DllImport("libneo")]
         private static unsafe extern void nerr_ignore(NEOERR** err);
+
+        internal unsafe static NEOERR* nERR(string error_reason) {
+            return nerr_raisef("", "", 0, 0, error_reason);
+        }
 
         internal unsafe static void hNE(NEOERR* err) {
             if ((IntPtr)err == (IntPtr)0) {
@@ -56,17 +73,24 @@ namespace Clearsilver {
             IntPtr buf = (IntPtr)0;
             byte[] empty_string = new byte[]{ 0 };
             string msg = null;
+            string msg_tb = null;
             STRING neo_string;
             try {            
-             buf = Marshal.AllocHGlobal(4000);
+             buf = Marshal.AllocHGlobal(8000);
              Marshal.Copy(empty_string, 0, buf, 1);
              neo_string.buf = (STR *)buf;
              neo_string.len = 0;
-             neo_string.max = 4000;
+             neo_string.max = 8000;
 
-             // nerr_error_traceback(err, &neo_string);
+             // get the error string
              nerr_error_string(err, &neo_string);
              msg = Marshal.PtrToStringAnsi(buf);
+
+             // get the full traceback string
+             Marshal.Copy(empty_string, 0, buf, 1);
+             neo_string.len = 0;
+             nerr_error_traceback(err, &neo_string);
+             msg_tb = Marshal.PtrToStringAnsi(buf);
             } finally {
                 if (buf != (IntPtr)0) {
                     Marshal.FreeHGlobal(buf);
@@ -83,7 +107,7 @@ namespace Clearsilver {
             nerr_ignore(&err);          
 
             // throw a real exception
-            throw new Exception(reason);                
+            throw new NeoException(reason,msg_tb); 
         }
     }
 

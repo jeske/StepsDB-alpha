@@ -24,36 +24,30 @@ public unsafe class Hdf : IDisposable {
   // NEOERR* hdf_set_value (HDF *hdf, char *name, char *value)
   [DllImport("libneo")]
   private static unsafe extern NEOERR* hdf_set_value(HDF *hdf,
-       [MarshalAs(UnmanagedType.LPStr)] 
-        string name,
-       [MarshalAs(UnmanagedType.LPStr)] 
-        string value);
+       [MarshalAs(UnmanagedType.LPStr)] string name,
+       [MarshalAs(UnmanagedType.LPStr)] string value);
 
   // char* hdf_get_value (HDF *hdf, char *name, char *defval)
 
   [DllImport("libneo")]
   // [return: MarshalAs(UnmanagedType.LPStr)] 
   private static unsafe extern STR* hdf_get_value(HDF *hdf,
-       [MarshalAs(UnmanagedType.LPStr)] 
-        string name,
-       [MarshalAs(UnmanagedType.LPStr)] 
-        string defval);
+       [MarshalAs(UnmanagedType.LPStr)] string name,
+       [MarshalAs(UnmanagedType.LPStr)] string defval);
 
   // NEOERR* hdf_dump (HDF *hdf, char *prefix);
 
   [DllImport("libneo", EntryPoint="hdf_dump")]
-  private static extern void hdf_dump(
-       HDF *hdf,
-       [MarshalAs(UnmanagedType.LPStr)]
-         string prefix);
+  private static extern void hdf_dump( HDF *hdf, [MarshalAs(UnmanagedType.LPStr)] string prefix);
 
   // HDF* hdf_get_obj (HDF *hdf, char *name)
 
   [DllImport("libneo", EntryPoint="hdf_get_obj")]
-  private static extern HDF* hdf_get_obj(
-     HDF *hdf, 
-       [MarshalAs(UnmanagedType.LPStr)]
-     string name);
+  private static extern HDF* hdf_get_obj(HDF *hdf,  [MarshalAs(UnmanagedType.LPStr)] string name);
+
+  [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+  private unsafe delegate NEOERR* HDFFILELOAD(void* ctx, HDF* hdf, STR* filename, STR **contents);
+  // contents is a malloced copy of the file which the parser will own and free
 
 
   // -----------------------------------------------------------
@@ -65,7 +59,12 @@ public unsafe class Hdf : IDisposable {
 	        hdf_init(hdf_ptr);            
       }
 
-      Console.WriteLine("Hdf.Hdf() hdf_root = {0}",(int)hdf_root);
+      // Console.WriteLine("Hdf.Hdf() hdf_root = {0}",(int)hdf_root);
+    }
+
+    // this is used by callbacks and other elements that get an HDF pointer
+    internal unsafe Hdf(HDF* from_hdf) {
+        hdf_root = from_hdf;
     }
 
     public void setValue(string name,string value) {        
@@ -114,7 +113,7 @@ public class CSTContext : IDisposable {
      fixed (CSPARSE **csp_ptr = &csp) {
        cs_init(csp_ptr, hdf.hdf_root);       
      }
-     Console.WriteLine("CSt.Cst() hdf_root = {0}", (int)hdf.hdf_root);
+     // Console.WriteLine("CSt.Cst() hdf_root = {0}", (int)hdf.hdf_root);
    } 
 
    [DllImport("libneo")]
@@ -143,28 +142,35 @@ public class CSTContext : IDisposable {
    //  typedef NEOERR* (*CSOUTFUNC)(void *ctx, char *more_str_bytes);
 
    [DllImport("libneo")]
-   extern static unsafe NEOERR *cs_render (CSPARSE *parse, 
-           void *ctx, 
-           [MarshalAs(UnmanagedType.FunctionPtr)]
-           CSOUTFUNC cb);
+   extern static unsafe NEOERR *cs_render (CSPARSE *parse, void *ctx, 
+           [MarshalAs(UnmanagedType.FunctionPtr)] CSOUTFUNC cb);
 
+   // about calling convention Cdecl
    // http://www.gamedev.net/community/forums/topic.asp?topic_id=270670
-
 
    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
    private unsafe delegate NEOERR* CSOUTFUNC(void* ctx, STR* more_bytes);
+
+   // about GCHandle and pinning delegates
+   // http://blogs.msdn.com/b/cbrumme/archive/2003/05/06/51385.aspx
+
+   [DllImport("libneo")]
+   extern static unsafe void cs_register_fileload(CSPARSE* csp, void* ctx,
+           [MarshalAs(UnmanagedType.FunctionPtr)] CSFILELOAD cb);
+
+   [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+   private unsafe delegate NEOERR* CSFILELOAD(void* ctx, HDF* hdf, STR* filename, STR** contents);
+   // contents is a malloced copy of the file which clearsilver will own and free
 
    private class OutputBuilder {
       private string output = "";
        
       public unsafe NEOERR* handleOutput(void* ctx, STR* more_bytes) {
            // add the more_bytes to the current string buffer
-          Console.WriteLine("handleOutput called {0:X} {1:X}", (IntPtr)ctx, (IntPtr)more_bytes);
-          
+          // Console.WriteLine("handleOutput called {0:X} {1:X}", (IntPtr)ctx, (IntPtr)more_bytes);          
           string data = Marshal.PtrToStringAnsi((IntPtr)more_bytes);
-          Console.WriteLine("datalen = {0}", data.Length);
-          Console.WriteLine("data: " + data);
-
+          // Console.WriteLine("datalen = {0}", data.Length);
+          // Console.WriteLine("data: " + data);
           output += data;
            
           return null;
@@ -172,6 +178,47 @@ public class CSTContext : IDisposable {
       public string result() {
          return output;
       }
+   }
+
+   public delegate byte[] loadFileDelegate(Hdf hdf, string filename);
+   loadFileDelegate cur_delegate;
+   unsafe CSFILELOAD thunk_delegate;  // we have to hold onto the delegate to make sure the pinned thunk sticks around
+   private unsafe NEOERR* csFileLoad(void* ctx, HDF* raw_hdf, STR* pFilename, STR** contents) {
+       // Console.WriteLine("csFileLoad delegate called");
+       IntPtr buf = IntPtr.Zero;
+       try {
+           Hdf hdf = new Hdf(raw_hdf);
+           string filename = Marshal.PtrToStringAnsi((IntPtr)pFilename);
+           byte[] data = cur_delegate(hdf, filename);
+           byte[] end_null = new byte[] { 0 };
+           buf = Marshal.AllocHGlobal(data.Length + 1); // +1 so we can force a null terminate
+           Marshal.Copy(data, 0, buf, data.Length);
+           Marshal.Copy(end_null, 0, buf + data.Length, 1); // write the end_null
+           *contents = (STR*)buf;
+       } catch (Exception e) {
+           // Console.WriteLine("csFileLoad Thunk Exception + " + e);
+           // should return a neo error
+           if (buf != IntPtr.Zero) {
+               Marshal.FreeHGlobal(buf);
+           }
+           return NeoErr.nERR(e.ToString());
+       } 
+       return (NEOERR*) IntPtr.Zero;
+   }
+
+   public unsafe void registerFileLoad(loadFileDelegate fn) {
+       if (fn != null) {
+           // set the fileload handler
+           cur_delegate = fn;
+           thunk_delegate = new CSFILELOAD(csFileLoad);
+
+           cs_register_fileload(csp, null, thunk_delegate);
+       } else {
+           // clear the fileload handler
+           cs_register_fileload(csp, null, null);
+           cur_delegate = null;
+           thunk_delegate = null;
+       }
    }
 
    public unsafe string render() {

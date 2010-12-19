@@ -1,9 +1,14 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 using Clearsilver;
 
 public class CSTest {
+
+   public static byte[] loadFileHandler(Hdf hdf, string fname) {
+       return File.ReadAllBytes(fname);      
+   }
    public static int Main(string[] argv) {
      
       Hdf h = new Hdf();
@@ -16,7 +21,13 @@ public class CSTest {
       
       Console.WriteLine("parsing file");
       h.setValue("hdf.loadpaths.0", ".");
-      cs.parseFile("test.cst");
+      cs.registerFileLoad(new CSTContext.loadFileDelegate(loadFileHandler));
+      try {
+          cs.parseFile("test.cst");
+      } catch (NeoException e) {
+          Console.WriteLine("error: {0}", e.reason);
+          Console.WriteLine("tb: {0}", e.full_traceback);
+      }
 
       // cs.parseString(" foo.1 = <?cs var:foo.1 ?> ");
       // cs.parseString("this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ .");
