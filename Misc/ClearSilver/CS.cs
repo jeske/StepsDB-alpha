@@ -12,7 +12,7 @@ namespace Clearsilver {
 
 // opaque types
 internal unsafe struct HDF {};
-internal unsafe struct STRING {};
+internal unsafe struct STR {};
 internal unsafe struct NEOERR {};
 
 
@@ -33,7 +33,7 @@ public unsafe class Hdf : IDisposable {
 
   [DllImport("libneo")]
   // [return: MarshalAs(UnmanagedType.LPStr)] 
-  private static unsafe extern STRING* hdf_get_value(HDF *hdf,
+  private static unsafe extern STR* hdf_get_value(HDF *hdf,
        [MarshalAs(UnmanagedType.LPStr)] 
         string name,
        [MarshalAs(UnmanagedType.LPStr)] 
@@ -64,14 +64,15 @@ public unsafe class Hdf : IDisposable {
       fixed (HDF **hdf_ptr = &hdf_root) {          
 	        hdf_init(hdf_ptr);            
       }
-      // Console.WriteLine((int)hdf_root);
+
+      Console.WriteLine("Hdf.Hdf() hdf_root = {0}",(int)hdf_root);
     }
 
     public void setValue(string name,string value) {        
          hdf_set_value(hdf_root,name,value);         
     }
     public string getValue(string name,string defvalue) {        
-        STRING *x = hdf_get_value(hdf_root,name,defvalue);
+        STR *x = hdf_get_value(hdf_root,name,defvalue);
         // this allows us to marshall out the string value without freeing it
         string value = Marshal.PtrToStringAnsi((IntPtr)x);        
         return value;
@@ -111,8 +112,9 @@ public class CSTContext : IDisposable {
    unsafe CSPARSE *csp;
    unsafe public CSTContext(Hdf hdf) {
      fixed (CSPARSE **csp_ptr = &csp) {
-       cs_init(csp_ptr, hdf.hdf_root);
+       cs_init(csp_ptr, hdf.hdf_root);       
      }
+     Console.WriteLine("CSt.Cst() hdf_root = {0}", (int)hdf.hdf_root);
    } 
 
    [DllImport("libneo")]
@@ -128,13 +130,13 @@ public class CSTContext : IDisposable {
        string path);
 
    [DllImport("libneo")]
-   extern static unsafe NEOERR *cs_parse_string (CSPARSE *parse,
-       [MarshalAs(UnmanagedType.LPStr)] 
-                    string buffer, 
+   extern static unsafe NEOERR *cs_parse_string (CSPARSE *parse,       
+                    STR* buffer, 
                     int buf_len);
 
-   public unsafe void parseString(string data) {
-       NeoErr.hNE(cs_parse_string(csp, data, data.Length));
+   public unsafe void parseString(string data) {       
+       IntPtr buffer = Marshal.StringToHGlobalAnsi(data);
+       NeoErr.hNE(cs_parse_string(csp, (STR*) buffer, data.Length));
    }
 
    //  NEOERR *cs_render (CSPARSE *parse, void *ctx, CSOUTFUNC cb);
@@ -150,16 +152,17 @@ public class CSTContext : IDisposable {
 
 
    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-   private unsafe delegate NEOERR* CSOUTFUNC(void* ctx, STRING* more_bytes);
+   private unsafe delegate NEOERR* CSOUTFUNC(void* ctx, STR* more_bytes);
 
    private class OutputBuilder {
       private string output = "";
        
-      public unsafe NEOERR* handleOutput(void* ctx, STRING* more_bytes) {
+      public unsafe NEOERR* handleOutput(void* ctx, STR* more_bytes) {
            // add the more_bytes to the current string buffer
           Console.WriteLine("handleOutput called {0:X} {1:X}", (IntPtr)ctx, (IntPtr)more_bytes);
-
+          
           string data = Marshal.PtrToStringAnsi((IntPtr)more_bytes);
+          Console.WriteLine("datalen = {0}", data.Length);
           Console.WriteLine("data: " + data);
 
           output += data;
@@ -173,8 +176,7 @@ public class CSTContext : IDisposable {
 
    public unsafe string render() {
      OutputBuilder ob = new OutputBuilder();      
-     NeoErr.hNE(cs_render(csp, null, 
-       new CSOUTFUNC(ob.handleOutput)));
+     NeoErr.hNE(cs_render(csp, null, new CSOUTFUNC(ob.handleOutput)));
      return ob.result();
    }
 

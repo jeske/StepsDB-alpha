@@ -17,12 +17,19 @@ namespace Clearsilver {
         internal int flags;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         internal string desc;
-        internal STRING* file;
-        internal STRING* func;
+        internal STR* file;
+        internal STR* func;
         internal int lineno;
         /* internal use only */
         internal NEOERR* next;
     };
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
+    internal unsafe struct STRING {
+        public STR* buf;
+        public int len;
+        public int max;
+    }
 
 
     internal class NeoErr {
@@ -32,11 +39,10 @@ namespace Clearsilver {
         // 
         // http://stackoverflow.com/questions/470135/how-do-i-marshal-cstring-via-p-invoke
 
+        [DllImport("libneo")]        
+        private static unsafe extern void nerr_error_string(NEOERR *err, STRING* info);
         [DllImport("libneo")]
-        // [return: MarshalAs(UnmanagedType.LPStr)] 
-        private static unsafe extern void nerr_error_string(NEOERR *err,
-            // this is really a byte-buffer that nerr_error_String is going to write into! 
-                string info);
+        private static unsafe extern void nerr_error_traceback(NEOERR* err, STRING* info);
 
         // this free's the error chain
         [DllImport("libneo")]
@@ -47,15 +53,31 @@ namespace Clearsilver {
                 return; // no error
             }
             // would be nice if we could get nerr_error_string to work...
+            IntPtr buf = (IntPtr)0;
+            byte[] empty_string = new byte[]{ 0 };
+            string msg = null;
+            STRING neo_string;
+            try {            
+             buf = Marshal.AllocHGlobal(4000);
+             Marshal.Copy(empty_string, 0, buf, 1);
+             neo_string.buf = (STR *)buf;
+             neo_string.len = 0;
+             neo_string.max = 4000;
 
+             // nerr_error_traceback(err, &neo_string);
+             nerr_error_string(err, &neo_string);
+             msg = Marshal.PtrToStringAnsi(buf);
+            } finally {
+                if (buf != (IntPtr)0) {
+                    Marshal.FreeHGlobal(buf);
+                }
+            }
 
             // get as much as we can out of the neoerr structure
             _neo_err info = (_neo_err)Marshal.PtrToStructure((IntPtr)err, typeof(_neo_err));
             string csfilename = Marshal.PtrToStringAnsi((IntPtr)info.file);
-            string reason = String.Format("NeoErr: {0} {1}:{2} {3}",
-                info.error,
-                csfilename, info.lineno,
-                info.desc);
+            
+            string reason = String.Format("NeoErr: {0}", msg);
 
             // free the NEOERR structure
             nerr_ignore(&err);          

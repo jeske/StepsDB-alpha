@@ -15,8 +15,11 @@ public class CSTest {
       CSTContext cs = new CSTContext(h);
       
       Console.WriteLine("parsing file");
-      // cs.parseFile("test.cst");
-      cs.parseString(" foo.1 = <?cs var:foo.1 ?> ");
+      h.setValue("hdf.loadpaths.0", ".");
+      cs.parseFile("test.cst");
+
+      // cs.parseString(" foo.1 = <?cs var:foo.1 ?> ");
+      // cs.parseString("this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ this is a big tesT............ .");
 
       Console.WriteLine("render file");
       Console.WriteLine(cs.render());
