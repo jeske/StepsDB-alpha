@@ -57,7 +57,7 @@ namespace Bend.Util {
 
         public void parseRequest() {
             String request = inputStream.ReadLine();
-            string[] tokens = request.Split(new char[] { ' ' });
+            string[] tokens = request.Split(' ');
             if (tokens.Length != 3) {
                 throw new Exception("invalid http request line");
             }
