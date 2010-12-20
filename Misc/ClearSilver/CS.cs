@@ -37,7 +37,8 @@ namespace Clearsilver {
                         STR* buffer, 
                         int buf_len);
 
-       public unsafe void parseString(string data) {       
+       public unsafe void parseString(string data) {     
+           // TODO: fix this           
            IntPtr buffer = Marshal.StringToHGlobalAnsi(data);
            NeoErr.hNE(cs_parse_string(csp, (STR*) buffer, data.Length));
        }
