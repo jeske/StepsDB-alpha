@@ -5,9 +5,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
+// offered to the public domain for any use with no restriction
+// and also with no warranty of any kind, please enjoy. - David Jeske. 
+
 // simple HTTP explanation
 // http://www.jmarshall.com/easy/http/
-
 
 namespace Bend.Util {
 
@@ -74,14 +76,19 @@ namespace Bend.Util {
                     Console.WriteLine("got headers");
                     return;
                 }
-                Console.WriteLine("header: " + line);
-                string[] tokens = line.Split(new char[] { ':' });
-                String name = tokens[0];
-                String value = "";
-                for (int i = 1; i < tokens.Length; i++) {
-                    value += tokens[i];
-                    if (i < tokens.Length - 1) tokens[i] += ":";
+                
+                int separator = line.IndexOf(':');
+                if (separator == -1) {
+                    throw new Exception("invalid http header line: " + line);
                 }
+                String name = line.Substring(0, separator);
+                int pos = separator + 1;
+                while ((pos < line.Length) && (line[pos] == ' ')) {
+                    pos++; // strip any spaces
+                }
+                    
+                string value = line.Substring(pos, line.Length - pos);
+                Console.WriteLine("header: {0}:{1}",name,value);
                 httpHeaders[name] = value;
             }
         }
