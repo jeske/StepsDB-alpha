@@ -103,7 +103,7 @@ namespace Clearsilver {
             } catch (Exception e) {
                 // Console.WriteLine("hdfFileLoad Thunk Exception + " + e);
                 if (buf != IntPtr.Zero) {
-                    Marshal.FreeHGlobal(buf);
+                    NeoUtil.neo_free(buf);                    
                 }
                 return NeoErr.nERR(e.ToString());
             }

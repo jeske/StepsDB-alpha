@@ -108,7 +108,7 @@ namespace Clearsilver {
                // Console.WriteLine("csFileLoad Thunk Exception + " + e);
                // should return a neo error
                if (buf != IntPtr.Zero) {
-                   Marshal.FreeHGlobal(buf);
+                   NeoUtil.neo_free(buf);                   
                }
                return NeoErr.nERR(e.ToString());
            } 
