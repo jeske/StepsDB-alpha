@@ -116,8 +116,17 @@ namespace Bend.Util {
                  }
                  byte[] buf = new byte[4096];              
                  int to_read = content_len;
-                 while (to_read > 0) {
+                 while (to_read > 0) {  
+                     Console.WriteLine("starting Read, to_read={0}",to_read);
                      int numread = this.inputStream.BaseStream.Read(buf, 0, Math.Min(4096, to_read));
+                     Console.WriteLine("read finished, numread={0}", numread);
+                     if (numread == 0) {
+                         if (to_read == 0) {
+                             break;
+                         } else {
+                             throw new Exception("client disconnected during post");
+                         }
+                     }
                      to_read -= numread;
                      ms.Write(buf, 0, numread);
                  }

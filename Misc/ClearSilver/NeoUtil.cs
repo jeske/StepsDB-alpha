@@ -20,6 +20,7 @@ namespace Clearsilver {
 
         internal static unsafe string PtrToStringUTF8(STR* buf) {
             byte* walk = (byte *)buf;
+            byte* buf2 = stackalloc byte[4000];
 
             // find the end of the string
             while (*walk != 0) {
