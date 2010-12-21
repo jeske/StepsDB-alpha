@@ -37,21 +37,22 @@ namespace Clearsilver {
         // NEOERR* hdf_set_value (HDF *hdf, char *name, char *value)
         [DllImport("libneo")]
         private static unsafe extern NEOERR* hdf_set_value(HDF* hdf,
-            [MarshalAs(UnmanagedType.LPStr)] string name,
-            [MarshalAs(UnmanagedType.LPStr)] string value);
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8Marshaler))] string name,
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8Marshaler))] string value);
 
         // char* hdf_get_value (HDF *hdf, char *name, char *defval)
 
         [DllImport("libneo")]
         // [return: MarshalAs(UnmanagedType.LPStr)] 
         private static unsafe extern STR* hdf_get_value(HDF* hdf,
-            [MarshalAs(UnmanagedType.LPStr)] string name,
-            [MarshalAs(UnmanagedType.LPStr)] string defval);
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8Marshaler))] string name,
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8Marshaler))] string defval);
 
         // NEOERR* hdf_dump (HDF *hdf, char *prefix);
 
         [DllImport("libneo")]
-        private static extern void hdf_dump(HDF* hdf, [MarshalAs(UnmanagedType.LPStr)] string prefix);
+        private static extern void hdf_dump(HDF* hdf,
+            [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(UTF8Marshaler))]string prefix);
 
         [DllImport("libneo")]
         private static extern NEOERR* hdf_read_file(HDF* hdf, [MarshalAs(UnmanagedType.LPStr)] string fname);
@@ -59,7 +60,8 @@ namespace Clearsilver {
         // HDF* hdf_get_obj (HDF *hdf, char *name)
 
         [DllImport("libneo")]
-        private static extern HDF* hdf_get_obj(HDF* hdf, [MarshalAs(UnmanagedType.LPStr)] string name);
+        private static extern HDF* hdf_get_obj(HDF* hdf, 
+            [MarshalAs(UnmanagedType.CustomMarshaler,MarshalTypeRef=typeof(UTF8Marshaler))] string name);
 
 
         [DllImport("libneo")]
@@ -93,7 +95,7 @@ namespace Clearsilver {
             IntPtr buf = IntPtr.Zero;
             try {
                 Hdf hdf = new Hdf(raw_hdf);
-                string filename = Marshal.PtrToStringAnsi((IntPtr)pFilename);
+                string filename = Marshal.PtrToStringAnsi((IntPtr)pFilename);                
                 byte[] data = this.cur_delegate(hdf, filename);
                 byte[] end_null = new byte[] { 0 };                
                 buf = NeoUtil.neo_malloc(data.Length + 1);

@@ -8,6 +8,10 @@ using System.Runtime.InteropServices;
 
 // TODO: figure out if the default LPStr marshaling does UTF8, and if not fix it so it does
 
+
+// TODO: is there an issue in handleOutput() because we expect a buffer to be a "complete" UTF8 string 
+//       (i.e. can a UTF8 string cross a handleOutput callback?)
+
 namespace Clearsilver {
     // opaque types
     unsafe struct CSPARSE {};
@@ -85,14 +89,9 @@ namespace Clearsilver {
        private class OutputBuilder {
           private string output = "";
        
-          public unsafe NEOERR* handleOutput(void* ctx, STR* more_bytes) {
-               // add the more_bytes to the current string buffer
-              // Console.WriteLine("handleOutput called {0:X} {1:X}", (IntPtr)ctx, (IntPtr)more_bytes);          
-              string data = Marshal.PtrToStringAnsi((IntPtr)more_bytes);
-              // Console.WriteLine("datalen = {0}", data.Length);
-              // Console.WriteLine("data: " + data);
-              output += data;
-           
+          public unsafe NEOERR* handleOutput(void* ctx, STR* more_bytes) {                     
+              string data = NeoUtil.PtrToStringUTF8(more_bytes);
+              output += data;           
               return null;
           }
           public string result() {
@@ -142,7 +141,6 @@ namespace Clearsilver {
        }
 
        #endregion
-
 
        public unsafe string render() {
          OutputBuilder ob = new OutputBuilder();      
