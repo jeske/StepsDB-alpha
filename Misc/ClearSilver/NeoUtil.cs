@@ -17,6 +17,7 @@ namespace Clearsilver {
 
         [DllImport("libneo")]
         internal static extern void neo_free(IntPtr buf);        
+
     }
 
 }

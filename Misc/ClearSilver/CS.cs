@@ -1,13 +1,18 @@
 
 using System;
+using System.Text;
 using System.Runtime.InteropServices;
 
 // PInvoke Tutorial
 // http://msdn.microsoft.com/en-us/library/aa288468(v=vs.71).aspx
 
+// TODO: figure out if the default LPStr marshaling does UTF8, and if not fix it so it does
+
 namespace Clearsilver {
     // opaque types
     unsafe struct CSPARSE {};
+
+    
 
     public class CSTContext : IDisposable {
        unsafe CSPARSE *csp;
@@ -38,8 +43,13 @@ namespace Clearsilver {
                         int buf_len);
 
        public unsafe void parseString(string data) {     
-           // TODO: fix this           
-           IntPtr buffer = Marshal.StringToHGlobalAnsi(data);
+           // neo is going to take ownership of this string, so we need to
+           // use neo_malloc to create it. 
+
+           byte[] strbuf = Encoding.UTF8.GetBytes(data); // not null terminated
+           IntPtr buffer = NeoUtil.neo_malloc(strbuf.Length + 1);
+           Marshal.Copy(strbuf, 0, buffer, strbuf.Length);
+           Marshal.WriteByte(buffer + strbuf.Length, 0); // write the terminating null
            NeoErr.hNE(cs_parse_string(csp, (STR*) buffer, data.Length));
        }
 

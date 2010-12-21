@@ -59,6 +59,19 @@ namespace Clearsilver {
             string format); // this is really a varargs function!
 
 
+        // we do this init as a static invocation because the init-itself is not threadsafe, and 
+        // if we don't explicitly call it, it will happen the first time someone calls clearsilver
+        [DllImport("libneo")]
+        private static unsafe extern NEOERR* nerr_init();
+
+        private static bool init_success = NeoErr.doInit();
+        private static unsafe bool doInit() {
+            NeoErr.init_success = false;
+            NeoErr.hNE(nerr_init());
+            NeoErr.init_success = true;
+            return true;
+        }
+
         // this free's the error chain
         [DllImport("libneo")]
         private static unsafe extern void nerr_ignore(NEOERR** err);
