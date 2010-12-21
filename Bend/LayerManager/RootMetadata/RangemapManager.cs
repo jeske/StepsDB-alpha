@@ -1453,9 +1453,11 @@ namespace Bend
                 }
             }
             if (candidate_count < segmentsWithRecords.Count) {
-                Console.WriteLine("                            <--------------------------------------------------------------------");
-                Console.WriteLine("count mismatch, bygen:{0} list:{1}", candidate_count, segmentsWithRecords.Count);
-                Console.WriteLine("list: {0}", segmentsWithRecords);
+#if DEBUG_CURSORS
+                Console.WriteLine("RangemapMgr.cursorSetup:                             <--------------------------------------------------------------------");
+                Console.WriteLine("RangemapMgr.cursorSetup: count mismatch, bygen:{0} list:{1}", candidate_count, segmentsWithRecords.Count);
+                Console.WriteLine("RangemapMgr.cursorSetup: list: {0}", segmentsWithRecords);
+#endif
 
                 var segsWithRec_ByGen_List = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
 
@@ -1465,7 +1467,9 @@ namespace Bend
                         segmentsWithRecords.Add(segwrec);
                     }
                 }
-                Console.WriteLine("newlist: {0}", segmentsWithRecords);
+#if DEBUG_CURSORS
+                Console.WriteLine("RangemapMgr.cursorSetup: newlist: {0}", segmentsWithRecords);
+#endif
                 
 
             }
