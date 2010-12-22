@@ -88,8 +88,8 @@ namespace Bend.Repl {
         }
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
                     string log_server_guid,
-                    RecordKeyType log_start_key) {
-            return hndl.fetchLogEntries(log_server_guid, log_start_key);
+                    RecordKeyType log_start_key, bool block = false) {
+            return hndl.fetchLogEntries(log_server_guid, log_start_key, block:block);
         }
         public IStepsKVDB getSnapshot() {
             return hndl.getSnapshot();
@@ -116,6 +116,8 @@ namespace Bend.Repl {
 
         IReplConnection my_repl_interface;
         Dictionary<string, ReplLogFetcher> fetcher_for_logserverguid = new Dictionary<string, ReplLogFetcher>();
+
+        object logWaiters = new Object();
 
         Random rnd;
         ReplPusher pusher;
@@ -655,7 +657,8 @@ namespace Bend.Repl {
         internal IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
                         string log_server_guid,
                         RecordKeyType log_start_key,
-                        int limit = -1) {
+                        int limit = -1,
+                        bool block = false) {
 
             var rk_start = new RecordKey()                
                 .appendKeyPart("_logs")
@@ -671,11 +674,13 @@ namespace Bend.Repl {
 
             var scanrange = new ScanRange<RecordKey>(rk_start, RecordKey.AfterPrefix(rk_end), null);
 
-            Console.WriteLine(" fetchLogEntries for ({0}): start {1}  end {2}", 
-                log_server_guid, rk_start, rk_end);
+            Console.WriteLine(" fetchLogEntries (block:{3}) for ({0}): start {1}  end {2}", 
+                log_server_guid, rk_start, rk_end, block);
 
             bool matched_first = false;
             int count = 0;
+
+         retry_log_fetch:
 
             foreach (var logrow in next_stage.scanForward(scanrange)) {
                 if (!matched_first) {
@@ -687,6 +692,7 @@ namespace Bend.Repl {
                                log_server_guid,log_start_key,logstamp));
                     }
                     matched_first = true;
+                    continue;
                 }
                 yield return logrow;
                 count++;
@@ -698,9 +704,21 @@ namespace Bend.Repl {
                     }
                 }
             }
+
             if (!matched_first) {
                 throw new LogException("no log entries!");
             }
+            // if we only matched one log row, then it should be the matching first row.
+
+            if ((count == 0) && block) {
+                Console.WriteLine("++++++++ block on log tail");
+                lock (this.logWaiters) {
+                    Monitor.Wait(this.logWaiters);
+                }
+                Console.WriteLine("++++++++ wakeup from log tail");
+                goto retry_log_fetch;
+            }
+
         }
 
 
@@ -869,20 +887,12 @@ namespace Bend.Repl {
                 }
             }
 
-            public void pushNewLogEntry(long logstamp, RecordUpdate logdata) {
+            public void wakeUpLogSleepers() {
                 // TODO: change this to wakeup any pullers that are blocked
-#if false
-                foreach (var server_guid in servers) {
-                    try {
-                        IReplConnection srvr = myhandler.ctx.connector.getServerHandle(server_guid);
-                        srvr.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
-                    } catch (Exception e) {
-                        Console.WriteLine("Server {0}, couldn't push to server {1}",
-                            myhandler.ctx.server_guid, server_guid);
-                        myhandler.state = ReplState.init; // force us to reinit
-                    }
-                }
-#endif
+                Console.WriteLine("=============================== wakeup sleepers");
+                lock (myhandler.logWaiters) {
+                    Monitor.PulseAll(myhandler.logWaiters);
+                }                
             }
 
         }
@@ -892,8 +902,10 @@ namespace Bend.Repl {
             .appendKeyPart("_logs")
             .appendKeyPart(from_server_guid)
             .appendKeyPart(new RecordKeyType_Long(logstamp));
-
+      
             next_stage.setValue(logkey, logdata);
+            pusher.wakeUpLogSleepers();
+
         }
 
         internal void applyLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
@@ -955,7 +967,7 @@ namespace Bend.Repl {
             next_stage.setValue(logkey, logupdate);
 
             // (2) trigger the repl notifier that there is a new entry to push
-            pusher.pushNewLogEntry(logstamp, logupdate);
+            pusher.wakeUpLogSleepers();
 
             // (2) write the record key
             Console.WriteLine("writing data entry: {0} = {1}",

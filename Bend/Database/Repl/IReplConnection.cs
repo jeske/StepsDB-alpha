@@ -55,7 +55,7 @@ namespace Bend.Repl {
         int getEstimatedRemainingLogData(string server_guid, RecordKeyType log_start_key);
         IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
                         string log_server_guid,
-                        RecordKeyType log_start_key);
+                        RecordKeyType log_start_key,bool block = false);
 
     }
     public class JoinInfo {

@@ -81,8 +81,10 @@ namespace Bend.ReplTest1 {
             Console.WriteLine("-----------------");
             raw_db.debugDump();
 
+            repl_2.setValueParsed("a/2", "6");
             Thread.Sleep(7000);
 
+            
             raw_db.debugDump();
 
             

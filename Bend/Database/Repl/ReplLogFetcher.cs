@@ -104,7 +104,7 @@ namespace Bend.Repl {
 
             // if we're caught up, use the blocking log fetch!! 
                 
-            foreach (var logrow in srvr.fetchLogEntries(this.log_server_guid, log_start_key)) {
+            foreach (var logrow in srvr.fetchLogEntries(this.log_server_guid, log_start_key,block:_isCaughtUp)) {
                 RecordKeyType last_keypart = logrow.Key.key_parts[logrow.Key.key_parts.Count - 1];
                 RecordKeyType_Long keypart = (RecordKeyType_Long)last_keypart;
 
