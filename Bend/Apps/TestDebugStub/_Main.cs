@@ -50,8 +50,8 @@ namespace MyTestStub {
             // var testclass = new A04_StepsDatabase_StageSnapshot();
             // testclass.T000_TestBasic_SnapshotScanAll();
 
-            var testclass = new A02_SortedSegmentTests();
-            testclass.T01_SortedSegment_ScanTest();
+            // var testclass = new A02_SortedSegmentTests();
+            // testclass.T01_SortedSegment_ScanTest();
 
             // fetchHitsTest();
 
