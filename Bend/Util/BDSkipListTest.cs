@@ -282,7 +282,7 @@ namespace BendTests {
         }
 
         [Test]
-        public void T01_SkipList_TestKeysValuesProperties_ZZTODO() {
+        public void T01_SkipList_TestKeysValuesProperties() {
             BDSkipList<string, int> l = new BDSkipList<string, int>();
             string[] keylist = { "abc", "def", "ghi" };
             int[] valuelist = { 1, 2, 3 };
@@ -296,9 +296,11 @@ namespace BendTests {
 
             var keys_out = new List<string>();
             keys_out.AddRange(l.Keys);
+            Assert.AreEqual(keylist, keys_out.ToArray(), "keys don't match");
 
             var values_out = new List<int>();
             values_out.AddRange(l.Values);
+            Assert.AreEqual(valuelist, values_out.ToArray(), "values don't match");
 
         }
 

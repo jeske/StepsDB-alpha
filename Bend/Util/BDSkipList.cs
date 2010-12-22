@@ -666,8 +666,17 @@ namespace Bend
                 return (node != null);
             }
             public void CopyTo(K[] keys, int start_index) {
-                // TODO: implement this!
-                throw new Exception("NOT IMPLEMENTED: BDSkipList.KeysInterface.CopyTo()");
+                if ((this.Count + start_index) > keys.Length) {
+                    throw new ArgumentException("BDSkipList.Keys.CopyTo(): not enough room");
+                }
+                int index = start_index;
+                foreach (K key in this) {
+                    if (index >= keys.Length) {
+                        throw new ArgumentException("BDSkipList.Keys.CopyTo(): ran out of room");
+                    }
+                    keys[index] = key;
+                    index++;                    
+                }                
             }
 
 
@@ -721,8 +730,14 @@ namespace Bend
             }
         }
         public void CopyTo(KeyValuePair<K,V>[] dest_array, int start_index) {
+            if ((this.Count + start_index) > dest_array.Length) {
+                throw new ArgumentException("BDSkipList.Values.CopyTo(): not enough room");
+            }
             int cur_index = start_index;
             foreach (Node<K,V> skip_node in this._internalEnumerator()) {
+                if (cur_index >= dest_array.Length) {
+                    throw new ArgumentException("BDSkipList.Values.CopyTo(): ran out of room");
+                }
                 dest_array[cur_index++] = new KeyValuePair<K, V>(skip_node.key, skip_node.value);
             }
         }
