@@ -93,7 +93,7 @@
     <Content Include="_BUGS.txt" />
     <Compile Include="Database\StepsDatabase.cs" />
     <Compile Include="Database\StepsDocumentDB.cs" />
-    <Compile Include="Database\StepsReplDB.cs" />
+    <Compile Include="Database\Repl\StepsReplDB.cs" />
     <Compile Include="Database\StepsStageSnapshot.cs" />
     <Compile Include="Database\StepsStageSubset.cs" />
     <Compile Include="Database\StepsStageTimestampSnapshot.cs" />
