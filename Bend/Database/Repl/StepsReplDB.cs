@@ -61,67 +61,7 @@ using Bend;
 
 namespace Bend.Repl {
 
-    public class ServerConnector {
-        Dictionary<string, IReplConnection> server_list = new Dictionary<string, IReplConnection>();
-        public IReplConnection getServerHandle(string server_guid) {
-
-            try {
-                return server_list[server_guid];
-            } catch (KeyNotFoundException) {
-                throw new KeyNotFoundException("could not connect to server: " + server_guid);
-            }
-        }
-
-        public void registerServer(string name, IReplConnection instance) {
-            server_list[name] = instance;
-        }
-        public void unregisterServer(string server_guid) {
-            try {
-                server_list.Remove(server_guid);
-            } catch (KeyNotFoundException) {
-                // nothing to remove
-            }
-        }        
-    }
-
-    public class ServerContext {
-        public string server_guid;
-        public ServerConnector connector;
-    }
-
-    // ----------------------------------------------
-
-    public interface IReplConnection {
-        string getDataInstanceId();
-        string getServerGuid();
-        IStepsKVDB getSnapshot();
-        IEnumerable<LogStatus> getStatusForLogs();
-        JoinInfo requestToJoin(string server_guid);
-        ReplState getState();
-        IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
-                        string log_server_guid,
-                        RecordKeyType log_start_key,
-                        RecordKeyType log_end_key);
-
-    }
-    public class JoinInfo {
-        public string data_instance_id;
-        public List<string> seed_servers;
-    }
-    public class LogStatus {
-        public string server_guid;
-        public RecordKeyType_Long log_commit_head;
-        public RecordKeyType_Long oldest_entry_pointer;
-        // public string newest_pending_entry_pointer;
-        public override string ToString() {
-            return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
-        }
-    }
-    public class LogEntry {
-        public long logstamp;
-        public string server_guid;
-        public byte[] data;
-    }
+   
     internal class MyReplConnection : IReplConnection {
         ReplHandler hndl;
         internal MyReplConnection(ReplHandler hndl) {
@@ -143,11 +83,13 @@ namespace Bend.Repl {
         public JoinInfo requestToJoin(string server_guid) {
             return hndl.requestToJoin(server_guid);
         }
+        public int getEstimatedRemainingLogData(string server_guid, RecordKeyType log_start_key) {
+            return hndl.getEstimatedRemainingLogData(server_guid, log_start_key);
+        }
         public IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
                     string log_server_guid,
-                    RecordKeyType log_start_key,
-                    RecordKeyType log_end_key) {
-            return hndl.fetchLogEntries(log_server_guid, log_start_key, log_end_key);
+                    RecordKeyType log_start_key) {
+            return hndl.fetchLogEntries(log_server_guid, log_start_key);
         }
         public IStepsKVDB getSnapshot() {
             return hndl.getSnapshot();
@@ -170,9 +112,10 @@ namespace Bend.Repl {
    
     public class ReplHandler {
         IStepsSnapshotKVDB next_stage;        
-        ServerContext ctx;
+        internal ServerContext ctx;
 
         IReplConnection my_repl_interface;
+        Dictionary<string, ReplLogFetcher> fetcher_for_logserverguid = new Dictionary<string, ReplLogFetcher>();
 
         Random rnd;
         ReplPusher pusher;
@@ -335,7 +278,7 @@ namespace Bend.Repl {
             return le;
         }
 
-        private LogStatus _statusForLog(string server_guid) {
+        public LogStatus getStatusForLog(string server_guid) {
             var log_status = new LogStatus();
             log_status.server_guid = server_guid;
 
@@ -375,6 +318,8 @@ namespace Bend.Repl {
             return log_status;
         }
 
+       
+
         internal IEnumerable<LogStatus> getStatusForLogs() {
             var seeds_prefix = new RecordKey()                
                 .appendParsedKey("_config/seeds");
@@ -382,7 +327,7 @@ namespace Bend.Repl {
             var scanrange = new ScanRange<RecordKey>(seeds_prefix,
                                             RecordKey.AfterPrefix(seeds_prefix), null);
 
-            yield return _statusForLog(ctx.server_guid); // be sure to include myself
+            yield return getStatusForLog(ctx.server_guid); // be sure to include myself
 
             foreach (var seed_row in next_stage.scanForward(scanrange)) {
                 RecordKeyType last_keypart = seed_row.Key.key_parts[seed_row.Key.key_parts.Count - 1];
@@ -391,7 +336,7 @@ namespace Bend.Repl {
 
                 if (server_guid.Equals(ctx.server_guid)) { continue; } // skip ourselves
 
-                yield return _statusForLog(server_guid);
+                yield return getStatusForLog(server_guid);
             }
         }
 
@@ -464,7 +409,7 @@ namespace Bend.Repl {
             RecordUpdate.WithPayload(ctx.server_guid));
 
             // (6) if our log is empty, write our log-start
-            LogStatus status = this._statusForLog(ctx.server_guid);
+            LogStatus status = this.getStatusForLog(ctx.server_guid);
             if (status.log_commit_head.GetLong().CompareTo(0) == 0) {
                 next_stage.setValue(new RecordKey()
                     .appendKeyPart("_logs")
@@ -491,6 +436,8 @@ namespace Bend.Repl {
             // we want to erase all log entries except the last to cause a gap
             // force others to full rebuild
 
+            Console.WriteLine("*** ReplHandler({0}): truncateLogs_Hack!!", this.ctx.server_guid);
+
             foreach (var ls in this.getStatusForLogs()) {
                 var scan_old_log_entries = new ScanRange<RecordKey>(
                     new RecordKey().appendKeyPart("_logs").appendKeyPart(ls.server_guid),
@@ -507,6 +454,15 @@ namespace Bend.Repl {
                     this.next_stage.setValue(row.Key, RecordUpdate.DeletionTombstone());
                     Console.WriteLine("   truncateLogs({0}): deleting {1}", ctx.server_guid, row);
                 }
+            }
+        }
+
+        private void _stopFetchers() {
+            lock (this.fetcher_for_logserverguid) {
+                foreach (var fetcher in this.fetcher_for_logserverguid.Values) {
+                    fetcher.Stop();
+                }
+                this.fetcher_for_logserverguid = new Dictionary<string, ReplLogFetcher>();
             }
         }
 
@@ -579,63 +535,56 @@ namespace Bend.Repl {
             }
 
             if (!can_log_replay) {
-                if (!need_resolve) {
+
+                if (!need_resolve) {                    
+                    // stop all the fetchers!
+                    this._stopFetchers();
+
                     // schedule a full rebuild
                     Console.WriteLine("Repl({0}) logs don't match, we need a full rebuild. Reasons: {1}", 
                         ctx.server_guid, String.Join(",",rebuild_reasons));
                     this.state = ReplState.rebuild;
                     return;
                 } else {
-                    Console.WriteLine("Repl({0}) our log has newer changes than somebody, schedule a resolve. Reasons: {1}",
+                    // TODO: do we really need to do anything? 
+                    Console.WriteLine("Repl({0}) our log has newer changes than somebody, we expect he'll resolve with us. Reasons: {1}",
                         ctx.server_guid, String.Join(",",rebuild_reasons));
-                    this.state = ReplState.resolve;
-                    return;
+                    // this.state = ReplState.resolve;
+                    // return;
                 }
             }
 
-            // (3) replay logs from the commit heads
+            
+            
+            bool all_caught_up = true;
+            // (3) make sure we have a fetcher for every log_server_guid
+            // (4) check the to see if we're caught up on all logs
 
             foreach (var ls in srvr_log_status) {
-                RecordKeyType_Long log_start_key = new RecordKeyType_Long(0);
-                if (our_log_status_dict.ContainsKey(ls.server_guid)) {
-                    log_start_key = our_log_status_dict[ls.server_guid].log_commit_head;
-                }
-
                 if (ls.server_guid.Equals(this.getServerGuid())) {
-                    // don't try to fecth entries for our own log. 
+                    // don't try to fetch entries for our own log. 
                     // TODO: check for agreement about our log entries.
                     continue;
                 }
 
-                try {
-                    foreach (var logrow in srvr.fetchLogEntries(ls.server_guid, log_start_key, ls.log_commit_head)) {
-                        RecordKeyType last_keypart = logrow.Key.key_parts[logrow.Key.key_parts.Count - 1];
-                        RecordKeyType_Long keypart = (RecordKeyType_Long)last_keypart;
-
-                        long logstamp = keypart.GetLong();
-
-                        if (logstamp.CompareTo(log_start_key.GetLong()) == 0) {
-                            // if it is the magic "start of log" record, then just record it
-                            if (logstamp == 0) {
-                                this._recordLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
-                            } else {
-                                // check and make sure the first log entry actually matches our recorded entry
-                                // otherwise there is a log-sync mismatch! 
-                            }
-                        } else {
-                            this.applyLogEntry(ls.server_guid, logstamp, RecordUpdate.WithPayload(logrow.Value.data));
-                        }
+                // make sure we have a fetcher...
+                lock (this.fetcher_for_logserverguid) {
+                    if (!this.fetcher_for_logserverguid.ContainsKey(ls.server_guid)) {
+                        this.fetcher_for_logserverguid[ls.server_guid] = new ReplLogFetcher(this, ls.server_guid);
                     }
-                } catch (LogException) {
-                    // just goto the next log for now...
+                    if (!this.fetcher_for_logserverguid[ls.server_guid].IsCaughtUp) {
+                        all_caught_up = false;
+                    }
                 }
             }
 
-            // TODO: double check our log heads
-            if (this.state != ReplState.active) {
+            // if we're all caught up, and we're currently not active, make us active!! 
+            if (all_caught_up && (this.state != ReplState.active)) {
                 Console.WriteLine("** Server {0} becoming ACTIVE!!", ctx.server_guid);
                 state = ReplState.active;  // we are up to date and online!! 
             }
+
+            // TODO: if we're NOT all caught up, we should go back to inactive! 
 
         }
 
@@ -678,6 +627,7 @@ namespace Bend.Repl {
                     break;
                 case ReplState.do_shutdown:
                     // do whatever cleanup we need
+                    _stopFetchers();
                     this.state = ReplState.shutdown;
                     break;
                 case ReplState.shutdown:
@@ -693,10 +643,19 @@ namespace Bend.Repl {
             public LogException(String info) : base(info) { }
         }
 
+        public int getEstimatedRemainingLogData(string server_guid, RecordKeyType log_start_key) {
+            int count = 0;
+            // TODO: build a more efficient way to get this by asking the MTree for the size between keys
+            foreach (var log_line in this.fetchLogEntries(server_guid,log_start_key)) {
+                count++;
+            }
+            return count;
+        }
+
         internal IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
                         string log_server_guid,
                         RecordKeyType log_start_key,
-                        RecordKeyType log_end_key) {
+                        int limit = -1) {
 
             var rk_start = new RecordKey()                
                 .appendKeyPart("_logs")
@@ -708,10 +667,7 @@ namespace Bend.Repl {
 
             var rk_end = new RecordKey()                
                 .appendKeyPart("_logs")
-                .appendKeyPart(log_server_guid);
-            if (!log_start_key.Equals("")) {
-                rk_end.appendKeyPart(log_end_key);
-            }
+                .appendKeyPart(log_server_guid);           
 
             var scanrange = new ScanRange<RecordKey>(rk_start, RecordKey.AfterPrefix(rk_end), null);
 
@@ -719,17 +675,28 @@ namespace Bend.Repl {
                 log_server_guid, rk_start, rk_end);
 
             bool matched_first = false;
+            int count = 0;
 
             foreach (var logrow in next_stage.scanForward(scanrange)) {
                 if (!matched_first) {
                     // the first logrow needs to match the log_start_key, or there was a gap in the log!!
                     var logstamp = logrow.Key.key_parts[2];
                     if (logstamp.CompareTo(log_start_key) != 0) {
-                        throw new LogException("log start gap!");
+                        throw new LogException(
+                            String.Format("log start gap! guid:{0} log_start_key:{1} logstamp:{2}",
+                               log_server_guid,log_start_key,logstamp));
                     }
                     matched_first = true;
                 }
                 yield return logrow;
+                count++;
+
+                // if we're limiting the number of return rows...
+                if (limit != -1) {
+                    if (count > limit) {
+                        yield break;
+                    }
+                }
             }
             if (!matched_first) {
                 throw new LogException("no log entries!");
@@ -920,7 +887,7 @@ namespace Bend.Repl {
 
         }
 
-        private void _recordLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
+        internal void _recordLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
             RecordKey logkey = new RecordKey()
             .appendKeyPart("_logs")
             .appendKeyPart(from_server_guid)
@@ -929,7 +896,7 @@ namespace Bend.Repl {
             next_stage.setValue(logkey, logdata);
         }
 
-        public void applyLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
+        internal void applyLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
             // (0) unpack the data
             BlockAccessor ba = new BlockAccessor(logdata.data);
             ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);

@@ -97,7 +97,8 @@ namespace Bend.ReplTest1 {
 
             // make sure our log does not continue from repl_2 logs
             repl_1.setValueParsed("c/1", "10");            
-            repl_1.truncateLogs_Hack();
+            repl_1.truncateLogs_Hack(); 
+
             
             raw_db.debugDump();
 
@@ -119,6 +120,9 @@ namespace Bend.ReplTest1 {
             Thread.Sleep(1000);
 
             repl_2.truncateLogs_Hack();
+
+            Thread.Sleep(1000);
+
             repl_1.truncateLogs_Hack();
 
             Console.WriteLine("----------------[ both logs should be truncated ]-----------------------------");
@@ -135,7 +139,6 @@ namespace Bend.ReplTest1 {
             repl_3.setValueParsed("q/1", "10");
             Thread.Sleep(7000);
             raw_db.debugDump();
-
 
 
             Console.WriteLine("quitting..");

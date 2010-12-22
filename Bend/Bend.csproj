@@ -91,6 +91,8 @@
     <Content Include="_TODO_tomn.txt" />
     <Content Include="_CODING_STYLE.txt" />
     <Content Include="_BUGS.txt" />
+    <Compile Include="Database\Repl\IReplConnection.cs" />
+    <Compile Include="Database\Repl\ReplLogFetcher.cs" />
     <Compile Include="Database\StepsDatabase.cs" />
     <Compile Include="Database\StepsDocumentDB.cs" />
     <Compile Include="Database\Repl\StepsReplDB.cs" />
