@@ -34,19 +34,6 @@ namespace BendTests
         }
 
         [Test]
-        public void T12_RecordKeyStringCompBugTest() {
-            var key5 = new RecordKey().appendParsedKey(@".zdata/index/>you/c:\EmailTest\Data\saved_mail_2002:1407/182");
-            var key6 = new RecordKey().appendParsedKey(@".zdata/index/?/c:\EmailTest\Data\saved_mail_2002:908/184");
-
-            Assert.True('>'.CompareTo('?') < 0, "check char comparison");
-            Assert.True(String.Compare(">", "?", System.Threading.Thread.CurrentThread.CurrentCulture,
-                System.Globalization.CompareOptions.Ordinal) < 0, "ordinal string comparison");
-            // Assert.True(">".CompareTo("?") < 0, "check string comparison");
-            Assert.True(key5.CompareTo(key6) < 0, " '>' should be < '?' ");
-
-        }
-
-        [Test]
         public void T00_RecordUpdateEquality() {
             RecordUpdate upd1 = RecordUpdate.WithPayload("test/1");
             RecordUpdate upd2 = RecordUpdate.WithPayload("test/1");
@@ -331,6 +318,21 @@ namespace BendTests
 
             Assert.True(startrk.CompareTo(testkey) > 0, "4");
         }
+
+        [Test]
+        public void T12_RecordKeyStringCompBugTest() {
+            var key5 = new RecordKey().appendParsedKey(@".zdata/index/>you/c:\EmailTest\Data\saved_mail_2002:1407/182");
+            var key6 = new RecordKey().appendParsedKey(@".zdata/index/?/c:\EmailTest\Data\saved_mail_2002:908/184");
+
+            Assert.True('>'.CompareTo('?') < 0, "check char comparison");
+            Assert.True(String.Compare(">", "?", System.Threading.Thread.CurrentThread.CurrentCulture,
+                System.Globalization.CompareOptions.Ordinal) < 0, "ordinal string comparison");
+            int simple_comparison = ">".CompareTo("?");            
+            Assert.AreEqual(simple_comparison,key5.CompareTo(key6), "record keys should come out the same as strings");
+
+            // NOTE: this could fail if something returns distance instead of just (-1,0,1)
+        }
+
     }
 
 
