@@ -1,6 +1,15 @@
 
 ----[ TODO ]---------
 
+ - Replication Network Bringup
+     - turn IReplConnection into a "real" network interface (WCF?)
+	 - connect two separate instances in two separate processes!
+
+ - Advanced Replication
+     - estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
+     - snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
+
+
   - Q: If we use "minValidGenForBlock(int below_topgen)" to set a merge block output, 
        can we do a 1-level histo merge? Seems like we can.
   - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
@@ -17,16 +26,6 @@
      - more expressive queries (not just equality match)
      - Find "order by"
      - index-order control (ascending/descending index parts)
-
-
- - Replication System Bringup
-     (1) replication as a db stage on-top of snapshot stage
-        - does replication need to be able to 'set' the timestamp values of records'?
-     (2) replication 'full copy bringup' using snapshots
-     (3) cleanup of replication (switch to 'cd ..always pull' log tails)
-     (3) estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
-     (4) snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
-
 
   - StepsDBControllerStage
      (1) allow creation of a pipeline, and metadata to recreate that pipeline when restarted
@@ -255,6 +254,10 @@
 
 ------------[ DONE ]--------------------
   
+12/21 (1) replication as a db stage on-top of snapshot stage
+         - does replication need to be able to 'set' the timestamp values of records'?
+      (2) replication 'full copy bringup' using snapshots
+      (3) cleanup of replication (switch to 'always pull' log tails, and block on no new entries)
 12/11 - FieldedDocumentStoreStage
          - BSONDocument insert interface
 	     - primary-key and composite-key index maintenance
