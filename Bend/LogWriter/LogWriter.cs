@@ -232,6 +232,9 @@ namespace Bend
                     if ((DateTime.Now - started_waiting_at).TotalMilliseconds > 30000) {
                         throw new Exception("30s flush timeout exceeded");
                     }
+
+                    // TODO: change this use a monitor instead! 
+
                     // groupCommitWorkerHndl.Set(); // wakeup the worker                
                     // groupCommitRequestorsHndl.WaitOne();
 
