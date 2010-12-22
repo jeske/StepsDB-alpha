@@ -1,20 +1,40 @@
 
-----[ TODO ]---------
+----[ TODO  ]---------
 
  - Replication Network Bringup
      - turn IReplConnection into a "real" network interface (WCF?)
 	 - connect two separate instances in two separate processes!
 
- - Advanced Replication
+  - fix the block decoder selection to be dynamic instead of hardcoded
+    - ADD: record block-encoder registry, encoder-type "chain" and 
+	       decode-setup (so it just auto-decodes whatever is there)
+
+  - DBCORE extensions:
      - estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
      - snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
+     - SortedSegment: prefix/suffix compression
+     - add ACCUMULATORS
+         - LayerManager: SortedMerge extension needs to take a duplicate key resolver, 
+	       which will handle things like causing incremental updates to merge. 
 
+  - GUI: repaint heap-memory and GC info on a timer instad of only when called
+  - GUI: setup generic DB event listener concept and notify GUI through it
+  - GUI: number of blocks in each layer (this is probably what we'll show externally)
 
-  - Q: If we use "minValidGenForBlock(int below_topgen)" to set a merge block output, 
-       can we do a 1-level histo merge? Seems like we can.
-  - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
-  
+--------[ BASIC CUSTOMER USABILITY ]-------------
+    
+  - separate/multiple log/data files in regionmanager 
+  - log truncation/recirculation
+  - freelist management
+  - task/job/tool tracking
+  - command line interface
+  - html status GUI
 
+--------[ Document DB ]-----------
+
+  - StepsDBControllerStage
+     (1) allow creation of a pipeline, and metadata to recreate that pipeline when restarted
+   
   - FieldedDocumentStoreStage     
      - check for duplicate/redundant index during create
 	 - persist/reload/update database-stored index config    
@@ -27,42 +47,6 @@
      - Find "order by"
      - index-order control (ascending/descending index parts)
 
-  - StepsDBControllerStage
-     (1) allow creation of a pipeline, and metadata to recreate that pipeline when restarted
-
-  - DBCORE extensions:
-     - estimate 'dbsize between start/end key', provide split keys    
-     - SortedSegment: prefix/suffix compression
-
-  - GUI: repaint heap-memory and GC info on a timer instad of only when called
-  - GUI: setup generic DB event listener concept and notify GUI through it
-  - GUI: number of blocks in each layer (this is probably what we'll show externally)
-
-  - add ACCUMULATORS
-    - LayerManager: SortedMerge extension needs to take a duplicate key resolver, 
-      which will handle things like causing incremental updates to merge. 
-
-
-  - fix the block decoder selection to be dynamically selected instead of hardcoded
-    - ADD: record block-encoder registry, encoder-type "chain" and 
-	       decode-setup (so it just auto-decodes whatever is there)
-
-  - LayerManager: merge should have a slow/safe mode to verify segments db vs 
-       merge-manager after every merge 
-	      (when it fails, record the merge-manager state in a dump-file)
-  
-  - add a network interface and a command-line client
-
---------[ CUSTOMER USABILITY ]-------------
-    
-  - log truncation/recirculation
-  - freelist management
-  - task/job/tool tracking
-  - command line interface
-  - html status GUI
-
---------[ Document DB ]-----------
-
  - Q: can we serve exact-key lookups from an incomplete index being built at the time?
    - MOTIVE: building an index is expensive. If we can use it to relieve read-pressure while
        it's being built, we can free up resources to build it.
@@ -71,8 +55,6 @@
    - The index is being built on a snapshot, so in addition to performing the lookup, we
      need to maintain a bloom of "records touched since the snapshot" so we can quickly
 	 check to see if the data in the index is current. 
-
-
 
 --------[ PERF ]-----------
 
@@ -124,14 +106,22 @@
      - TARGET: 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
 
 --------[ DBCORE ]-----------
-
-  - LayerManager, MergeManager: add/remove keyrange merge-barrier (a different way to snapshot)
-
-  - TODO: make segment merge "apply" a truly atomic operation  
+   - TODO: make segment merge "apply" a truly atomic operation  
      - make AtomicWriteGroup that is guaranteed to apply atomicically 
 	   (everything in one log packet, lock working segment during apply)
 	 - make flushWorkingSegment an automatic/background part of LayerManager
 
+  - LayerManager: merge should have a slow/safe mode to verify segments db vs 
+       merge-manager after every merge 
+	      (when it fails, record the merge-manager state in a dump-file)
+
+
+  - Q: If we use "minValidGenForBlock(int below_topgen)" to set a merge block output, 
+       can we do a 1-level histo merge? Seems like we can
+
+  - LayerManager, MergeManager: add/remove keyrange merge-barrier (a different way to snapshot)
+
+  
   - design/build [SimpleAtomicCommit] Attribute, and Attribute system
      - simply provide an atomic commit for a set of changes. Nobody (including us) should see the
 	   changes until the transaction is committed. 
@@ -165,6 +155,7 @@
 
 --------[ DBCORE Cleanup ]-----------
 
+  - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
   - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
 
   - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
