@@ -255,12 +255,12 @@
 ------------[ DONE ]--------------------
   
 
-
+12/21 - FIX: SegmentReader now uses an enumerator for scanBackward (big perf win)
 12/21 (1) replication as a db stage on-top of snapshot stage
          - does replication need to be able to 'set' the timestamp values of records'?
       (2) replication 'full copy bringup' using snapshots
       (3) cleanup of replication (switch to 'always pull' log tails, and block on no new entries)
-12/12 - FIX: SegmentReader should actually use an enumerator for scanForward!!! 
+12/12 - FIX: SegmentReader now uses an enumerator for scanForward (big perf win)
 12/11 - FieldedDocumentStoreStage
          - BSONDocument insert interface
 	     - primary-key and composite-key index maintenance
