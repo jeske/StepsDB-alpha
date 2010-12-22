@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using System.Threading;
 
 using Bend;
+using Bend.Repl;
 
 namespace Bend.ReplTest1 {
     class _Main {
@@ -34,10 +35,10 @@ namespace Bend.ReplTest1 {
         }
 
         public static void waitUntilActive(LayerManager db, ReplHandler srvr) {
-            waitUntilState(db, srvr, ReplHandler.ReplState.active);
+            waitUntilState(db, srvr, ReplState.active);
         }
 
-        public static void waitUntilState(LayerManager db, ReplHandler srvr, ReplHandler.ReplState state) {
+        public static void waitUntilState(LayerManager db, ReplHandler srvr, ReplState state) {
 
             for (int x = 0; x < 20; x++) {
                 if (srvr.State == state) {
@@ -91,7 +92,7 @@ namespace Bend.ReplTest1 {
             repl_2.Shutdown();
 
             // wait until repl2 is really shutdown
-            waitUntilState(raw_db, repl_2, ReplHandler.ReplState.shutdown);
+            waitUntilState(raw_db, repl_2, ReplState.shutdown);
 
 
             // make sure our log does not continue from repl_2 logs

@@ -11,6 +11,7 @@ using System.Threading;
 using NUnit.Framework;
 
 using Bend;
+using Bend.Repl;
 
 
 namespace Bend {

@@ -59,11 +59,11 @@ using Bend;
  * 
  */
 
-namespace Bend {
+namespace Bend.Repl {
 
     public class ServerConnector {
-        Dictionary<string, ReplHandler> server_list = new Dictionary<string, ReplHandler>();
-        public ReplHandler getServerHandle(string server_guid) {
+        Dictionary<string, IReplConnection> server_list = new Dictionary<string, IReplConnection>();
+        public IReplConnection getServerHandle(string server_guid) {
 
             try {
                 return server_list[server_guid];
@@ -72,7 +72,7 @@ namespace Bend {
             }
         }
 
-        public void registerServer(string name, ReplHandler instance) {
+        public void registerServer(string name, IReplConnection instance) {
             server_list[name] = instance;
         }
         public void unregisterServer(string server_guid) {
@@ -81,21 +81,98 @@ namespace Bend {
             } catch (KeyNotFoundException) {
                 // nothing to remove
             }
-        }
+        }        
     }
 
     public class ServerContext {
         public string server_guid;
-        public ServerConnector connector;        
+        public ServerConnector connector;
     }
-
 
     // ----------------------------------------------
 
+    public interface IReplConnection {
+        string getDataInstanceId();
+        string getServerGuid();
+        IStepsKVDB getSnapshot();
+        IEnumerable<LogStatus> getStatusForLogs();
+        JoinInfo requestToJoin(string server_guid);
+        ReplState getState();
+        IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
+                        string log_server_guid,
+                        RecordKeyType log_start_key,
+                        RecordKeyType log_end_key);
 
+    }
+    public class JoinInfo {
+        public string data_instance_id;
+        public List<string> seed_servers;
+    }
+    public class LogStatus {
+        public string server_guid;
+        public RecordKeyType_Long log_commit_head;
+        public RecordKeyType_Long oldest_entry_pointer;
+        // public string newest_pending_entry_pointer;
+        public override string ToString() {
+            return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
+        }
+    }
+    public class LogEntry {
+        public long logstamp;
+        public string server_guid;
+        public byte[] data;
+    }
+    internal class MyReplConnection : IReplConnection {
+        ReplHandler hndl;
+        internal MyReplConnection(ReplHandler hndl) {
+            this.hndl = hndl;
+        }
+
+        public string getDataInstanceId() {
+            return hndl.getDataInstanceId();
+        }
+        public string getServerGuid() {
+            return hndl.getServerGuid();
+        }
+        public IEnumerable<LogStatus> getStatusForLogs() {
+            return hndl.getStatusForLogs();
+        }
+        public ReplState getState() {
+            return hndl.State;
+        }
+        public JoinInfo requestToJoin(string server_guid) {
+            return hndl.requestToJoin(server_guid);
+        }
+        public IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
+                    string log_server_guid,
+                    RecordKeyType log_start_key,
+                    RecordKeyType log_end_key) {
+            return hndl.fetchLogEntries(log_server_guid, log_start_key, log_end_key);
+        }
+        public IStepsKVDB getSnapshot() {
+            return hndl.getSnapshot();
+        }
+
+    }
+
+    public enum ReplState {
+        init,        // bringup
+        rebuild,     // it's safe to just copy everything from someone else
+        resolve,     // we have newer entries than someone else
+        active,      // ready to serve queries
+        error,       // catastrophic error, so just stop
+        do_shutdown,
+        shutdown     // shutdown down
+    }
+
+    // ----------------------------------------------
+
+   
     public class ReplHandler {
         IStepsSnapshotKVDB next_stage;        
         ServerContext ctx;
+
+        IReplConnection my_repl_interface;
 
         Random rnd;
         ReplPusher pusher;
@@ -108,15 +185,7 @@ namespace Bend {
         Thread worker;
         bool should_shutdown = false;
 
-        public enum ReplState {
-            init,        // bringup
-            rebuild,     // it's safe to just copy everything from someone else
-            resolve,     // we have newer entries than someone else
-            active,      // ready to serve queries
-            error,       // catastrophic error, so just stop
-            do_shutdown,
-            shutdown     // shutdown down
-        };
+       
         private volatile ReplState state = ReplState.init;
         public ReplState State { get { return state; } }
 
@@ -125,14 +194,16 @@ namespace Bend {
             return String.Format("ReplHandler({0}:{1})", this.ctx.server_guid, this.state.ToString());
         }
 
+       
+
         #region Constructors
 
         public ReplHandler(IStepsSnapshotKVDB db, ServerContext ctx) {
             this.next_stage = db;
+            this.my_repl_interface = new MyReplConnection(this);
             this.rnd = new Random();
             this.pusher = new ReplPusher(this);
             this.ctx = ctx;
-           
 
             try {
 
@@ -154,7 +225,7 @@ namespace Bend {
             // check server_guid matches?
 
             // register ourself
-            ctx.connector.registerServer(ctx.server_guid, this);
+            ctx.connector.registerServer(ctx.server_guid, this.my_repl_interface);
 
             // startup our background task
             worker = new Thread(delegate() {
@@ -207,8 +278,8 @@ namespace Bend {
         public static ReplHandler InitJoin(IStepsSnapshotKVDB db, ServerContext ctx, string seed_name) {
 
             // connect to the other server, get his instance id, exchange seeds
-            ReplHandler seed = ctx.connector.getServerHandle(seed_name);
-            ReplHandler.JoinInfo join_info = seed.requestToJoin(ctx.server_guid);
+            IReplConnection seed = ctx.connector.getServerHandle(seed_name);
+            JoinInfo join_info = seed.requestToJoin(ctx.server_guid);
 
             // record the join result
             db.setValue(new RecordKey()
@@ -251,20 +322,7 @@ namespace Bend {
             ctx.connector.unregisterServer(ctx.server_guid);
             this.should_shutdown = true;            
         }
-        public class LogStatus {
-            public string server_guid;
-            public RecordKeyType_Long log_commit_head;
-            public RecordKeyType_Long oldest_entry_pointer;
-            // public string newest_pending_entry_pointer;
-            public override string ToString() {
-                return String.Format("LogStatus( {0} oldest:{1} head:{2} )", server_guid, oldest_entry_pointer, log_commit_head);
-            }
-        }
-        public class LogEntry {
-            public long logstamp;
-            public string server_guid;
-            public byte[] data;            
-        }
+       
 
         private LogEntry _decodeLogEntry(RecordKey key, RecordData data) {
             var le = new LogEntry();
@@ -317,7 +375,7 @@ namespace Bend {
             return log_status;
         }
 
-        IEnumerable<LogStatus> getStatusForLogs() {
+        internal IEnumerable<LogStatus> getStatusForLogs() {
             var seeds_prefix = new RecordKey()                
                 .appendParsedKey("_config/seeds");
 
@@ -342,7 +400,7 @@ namespace Bend {
         }
 
         private void worker_fullRebuild() {
-            ReplHandler srvr;
+            IReplConnection srvr;
             // TODO: make sure servers are only listed as seeds when they are "active". 
             try {
                 srvr = pusher.getRandomSeed();
@@ -455,7 +513,7 @@ namespace Bend {
         private void worker_logResume() {
             bool can_log_replay = true;
             bool need_resolve = false;
-            ReplHandler srvr;
+            IReplConnection srvr;
             List<string> rebuild_reasons = new List<string>();
             try {
                 srvr = pusher.getRandomSeed();
@@ -609,7 +667,7 @@ namespace Bend {
                     break;
                 case ReplState.active:
                     // we are just running!! 
-                    ctx.connector.registerServer(ctx.server_guid, this);
+                    ctx.connector.registerServer(ctx.server_guid, this.my_repl_interface);
 
                     // pop back to init to check log tails
                     worker_logResume();
@@ -635,7 +693,7 @@ namespace Bend {
             public LogException(String info) : base(info) { }
         }
 
-        private IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
+        internal IEnumerable<KeyValuePair<RecordKey, RecordData>> fetchLogEntries(
                         string log_server_guid,
                         RecordKeyType log_start_key,
                         RecordKeyType log_end_key) {
@@ -768,10 +826,7 @@ namespace Bend {
             return ji;
         }
 
-        public class JoinInfo {
-            public string data_instance_id;
-            public List<string> seed_servers;
-        }
+        
 
         public class ReplPusher {
             HashSet<string> servers;
@@ -793,8 +848,8 @@ namespace Bend {
                 Console.WriteLine("Server {0} pusher added seed {1}",
                     myhandler.ctx.server_guid, server_guid);
             }
-            public ReplHandler getRandomSeed() {
-                List<ReplHandler> available_servers = new List<ReplHandler>();
+            public IReplConnection getRandomSeed() {
+                List<IReplConnection> available_servers = new List<IReplConnection>();
                 this.scanSeeds();
                 foreach (var server_guid in servers) {
                     try {
@@ -806,7 +861,7 @@ namespace Bend {
                 if (available_servers.Count == 0) {
                     throw new NoServersAvailableException("getRandomSeed: no servers avaialble");
                 }
-                ReplHandler[] srvr_array = available_servers.ToArray();
+                IReplConnection[] srvr_array = available_servers.ToArray();
                 int pick = myhandler.rnd.Next(available_servers.Count);
                 return available_servers[pick];
             }
@@ -832,9 +887,9 @@ namespace Bend {
 
                     if (!servers.Contains(sname))
                         try {
-                            ReplHandler srvr = myhandler.ctx.connector.getServerHandle(sname);
+                            IReplConnection srvr = myhandler.ctx.connector.getServerHandle(sname);
                             // only add this as a seed if it's active! 
-                            if (srvr.state == ReplState.active) {
+                            if (srvr.getState() == ReplState.active) {
                                 this.addServer(sname);
                                 Console.WriteLine("** scan seed, server {0} pusher, added seed {1}", myhandler.ctx.server_guid,
                                     sname);
@@ -848,9 +903,11 @@ namespace Bend {
             }
 
             public void pushNewLogEntry(long logstamp, RecordUpdate logdata) {
+                // TODO: change this to wakeup any pullers that are blocked
+#if false
                 foreach (var server_guid in servers) {
                     try {
-                        ReplHandler srvr = myhandler.ctx.connector.getServerHandle(server_guid);
+                        IReplConnection srvr = myhandler.ctx.connector.getServerHandle(server_guid);
                         srvr.applyLogEntry(myhandler.ctx.server_guid, logstamp, logdata);
                     } catch (Exception e) {
                         Console.WriteLine("Server {0}, couldn't push to server {1}",
@@ -858,7 +915,9 @@ namespace Bend {
                         myhandler.state = ReplState.init; // force us to reinit
                     }
                 }
+#endif
             }
+
         }
 
         private void _recordLogEntry(string from_server_guid, long logstamp, RecordUpdate logdata) {
@@ -950,17 +1009,4 @@ namespace Bend {
             this.setValue(key, update);
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
