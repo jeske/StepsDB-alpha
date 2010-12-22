@@ -17,7 +17,7 @@ namespace Bend.Util {
         public TcpClient socket;        
         public HttpServer srv;
 
-        private StreamReader inputStream;
+        private Stream inputStream;
         public StreamWriter outputStream;
 
         public String http_method;
@@ -32,10 +32,26 @@ namespace Bend.Util {
             this.socket = s;
             this.srv = srv;                   
         }
+        
 
-        public void process() {            
-            // bs = new BufferedStream(s.GetStream());
-            inputStream = new StreamReader(socket.GetStream());
+        private string streamReadLine(Stream inputStream) {
+            int next_char;
+            string data = "";
+            while (true) {
+                next_char = inputStream.ReadByte();
+                if (next_char == '\n') { break; }
+                if (next_char == '\r') { continue; }
+                if (next_char == -1) { Thread.Sleep(1); continue; };
+                data += Convert.ToChar(next_char);
+            }            
+            return data;
+        }
+        public void process() {                        
+            // we can't use a StreamReader for input, because it buffers up extra data on us inside it's
+            // "processed" view of the world, and we want the data raw after the headers
+            inputStream = new BufferedStream(socket.GetStream());
+
+            // we probably shouldn't be using a streamwriter for all output from handlers either
             outputStream = new StreamWriter(new BufferedStream(socket.GetStream()));
             try {
                 parseRequest();
@@ -56,7 +72,7 @@ namespace Bend.Util {
         }
 
         public void parseRequest() {
-            String request = inputStream.ReadLine();
+            String request = streamReadLine(inputStream);
             string[] tokens = request.Split(' ');
             if (tokens.Length != 3) {
                 throw new Exception("invalid http request line");
@@ -71,7 +87,7 @@ namespace Bend.Util {
         public void readHeaders() {
             Console.WriteLine("readHeaders()");
             String line;
-            while ((line = inputStream.ReadLine()) != null) {
+            while ((line = streamReadLine(inputStream)) != null) {
                 if (line.Equals("")) {
                     Console.WriteLine("got headers");
                     return;
@@ -97,6 +113,7 @@ namespace Bend.Util {
             srv.handleGETRequest(this);
         }
 
+        private const int BUF_SIZE = 4096;
         public void handlePOSTRequest() {
             // this post data processing just reads everything into a memory stream.
             // this is fine for smallish things, but for large stuff we should really
@@ -114,11 +131,12 @@ namespace Bend.Util {
                          String.Format("POST Content-Length({0}) too big for this simple server",
                            content_len));
                  }
-                 byte[] buf = new byte[4096];              
+                 byte[] buf = new byte[BUF_SIZE];              
                  int to_read = content_len;
                  while (to_read > 0) {  
                      Console.WriteLine("starting Read, to_read={0}",to_read);
-                     int numread = this.inputStream.BaseStream.Read(buf, 0, Math.Min(4096, to_read));
+
+                     int numread = this.inputStream.Read(buf, 0, Math.Min(BUF_SIZE, to_read));
                      Console.WriteLine("read finished, numread={0}", numread);
                      if (numread == 0) {
                          if (to_read == 0) {
