@@ -4,12 +4,15 @@
  - Replication Network Bringup
      - turn IReplConnection into a "real" network interface (WCF?)
 	 - connect two separate instances in two separate processes!
+  
+  - PROTOTYPE: transaction stage / MVCC stage
 
   - fix the block decoder selection to be dynamic instead of hardcoded
     - ADD: record block-encoder registry, encoder-type "chain" and 
 	       decode-setup (so it just auto-decodes whatever is there)
 
   - DBCORE extensions:
+     - atomic "segment pointer apply" (fix writethreads test)
      - estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
      - snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
      - SortedSegment: prefix/suffix compression

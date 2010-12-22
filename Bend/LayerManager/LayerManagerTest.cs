@@ -772,15 +772,7 @@ namespace BendTests
             test.Dispose();
         }
 
-        [Test]
-        public void T12_LayerManager_AssureTombstones_DeleteRecords() {
-            Assert.Fail("TODO: test to assure merge process needs tombstones to kill records");
-        }
 
-        [Test]
-        public void T13_LayerManager_Efficient_RangeKeyScans() {
-            Assert.Fail("TODO: test layermanager efficiently uses block pointer range references");
-        }
 
         // TEST: that our record-get will see data in ALL in-memory segments
         // TEST: two stage "checkpoint" -> "drop/finalize", concurrency, atomicity
@@ -802,6 +794,16 @@ namespace BendTests
     [TestFixture]
     public class ZZ_Todo_LayerManagerTests
     {
+        [Test]
+        public void T12_LayerManager_AssureTombstones_DeleteRecords() {
+            Assert.Fail("TODO: test to assure tombstones kill records in segment merge process");
+        }
+        
+        [Test]
+        public void T13_LayerManager_Efficient_RangeKeyScans() {
+            // not sure how to even test this...
+            Assert.Fail("TODO: test layermanager efficiently uses block pointer range references");
+        }
 
         [Test]
         public void T001_FullScanWithOnlyWorkingSegment() {
@@ -815,8 +817,6 @@ namespace BendTests
             Assert.Fail("test not implemented");
         }
     }
-
-
 }
 
 namespace BendPerfTest {

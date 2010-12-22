@@ -124,6 +124,15 @@ namespace BendTests {
             
 
         }
+    }
+
+    [TestFixture]
+    public class ZZ_TODO_MergeManager_TODO {
+        [SetUp]
+        public void TestSetup() {
+            System.GC.Collect(); // cause full collection to try and dispose/free filehandles
+        }
+
 
         [Test]
         public void T010_MergeManager_ScoreTests_ZZTodo() {
