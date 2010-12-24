@@ -5,6 +5,11 @@
      - turn IReplConnection into a "real" network interface (WCF?)
 	 - connect two separate instances in two separate processes!
   
+  - add some test performance counters for perfmon.exe
+    http://madskristensen.net/post/Create-performance-counters-using-NET-and-C.aspx
+	- OR, maybe just use NetMX because windows sucks.
+	  http://netmx.codeplex.com/
+
   - PROTOTYPE: transaction stage / MVCC stage
 
   - fix the block decoder selection to be dynamic instead of hardcoded
