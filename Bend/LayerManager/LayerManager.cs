@@ -106,7 +106,7 @@ namespace Bend
                             mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
                         }
                     }
-                } else if (cmd == (byte)LogCommands.CHECKPOINT) {
+                } else if (cmd == (byte)LogCommands.CHECKPOINT_START) {
                     // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
                     checkpointSegment = mylayer.workingSegment;
                     SegmentMemoryBuilder newsegment = new SegmentMemoryBuilder();
@@ -132,16 +132,25 @@ namespace Bend
         enum LogCommands
         {
             UPDATE = 0,
-            CHECKPOINT = 1,
+            CHECKPOINT_START = 1,
             CHECKPOINT_DROP = 2
         }
+
 
         public class WriteGroup : IDisposable
         {
             LayerManager mylayer;
             long tsn; // transaction sequence number
-            long last_logwaitnumber = 0;
-            public bool add_to_log = true;
+            long last_logwaitnumber = 0; // log-sequence-number from our most recent addCommand
+
+            List<LogCmd> pending_cmds = new List<LogCmd>();
+
+            public enum WriteGroupType {                
+                DISK_INCREMENTAL,
+                MEMORY_ONLY,
+                DISK_ATOMIC
+            };
+            WriteGroupType type;
             enum WriteGroupState
             {
                 PENDING,
@@ -149,24 +158,23 @@ namespace Bend
                 CLOSED,                
             }
             WriteGroupState state = WriteGroupState.PENDING;
-            public WriteGroup(LayerManager _layer) {
+            public WriteGroup(LayerManager _layer, WriteGroupType type=WriteGroupType.DISK_INCREMENTAL) {
                 this.mylayer = _layer;
                 this.tsn = System.DateTime.Now.ToBinary();
+                this.type = type;
                 // TODO: store the stack backtrace of who created this if we're in debug mode
             }
 
             public void setValue(RecordKey key, RecordUpdate update) {
                 // build a byte[] for the updates using the basic block encoder
-                if (add_to_log)  {
-                    MemoryStream writer = new MemoryStream();
-                    // TODO: this seems like a really inefficient way to write out a key
-                    ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
-                    encoder.setStream(writer);
-                    encoder.add(key, update);
-                    encoder.flush();
-                    mylayer.logwriter.addCommand((byte)LogCommands.UPDATE, writer.ToArray(), 
-                        ref this.last_logwaitnumber);
-                }
+                MemoryStream writer = new MemoryStream();
+                // TODO: this seems like a really inefficient way to write out a key
+                ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
+                encoder.setStream(writer);
+                encoder.add(key, update);
+                encoder.flush();
+                this.addCommand((byte)LogCommands.UPDATE, writer.ToArray());
+
                 // TODO: switch our writes to always occur through "handling the log"
                 // TODO: make our writes only visible to US?, by creating a "transaction segment"
                 lock (mylayer.segmentlayers) {
@@ -181,9 +189,27 @@ namespace Bend
 
                 this.setValue(key, update);
             }
-            public void addCommand(byte cmd, byte[] cmddata) {
-                mylayer.logwriter.addCommand(cmd, cmddata, ref this.last_logwaitnumber);
+
+            public void checkpointDrop() {
+                byte[] emptydata = new byte[0];
+                this.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
+
             }
+
+            private void addCommand(byte cmd, byte[] cmddata) {                
+                if (this.type == WriteGroupType.DISK_INCREMENTAL) {
+                    // if we are allowed to add each write to the disk log, then do it now
+                    mylayer.logwriter.addCommand(cmd, cmddata, ref this.last_logwaitnumber);
+                } else if (this.type == WriteGroupType.DISK_ATOMIC) {
+                    // add it to our pending list of commands to flush at the end...
+                    pending_cmds.Add(new LogCmd(cmd, cmddata));
+                } else if (this.type == WriteGroupType.MEMORY_ONLY) {
+                    // we don't need to add to the log at all! 
+                } else {
+                    throw new Exception("unknown write group type");                    
+                }
+            }
+            
 
             public void finish() {
                 // TODO: make a higher level TX commit that finalizes pending writes into final writes
@@ -198,14 +224,24 @@ namespace Bend
                 if (this.state == WriteGroupState.CLOSED) {
                     throw new Exception("flush called on closed WriteGroup"); // TODO: add LSN/info
                 }
-                if (add_to_log) {
-                    // we've been logging
+                if (type == WriteGroupType.DISK_INCREMENTAL) {                
+                    // we've been incrementally writing commands, so ask them to flush
                     if (this.last_logwaitnumber != 0) {
                         mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
                     }
+                } if (type == WriteGroupType.DISK_ATOMIC) {
+                    // we need to atomically add a
+                    mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
+                    this.pending_cmds.Clear();
+
+                    mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
                 } else {
                     // we turned off logging, so the only way to commit is to checkpoint!
-                    // TODO: force checkpoint 
+                    // TODO: force checkpoint
+                }
+
+                if (this.pending_cmds.Count != 0) {
+                    throw new Exception("pending commands left after finish!!");
                 }
 
                 state = WriteGroupState.CLOSED;
@@ -276,19 +312,19 @@ namespace Bend
                 checkpointSegment = workingSegment;
                 checkpoint_segment_size = checkpointSegment.RowCount;
                 workingSegment = newlayer;
-                segmentlayers.Insert(0, workingSegment);                
-            }
+                segmentlayers.Insert(0, workingSegment);
 
-            { // TODO: does this need to be in the lock?
-                byte[] emptydata = new byte[0];
-                long logWaitNumber = 0;
-                this.logwriter.addCommand((byte)LogCommands.CHECKPOINT, emptydata, ref logWaitNumber);
-            }
-
+                { // atomically add the checkpoint start marker
+                    byte[] emptydata = new byte[0];
+                    long logWaitNumber = 0;
+                    this.logwriter.addCommand((byte)LogCommands.CHECKPOINT_START, emptydata, ref logWaitNumber);
+                }
             
+            }
+
             
             {
-                WriteGroup tx = new WriteGroup(this);
+                WriteGroup tx = new WriteGroup(this, type:WriteGroup.WriteGroupType.DISK_ATOMIC);
 
                 // allocate a new generation number
                 uint new_generation_number = (uint) rangemapmgr.allocNewGeneration(tx);
@@ -296,16 +332,15 @@ namespace Bend
                 this._writeSegment(tx, SortedAscendingCheck.CheckAscending(checkpointSegment.sortedWalk(),"checkpoint segment")); 
     
                 {
-                    byte[] emptydata = new byte[0];
-                    tx.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
+                    tx.checkpointDrop(); 
                 }
                 rangemapmgr.recordMaxGeneration(tx,rangemapmgr.mergeManager.getMaxGeneration()+1);
 
-                tx.finish();                             // commit the freespace and rangemap transaction
+                tx.finish();   // commit the freespace and rangemap transaction
 
             }
 
-            // TODO: make this atomic            
+            // TODO: make this atomic
             
             // FIXME: don't do this anymore, because we are now rangemap walking!!
               // re-read the segment and use it to replace the checkpoint segment            
@@ -315,6 +350,7 @@ namespace Bend
             
             // reader.getStream().Close(); // force close the reader
 
+            // drop the old memory segment out of the segment layers now that's it's checkpointed
             lock (this.segmentlayers) {
                 if (checkpointSegment.RowCount != checkpoint_segment_size) {
                     System.Console.WriteLine("checkpointSegment was added to while checkpointing!! lost {0} rows",

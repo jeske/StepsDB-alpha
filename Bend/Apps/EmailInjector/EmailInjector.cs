@@ -163,8 +163,7 @@ namespace Bend.EmailIndexerTest {
                 // http://msdn.microsoft.com/en-us/library/system.io.streamreader.readline.aspx
 
                 List<string> lines = new List<string>();
-                LayerManager.WriteGroup txwg = new LayerManager.WriteGroup(db);
-                txwg.add_to_log = false;
+                LayerManager.WriteGroup txwg = new LayerManager.WriteGroup(db,type:LayerManager.WriteGroup.WriteGroupType.MEMORY_ONLY);                
 
 
                 while (reader.Position < reader.Length - 1) {

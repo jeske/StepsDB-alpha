@@ -1,27 +1,32 @@
 
 ----[ TODO  ]---------
+   
+  - MTREE "0.1" requirements:
+    - log truncation/recirculation
+	- freelist management	
+    - read/write concurrency, "background checkpoint/merge"
+	  - perform atomic "checkpoint" without stopping writes
+	     - atomic "segment pointer apply" (fix writethreads test)
+      - perform merge in the background without stopping writes
+	
+- MTREE improvements:
+    - estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)    
+    - SortedSegment: prefix/suffix compression
+	- logical "space volumes" (log on a separate disk from data)
+      - separate/multiple log/data files in regionmanager 
 
- - Replication Network Bringup
-     - turn IReplConnection into a "real" network interface (WCF?)
-	 - connect two separate instances in two separate processes!
-  
-  - add some test performance counters for perfmon.exe
-    http://madskristensen.net/post/Create-performance-counters-using-NET-and-C.aspx
-	- OR, maybe just use NetMX because windows sucks.
-	  http://netmx.codeplex.com/
+    - fix the block decoder selection to be dynamic instead of hardcoded
+      - ADD: record block-encoder registry, encoder-type "chain" and 
+	         decode-setup (so it just auto-decodes whatever is there)
 
-  - PROTOTYPE: transaction stage / MVCC stage
+    - improve the merge-manager
+	  - add "minimum merge size" to merge manager
+	
 
-  - fix the block decoder selection to be dynamic instead of hardcoded
-    - ADD: record block-encoder registry, encoder-type "chain" and 
-	       decode-setup (so it just auto-decodes whatever is there)
-
-  - DBCORE extensions:
-     - atomic "segment pointer apply" (fix writethreads test)
-     - estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)
+  - DBCORE: 
+	 - PROTOTYPE: transaction stage / MVCC stage
      - snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
-     - SortedSegment: prefix/suffix compression
-     - add ACCUMULATORS
+     - add ACCUMULATORS	     
          - LayerManager: SortedMerge extension needs to take a duplicate key resolver, 
 	       which will handle things like causing incremental updates to merge. 
 
@@ -29,11 +34,21 @@
   - GUI: setup generic DB event listener concept and notify GUI through it
   - GUI: number of blocks in each layer (this is probably what we'll show externally)
 
+  - add some test performance counters for perfmon.exe
+    http://madskristensen.net/post/Create-performance-counters-using-NET-and-C.aspx
+	- OR, maybe just use NetMX because windows sucks.
+	  http://netmx.codeplex.com/
+
+
+
+
+  - Replication Network Bringup
+     - turn IReplConnection into a "real" network interface (WCF?)
+	 - connect two separate instances in two separate processes!
+ 
+
 --------[ BASIC CUSTOMER USABILITY ]-------------
     
-  - separate/multiple log/data files in regionmanager 
-  - log truncation/recirculation
-  - freelist management
   - task/job/tool tracking
   - command line interface
   - html status GUI
@@ -76,8 +91,10 @@
   - ? make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
   - implement a new block format!!! 
 
-  - ? make BDSkipList do a quick check to see if the key is outside the top/bottom range?  
-     - it should already be fast because of the "top" skiplist lane
+  - BDSkipList:
+     ? make BDSkipList do a quick check to see if the key is outside the top/bottom range?  
+       - it should already be fast because of the "top" skiplist lane 
+     ? does it really need two skiplists, or can bidirectional searches be efficient with one?
 
 --------[ APPS ]-----------
 

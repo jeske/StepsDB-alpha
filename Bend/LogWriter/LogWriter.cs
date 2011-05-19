@@ -50,6 +50,15 @@ namespace Bend
         }
     }
 
+    
+    public struct LogCmd {
+        public byte cmd;
+        public byte[] cmddata;
+        public LogCmd(byte cmd, byte[] cmddata) {
+            this.cmd = cmd;
+            this.cmddata = cmddata;
+        }
+    };
 
     class LogWriter : IDisposable
     {
@@ -206,6 +215,16 @@ namespace Bend
                 logWaitNumber = this.logWaitSequenceNumber;
             }
         }
+
+        public void addCommands(List<LogCmd> cmds, ref long logWaitNumber) {
+            // this will atomically adda
+            lock (this) {
+                foreach (var log_entry in cmds) {
+                    this.addCommand(log_entry.cmd, log_entry.cmddata, ref logWaitNumber);
+                }
+            }
+        }
+
 
         public void flushPendingCommands() {
             long waitForLWSN;

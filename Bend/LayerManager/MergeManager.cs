@@ -15,7 +15,7 @@ namespace Bend {
     public class MergeManager_Incremental {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
-        public int MAX_MERGE_SIZE = 12;
+        public int MAX_MERGE_SIZE = 4;
         public int MAX_HISTO_MERGE_SIZE = 8;
         public RangemapManager rangemapmgr;
         
