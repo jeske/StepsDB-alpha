@@ -6,7 +6,7 @@
 	- freelist management	
     - read/write concurrency, "background checkpoint/merge"
 	  - perform atomic "checkpoint" without stopping writes
-	     - atomic "segment pointer apply" (fix writethreads test)
+	     - atomic "segment pointer apply" (fix writethreads test) (partially done)
       - perform merge in the background without stopping writes
 	
 - MTREE improvements:
