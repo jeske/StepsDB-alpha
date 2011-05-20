@@ -13,6 +13,7 @@
 		 c. make "background merge agent" thread to do this automatically
 	- freelist management	
 	- log truncation/recirculation
+	- add "FileSpacesRegionManager" that manages a set of files, control where log goes
 	
   - MTREE improvements:
     - estimate 'dbsize between start/end key', return sets of segment 'split' keys -- for splitting ranges
