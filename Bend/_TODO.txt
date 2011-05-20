@@ -1,4 +1,8 @@
 
+
+--- [ Main WIKI SITE:    http://stepsdb.pbworks.com/    ] -----
+
+
 ----[ TODO  ]---------
    
   - MTREE "0.1" requirements:
@@ -13,7 +17,8 @@
 		 c. make "background merge agent" thread to do this automatically
 	- freelist management	
 	- log truncation/recirculation
-	- add "FileSpacesRegionManager" that manages a set of files, control where log goes
+	- add "FileSpacesRegionManager" that puts data in a file or set of files
+	  - allow logs on a separate file (disk)
 	
   - SearchIndexer:
     - test indexing performance with background checkpoint/merge
