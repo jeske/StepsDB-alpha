@@ -14,23 +14,20 @@
 	- freelist management	
 	- log truncation/recirculation
 	
-- MTREE improvements:
-    - estimate 'dbsize between start/end key', provide split keys (for bringup progress, and parallel bringup)    
+  - MTREE improvements:
+    - estimate 'dbsize between start/end key', return sets of segment 'split' keys -- for splitting ranges
     - SortedSegment: prefix/suffix compression
-	- logical "space volumes" (log on a separate disk from data)
-      - separate/multiple log/data files in regionmanager 
-
     - fix the block decoder selection to be dynamic instead of hardcoded
       - ADD: record block-encoder registry, encoder-type "chain" and 
 	         decode-setup (so it just auto-decodes whatever is there)
-
     - improve the merge-manager
 	  - add "minimum merge size" to merge manager
-	
+	- logical "space volumes" (log on a separate disk from data)
+      - separate/multiple log/data files in regionmanager 
 
   - DBCORE: 
 	 - PROTOTYPE: transaction stage / MVCC stage
-     - snapshot 'merge resolver' (to avoid proliferating too many versions of a record)
+     - write SnapshotStage 'merge resolver' (to avoid proliferating too many versions of a record)
      - add ACCUMULATORS	     
          - LayerManager: SortedMerge extension needs to take a duplicate key resolver, 
 	       which will handle things like causing incremental updates to merge. 
@@ -44,13 +41,9 @@
 	- OR, maybe just use NetMX because windows sucks.
 	  http://netmx.codeplex.com/
 
-
-
-
   - Replication Network Bringup
      - turn IReplConnection into a "real" network interface (WCF?)
-	 - connect two separate instances in two separate processes!
- 
+	 - connect two separate instances in two separate processes! 
 
 --------[ BASIC CUSTOMER USABILITY ]-------------
     
@@ -107,6 +100,7 @@
      - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
      - add psudo connection handling
 	 - add full-repl
+	 - parallel-bringup idea (in fresh database, write all keys to all nodes at start, then split and selectively drop)
 
   - standalone server
      - standalone db server w/network protocol
@@ -273,6 +267,8 @@
 *** Interactive C# Shell mode? (w/intellisense!!) 
    - http://tirania.org/blog/archive/2008/Sep-08.html
 
+
+--------------------------------------------------------------------------------------------------------------
 ------------[ DONE ]--------------------
   
 
