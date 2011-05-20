@@ -15,6 +15,9 @@
 	- log truncation/recirculation
 	- add "FileSpacesRegionManager" that manages a set of files, control where log goes
 	
+  - SearchIndexer:
+    - test indexing performance with background checkpoint/merge
+
   - MTREE improvements:
     - estimate 'dbsize between start/end key', return sets of segment 'split' keys -- for splitting ranges
     - SortedSegment: prefix/suffix compression
