@@ -5,6 +5,11 @@
 
 ----[ TODO  ]---------
    
+
+  - why doesn't writethreads work?
+    - a) maybe the read scanner is holding an old set of root layers, so it doesn't see new writes?
+	- b) 
+
   - MTREE "0.1" requirements:
     - read/write concurrency, "background checkpoint/merge"
 	  - perform atomic "checkpoint" without stopping writes

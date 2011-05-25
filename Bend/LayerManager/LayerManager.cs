@@ -353,7 +353,7 @@ namespace Bend
             // drop the old memory segment out of the segment layers now that's it's checkpointed
             lock (this.segmentlayers) {
                 if (checkpointSegment.RowCount != checkpoint_segment_size) {
-                    System.Console.WriteLine("checkpointSegment was added to while checkpointing!! lost {0} rows",
+                    System.Console.WriteLine("********* checkpointSegment was added to while checkpointing!! lost {0} rows",
                         checkpointSegment.RowCount - checkpoint_segment_size);
                 }
                 segmentlayers.Remove(checkpointSegment);

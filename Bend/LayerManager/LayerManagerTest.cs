@@ -655,7 +655,11 @@ namespace BendTests
                     this.thread_num = thread_num;
                 }
                 public void doVerify() {
-                    this.parent.doVerify(this.thread_num);
+                    try {
+                        this.parent.doVerify(this.thread_num);
+                    } catch (Exception e) {
+                        System.Console.WriteLine("EXCEPTION in thread " + thread_num + ": " + e.ToString());
+                    }
                 }
             }
             public void checkpointer() {
@@ -720,15 +724,22 @@ namespace BendTests
                 Assert.AreEqual(expected_count, num_removals, "removal count");
 
             }
+
+            private string composeKey(int thread_num, string forData) {
+                return "v/" + forData + ":" + thread_num.ToString();
+            }
             public void doVerify(int thread_num) {
                 Random rnd = new Random(thread_num);
-                Thread.Sleep(rnd.Next(1000));
+                Thread.Sleep(rnd.Next(1000)); // sleep a random amount of time
+
+
+                // add a set of data values
                 System.Console.WriteLine("startwrites.. " + thread_num);
                 // add the values
                 for (int i = 0; i < datavalues.Length; i++) {
                     string data = datavalues[i].ToString();
-                    string value = "v/" + data + ":" + thread_num.ToString();                    
-                    db.setValueParsed(value, data);                    
+                    string key = this.composeKey(thread_num, data);
+                    db.setValueParsed(key, data);                    
                     Interlocked.Increment(ref num_additions);
                 }
                 
@@ -736,18 +747,21 @@ namespace BendTests
 
                 // read the values
                 for (int i = 0; i < datavalues.Length; i++) {
-                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
-                    RecordData data;
-                    if (db.getRecord(new RecordKey().appendParsedKey("v/" + value), out data) == GetStatus.PRESENT) {
-                        if (datavalues[i].ToString() == data.ToString()) {
+                    RecordData rdata;
+
+                    string data = datavalues[i].ToString();
+                    string key = this.composeKey(thread_num, data);                                                      
+                    
+                    if (db.getRecord(new RecordKey().appendParsedKey(key), out rdata) == GetStatus.PRESENT) {                        
+                        if (datavalues[i].ToString() == rdata.ToString()) {
                             Interlocked.Increment(ref num_retrievals);
                         } else {
-                            System.Console.WriteLine("-- ERR: record data didn't match for key({0}). {1} != {2}",
-                                "v/" + value, data.ToString(), datavalues[i].ToString());
+                            System.Console.WriteLine("-- ERR: record data didn't match for key({0}). expected {1} != got {2}",
+                                key, datavalues[i].ToString(), rdata.ToString());
                         }
                     } else {
                         System.Console.WriteLine("-- ERR: missing record, thread({0}), key({1})",
-                            thread_num, "v/" + value);
+                            thread_num, key);
                     }
                 }
 
@@ -755,8 +769,9 @@ namespace BendTests
 
                 // remove the values
                 for (int i = 0; i < datavalues.Length; i++) {
-                    string value = datavalues[i].ToString() + ":" + thread_num.ToString();
-                    db.setValue(new RecordKey().appendParsedKey("v/" + value), RecordUpdate.DeletionTombstone());
+                    string data = datavalues[i].ToString();
+                    string key = this.composeKey(thread_num, data);                    
+                    db.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.DeletionTombstone());
                     Interlocked.Increment(ref num_removals);
 
                 }
