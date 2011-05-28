@@ -604,6 +604,7 @@ namespace Bend
 
 
         public V this[K key] {
+            
             get {
                 Node<K,V> node = findNode(key);
                 if (node != null) {
@@ -613,11 +614,13 @@ namespace Bend
                 }
             }
             set {
-                Node<K,V> node = findNode(key);
-                if (node != null) {
-                    node.value = value;
-                } else {
-                    Add(key, value);
+                lock (this) {
+                    Node<K, V> node = findNode(key);
+                    if (node != null) {
+                        node.value = value;
+                    } else {
+                        Add(key, value);
+                    }
                 }
                 
             }
