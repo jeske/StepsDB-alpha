@@ -108,6 +108,7 @@
     <Compile Include="LayerManager\Records\RecordData.cs" />
     <Compile Include="LayerManager\Records\RecordKey.cs" />
     <Compile Include="LayerManager\Records\RecordUpdate.cs" />
+    <Compile Include="LayerManager\LayerManagerTest_WriteThreads.cs" />
     <Compile Include="LayerManager\RootMetadata\RangemapManagerTest.cs" />
     <Compile Include="LayerManager\RootMetadata\SegmentDescriptor.cs" />
     <Compile Include="LogWriter\LogWriter.cs" />
