@@ -444,10 +444,14 @@ namespace Bend
                                     layer.FindPrev(null, true).Key,
                                     num_generations);
 
-                    if (last_attempted_cursor_setup_key != null && last_attempted_cursor_setup_key.Equals(cur_key)) {
-                        throw new Exception("cursor setup error, reached twice with same start key: " +
-                            cur_key);
-                    }
+                    // if two different layers contain the same key, which is valid, then this will trip, so it's obviously
+                    // not an error...
+
+                    //if (last_attempted_cursor_setup_key != null && last_attempted_cursor_setup_key.Equals(cur_key)) {
+                    //    throw new Exception("cursor setup error, reached twice with same start key: " +
+                    //        cur_key);
+                    //}
+
 #if DEBUG_CURSORS || DEBUG_CURSORS_LOW
                     Console.WriteLine("segmentWalkCursorSetup({0}) equal_ok:{1} starting... ", cur_key, equal_ok);
 #endif

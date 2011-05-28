@@ -3,6 +3,8 @@
 
 // #define DEBUG_FINDNEXT
 
+#define DEBUG_CHECKPOINT
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -301,13 +303,22 @@ namespace Bend
         }
 
         public void flushWorkingSegment() {
+
+
+            // TODO: make this work concurrently in the background
+
+
             Console.WriteLine("=====================================[ Flush Working Segment ]=================================");
-            // create a new working segment            
+            // (1) create a new working segment            
             SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
             SegmentMemoryBuilder checkpointSegment;
             int checkpoint_segment_size;
 
-            // grab the checkpoint segment and move it aside
+#if DEBUG_CHECKPOINT
+            System.Console.WriteLine("CHKPT: create new working segment");
+#endif
+
+            // (2) grab the current working segment and move it aside (now the checkpoint segment)
             lock (this.segmentlayers) {
                 checkpointSegment = workingSegment;
                 checkpoint_segment_size = checkpointSegment.RowCount;
@@ -324,39 +335,45 @@ namespace Bend
 
             
             {
+                // (3) write the checkpoint segment to disk, accumulating the rangemap entries into tx
                 WriteGroup tx = new WriteGroup(this, type:WriteGroup.WriteGroupType.DISK_ATOMIC);
+
+#if DEBUG_CHECKPOINT
+                System.Console.WriteLine("CHKPT: write old working segment to disk segments");
+#endif
 
                 // allocate a new generation number
                 uint new_generation_number = (uint) rangemapmgr.allocNewGeneration(tx);
 
                 this._writeSegment(tx, SortedAscendingCheck.CheckAscending(checkpointSegment.sortedWalk(),"checkpoint segment")); 
     
-                {
-                    tx.checkpointDrop(); 
-                }
+                
+                tx.checkpointDrop(); // schedule a log drop
+                
                 rangemapmgr.recordMaxGeneration(tx,rangemapmgr.mergeManager.getMaxGeneration()+1);
 
-                tx.finish();   // commit the freespace and rangemap transaction
+                         
 
-            }
+                // (4) commit the new segment rangemap entries into the dataset, unlink the old memorybuilder copy of the checkpoint segment
+                lock (this.segmentlayers) {
+#if DEBUG_CHECKPOINT
+                    System.Console.WriteLine("CHKPT: commit new checkpoint");
+#endif
+                    
+                    tx.finish();   // commit the new rangemap entries (and eventually the freespace modifications)
 
-            // TODO: make this atomic
-            
-            // FIXME: don't do this anymore, because we are now rangemap walking!!
-              // re-read the segment and use it to replace the checkpoint segment            
-              // SegmentReader sr = new SegmentReader(reader.getStream());
-              // segmentlayers.Insert(1, sr); // working segment is zero, so insert this after it
-            
-            
-            // reader.getStream().Close(); // force close the reader
+                    if (checkpointSegment.RowCount != checkpoint_segment_size) {
+                        System.Console.WriteLine("********* checkpointSegment was added to while checkpointing!! lost {0} rows",
+                            checkpointSegment.RowCount - checkpoint_segment_size);
+                    }
+                    // checkpointSegment.Clear(); // is this okay !?!?!??!?!? 
+                    // drop the old memory segment out of the segment layers now that's it's checkpointed
+#if DEBUG_CHECKPOINT
+                    System.Console.WriteLine("CHKPT: drop old working segment from layers");
+#endif
 
-            // drop the old memory segment out of the segment layers now that's it's checkpointed
-            lock (this.segmentlayers) {
-                if (checkpointSegment.RowCount != checkpoint_segment_size) {
-                    System.Console.WriteLine("********* checkpointSegment was added to while checkpointing!! lost {0} rows",
-                        checkpointSegment.RowCount - checkpoint_segment_size);
+                    segmentlayers.Remove(checkpointSegment);
                 }
-                segmentlayers.Remove(checkpointSegment);
             }
         }
 

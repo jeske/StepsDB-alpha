@@ -83,6 +83,10 @@ namespace Bend
             items[key] = value; // replace the existing value if it is there
         }
 
+        public void Clear() {
+            items.Clear();
+        }
+
         public GetStatus getRecordUpdate(RecordKey key, out RecordUpdate update) {
             // TODO handle missing exception
             try {

@@ -637,7 +637,7 @@ namespace BendTests
                 Random rnd = new Random();
                 datavalues = new int[num_values];
                 for (int i = 0; i < num_values; i++) {
-                    datavalues[i] = rnd.Next(0xfffff);
+                    datavalues[i] = rnd.Next(0xfffffff);
                 }
             
             }
