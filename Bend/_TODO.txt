@@ -10,6 +10,9 @@
     - a) maybe the read scanner is holding an old set of root layers, so it doesn't see new writes?
 	- b) 
 
+    - TODO fixes:
+	  - add a "readonly mode" to segment memory builder, to "freeze" it.
+
   - MTREE "0.1" requirements:
     - read/write concurrency, "background checkpoint/merge"
 	  - perform atomic "checkpoint" without stopping writes

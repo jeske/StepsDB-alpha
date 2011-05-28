@@ -302,6 +302,25 @@ namespace Bend
 
         }
 
+        public void DEBUG_addNewWorkingSegmentWithoutFlush() {
+            // (1) create a new working segment            
+            SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
+            SegmentMemoryBuilder checkpointSegment;
+            int checkpoint_segment_size;
+
+            lock (flushLock) {
+                lock (this.segmentlayers) {
+                    checkpointSegment = workingSegment;
+                    checkpoint_segment_size = checkpointSegment.RowCount;
+                    workingSegment = newlayer;
+                    segmentlayers.Insert(0, workingSegment);
+                }
+            }
+
+            // (2) wait a moment, then check that the old working segment was no longer written (or make it readonly)
+        }
+
+
         Object flushLock = new Object();
         public void flushWorkingSegment() {
             lock (flushLock) {
@@ -320,6 +339,7 @@ namespace Bend
 #endif
 
                 // (2) grab the current working segment and move it aside (now the checkpoint segment)
+
                 lock (this.segmentlayers) {
                     checkpointSegment = workingSegment;
                     checkpoint_segment_size = checkpointSegment.RowCount;
@@ -333,6 +353,7 @@ namespace Bend
                     }
 
                 }
+
 
 
                 {
