@@ -71,8 +71,57 @@ namespace BendTests
                 found_recs++;
             }
             Assert.AreEqual(1, found_recs, "found the wrong number of records after flush !");
+        }
+
+        [Test]
+        public void T001_MultiWorkingSegmentReadWrite() {
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\3");
+
+            var rk = new RecordKey().appendParsedKey(".a");
+            db.setValueParsed(".a", "1");
+            KeyValuePair<RecordKey, RecordData> record;
+
+            try {
+                record = db.FindNext(rk, true);
+                Assert.AreEqual(rk, record.Key, "fetched key does not match");
+            } catch (KeyNotFoundException) {
+                Assert.Fail("couldn't find 'a' record");
+            }
+
+            int found_recs = 0;
+            var scan_range = new ScanRange<RecordKey>(rk, RecordKey.AfterPrefix(rk), null);
+
+            foreach (var row in db.scanForward(scan_range)) {
+                found_recs++;
+            }
+            Assert.AreEqual(1, found_recs, "found the wrong number of records in working segment scan!");
+
+            db.DEBUG_addNewWorkingSegmentWithoutFlush();
+
+            db.setValueParsed(".b", "2");
+
+            Console.WriteLine("");
+            Console.WriteLine("--- contents --");
+            db.debugDump();
+            Console.WriteLine("");
+
+            // ------------------------------
+
+            try {
+                var rkb = new RecordKey().appendParsedKey(".b");
+                record = db.FindNext(rkb, true);
+                Assert.AreEqual(rkb, record.Key, "fetched key does not match (after flush)");
+            } catch (KeyNotFoundException) {
+                Assert.Fail("couldn't find 'b' record");
+            }
 
 
+            found_recs = 0;
+            foreach (var row in db.scanForward(
+                new ScanRange<RecordKey>(rk, RecordKey.AfterPrefix(rk), null))) {
+                found_recs++;
+            }
+            Assert.AreEqual(1, found_recs, "found the wrong number of records after working segment addition !");
         }
 
         [Test]

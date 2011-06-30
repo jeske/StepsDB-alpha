@@ -8,6 +8,8 @@
 // #define DEBUG_SEGMENT_RANGE_WALK
 // #define DEBUG_CURSORS
 // #define DEBUG_CURSORS_LOW
+#define DEBUG_CURSORS_RELOAD
+
 
 #define DEBUG_USE_NEW_FINDALL
 
@@ -408,6 +410,7 @@ namespace Bend
             
             IComparable<RecordKey> cur_key;
             IComparable<RecordKey> last_attempted_cursor_setup_key = null;
+            long currentCheckpointNumber;
 
             if (direction_is_forward) {
                 cur_key = lowestKeyTest;
@@ -426,6 +429,10 @@ namespace Bend
                 var handledIndexRecords = new BDSkipList<RecordKey, RecordData>();
                 var recordSegments = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
 
+                // record the current checkpoint number so we know if we have to reload the segments
+                currentCheckpointNumber = this.store.checkpointNumber;
+
+                
                 SegmentMemoryBuilder[] layers;
                 // snapshot the working segment layers
                 lock (this.store.segmentlayers) {
@@ -433,41 +440,23 @@ namespace Bend
                 }
 
                 DateTime start = DateTime.Now;
-                // TODO: fix this super-hack for "minKey/maxKey"
-                foreach (SegmentMemoryBuilder layer in layers) {
-                    if (layer.RowCount == 0) {
-                        continue;
-                    }
-                    // use the first and last records in the segment as the rangekeys
-                    var segrk = RangeKey.newSegmentRangeKey(
-                                    layer.FindNext(null, true).Key,
-                                    layer.FindPrev(null, true).Key,
-                                    num_generations);
-
-                    // if two different layers contain the same key, which is valid, then this will trip, so it's obviously
-                    // not an error...
-
-                    //if (last_attempted_cursor_setup_key != null && last_attempted_cursor_setup_key.Equals(cur_key)) {
-                    //    throw new Exception("cursor setup error, reached twice with same start key: " +
-                    //        cur_key);
-                    //}
-
+                
 #if DEBUG_CURSORS || DEBUG_CURSORS_LOW
-                    Console.WriteLine("segmentWalkCursorSetup({0}) equal_ok:{1} starting... ", cur_key, equal_ok);
+                Console.WriteLine("segmentWalkCursorSetup({0}) equal_ok:{1} starting... ", cur_key, equal_ok);
 #endif
-                    INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
-                        cur_key,
-                        direction_is_forward,
-                        layer,
+                INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
+                    cur_key,
+                    direction_is_forward,
+                    layers,
 
-                        segrk,
-                        handledIndexRecords,
-                        num_generations,
-                        recordSegments,
-                        equal_ok,
-                        stats: stats);
-                    last_attempted_cursor_setup_key = cur_key;
-                }
+                
+                    handledIndexRecords,
+                    num_generations,
+                    recordSegments,
+                    equal_ok,
+                    stats: stats);
+                last_attempted_cursor_setup_key = cur_key;
+                
                 DateTime end = DateTime.Now;
 
 #if DEBUG_CURSORS || DEBUG_CURSORS_LOW
@@ -551,6 +540,14 @@ namespace Bend
                         Console.WriteLine("merge produced: {0} segment_reload_at: {1}", out_rec, segment_reload_at_key);
 #endif
                         
+                        // TODO: is this the right place to check for a checkpoint cursor reload?
+                        if (this.store.checkpointNumber != currentCheckpointNumber) {
+#if DEBUG_CURSORS_RELOAD
+                            Console.WriteLine("******** checkpoint boundary.. goto reload_cursor to reload layers");
+#endif
+                            goto reload_cursor;
+                        }
+
                         // check to see if we need to segment reload
                         if (direction_is_forward) {
                             if (segment_reload_at_key.CompareTo(out_rec.Key) < 0) {
@@ -1133,8 +1130,7 @@ namespace Bend
         private void INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(
             IComparable<RecordKey> startkeytest,
             bool direction_is_forward,
-            ISortedSegment startseg_raw,
-            RangeKey startseg_rangekey,
+            SegmentMemoryBuilder[] startseg_layers,            
             IScannableDictionary<RecordKey, RecordData> handledIndexRecords2,
             int maxgen,
             IScannableDictionary<RangeKey, IScannable<RecordKey, RecordUpdate>> segmentsWithRecords,
@@ -1144,11 +1140,8 @@ namespace Bend
             var workList = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
             var handledIndexRecords = new HashSet<RangeKey>();
             var segmentsWithRecordsTombstones = new HashSet<RecordKey>();
-
-
-            // add the start segments to the handled list 
-            handledIndexRecords.Add(startseg_rangekey);
-
+            
+            
             // we only want the "next" segment by generation, so we accumulate them in this array. 
             // Note that because we stop searching in a given segment as soon as we find a valid
             // pointer, this also acts as a "tombstone" for any pointers bigger than the valid 
@@ -1158,22 +1151,21 @@ namespace Bend
                 new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[maxgen+1];
 
             // (1) add working segment to the worklist
-            workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
-            if (direction_is_forward) {
-                int cmpresult = startkeytest.CompareTo(startseg_rangekey.highkey);
-                if (cmpresult < 0 || (equal_ok && (cmpresult <= 0))) {
-                    segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
-                    segmentsWithRecords_ByGeneration[startseg_rangekey.generation] =
-                        new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+            foreach (SegmentMemoryBuilder layer in startseg_layers) {
+                int index = 0;
+                if (layer.RowCount == 0) {
+                    continue;
                 }
-            } else {
-                int cmpresult = startkeytest.CompareTo(startseg_rangekey.lowkey);
-                if (cmpresult > 0 || (equal_ok && (cmpresult >= 0))) {
-                    segmentsWithRecords.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
-                    segmentsWithRecords_ByGeneration[startseg_rangekey.generation] =
-                        new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)startseg_raw);
+                // make a "full" rangekey
+                RangeKey startseg_rangekey = RangeKey.newSegmentRangeKey(
+                                        layer.FindNext(null, true).Key,
+                                        layer.FindPrev(null, true).Key,
+                                        num_generations-index);
+                index++;                
+                workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)layer);
+                // add the start segments to the handled list 
+                handledIndexRecords.Add(startseg_rangekey);
 
-                }
             }
             
 
@@ -1185,11 +1177,35 @@ namespace Bend
 #endif
 
             while (workList.Count > 0) {
-                var item = workList.FindPrev(null, false);
+                var item = workList.FindNext(null, false); // grab an item from the worklist
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
                 RangeKey curseg_rangekey = item.Key;
+
+                // check to see if we have records within the current worklist segment
+
+                if (direction_is_forward) {
+                    int cmpresult = startkeytest.CompareTo(curseg_rangekey.highkey);
+                    if (cmpresult < 0 || (equal_ok && (cmpresult <= 0))) {
+                        if (segmentsWithRecords_ByGeneration[curseg_rangekey.generation].Key == null) {
+                            segmentsWithRecords.Add(curseg_rangekey, (IScannable<RecordKey, RecordUpdate>)curseg);
+                            segmentsWithRecords_ByGeneration[curseg_rangekey.generation] =
+                                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(curseg_rangekey, (IScannable<RecordKey, RecordUpdate>)curseg);
+                        }
+                    }
+                } else {
+                    int cmpresult = startkeytest.CompareTo(curseg_rangekey.lowkey);
+                    if (cmpresult > 0 || (equal_ok && (cmpresult >= 0))) {
+                        if (segmentsWithRecords_ByGeneration[curseg_rangekey.generation].Key == null) {
+                            segmentsWithRecords.Add(curseg_rangekey, (IScannable<RecordKey, RecordUpdate>)curseg);
+                            segmentsWithRecords_ByGeneration[curseg_rangekey.generation] =
+                                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(curseg_rangekey, (IScannable<RecordKey, RecordUpdate>)curseg);
+                        }
+                    }
+                }
+
+
 
 #if DEBUG_CURSORS_LOW 
                 Console.WriteLine("cursor worklist({0}) item: {1} GetHashCode:{2}", count, item.Key, item.Key.GetHashCode());

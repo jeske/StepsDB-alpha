@@ -53,6 +53,9 @@ namespace MyTestStub {
             // var testclass = new A02_SortedSegmentTests();
             // testclass.T01_SortedSegment_ScanTest();
 
+            var testclass = new A03_LayerManagerTests();
+            testclass.T001_MultiWorkingSegmentReadWrite();
+
             // fetchHitsTest();
 
 

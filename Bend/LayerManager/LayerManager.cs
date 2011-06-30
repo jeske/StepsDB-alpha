@@ -36,6 +36,7 @@ namespace Bend
 
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;
+        public long checkpointNumber = 0;
 
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
@@ -308,6 +309,9 @@ namespace Bend
             SegmentMemoryBuilder checkpointSegment;
             int checkpoint_segment_size;
 
+
+            Console.WriteLine("************ WARNING ************ Using DEBUG_addNewWorkingSegmentWithoutFlush()");
+
             lock (flushLock) {
                 lock (this.segmentlayers) {
                     checkpointSegment = workingSegment;
@@ -316,6 +320,10 @@ namespace Bend
                     segmentlayers.Insert(0, workingSegment);
                 }
             }
+
+            Console.WriteLine("*********** num memory layers = {0}", segmentlayers.Count);
+
+            this.debugDump();
 
             // (2) wait a moment, then check that the old working segment was no longer written (or make it readonly)
         }
@@ -341,6 +349,7 @@ namespace Bend
                 // (2) grab the current working segment and move it aside (now the checkpoint segment)
 
                 lock (this.segmentlayers) {
+                    this.checkpointNumber++;
                     checkpointSegment = workingSegment;
                     checkpoint_segment_size = checkpointSegment.RowCount;
                     workingSegment = newlayer;
@@ -398,6 +407,7 @@ namespace Bend
                     }
                 }
             }
+
         }
 
         //-------------------------------------------------------
