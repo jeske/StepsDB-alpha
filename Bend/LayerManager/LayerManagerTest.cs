@@ -77,8 +77,8 @@ namespace BendTests
         public void T001_MultiWorkingSegmentReadWrite() {
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\3");
 
-            var rk = new RecordKey().appendParsedKey(".a");
-            db.setValueParsed(".a", "1");
+            var rk = new RecordKey().appendParsedKey(".data/a");
+            db.setValueParsed(".data/a", "1");
             KeyValuePair<RecordKey, RecordData> record;
 
             try {
@@ -98,7 +98,7 @@ namespace BendTests
 
             db.DEBUG_addNewWorkingSegmentWithoutFlush();
 
-            db.setValueParsed(".b", "2");
+            db.setValueParsed(".data/b", "2");
 
             Console.WriteLine("");
             Console.WriteLine("--- contents --");
@@ -108,7 +108,7 @@ namespace BendTests
             // ------------------------------
 
             try {
-                var rkb = new RecordKey().appendParsedKey(".b");
+                var rkb = new RecordKey().appendParsedKey(".data/b");
                 record = db.FindNext(rkb, true);
                 Assert.AreEqual(rkb, record.Key, "fetched key does not match (after flush)");
             } catch (KeyNotFoundException) {
@@ -117,11 +117,12 @@ namespace BendTests
 
 
             found_recs = 0;
+            var rk_prefix = new RecordKey().appendParsedKey(".data");
             foreach (var row in db.scanForward(
-                new ScanRange<RecordKey>(rk, RecordKey.AfterPrefix(rk), null))) {
+                new ScanRange<RecordKey>(rk_prefix, RecordKey.AfterPrefix(rk_prefix), null))) {
                 found_recs++;
             }
-            Assert.AreEqual(1, found_recs, "found the wrong number of records after working segment addition !");
+            Assert.AreEqual(2, found_recs, "found the wrong number of records after working segment addition !");
         }
 
         [Test]

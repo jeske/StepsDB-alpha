@@ -41,7 +41,7 @@ namespace Bend
         LayerManager store;
         public MergeManager_Incremental mergeManager;
 
-        int num_generations;
+        int num_generations_persisted;
         public static int GEN_LSD_PAD = 3;
 
         public static String altdebug_pad = "                                          --";
@@ -61,7 +61,7 @@ namespace Bend
                 out update) == GetStatus.MISSING) {
                 throw new Exception("RangemapManager can't init without NUMGENERATIONS");
             }
-            num_generations = (int)Lsd.lsdToNumber(update.data);
+            num_generations_persisted = (int)Lsd.lsdToNumber(update.data);
 
 
             // init the merge manager
@@ -182,8 +182,8 @@ namespace Bend
         }
 
         public void setMaxGenCountHack(int num_generations) {            
-            if (this.num_generations != num_generations) {
-                this.num_generations = num_generations;                
+            if (this.num_generations_persisted != num_generations) {
+                this.num_generations_persisted = num_generations;                
                 store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                     RecordUpdate.WithPayload(num_generations.ToString()));
             }
@@ -192,22 +192,22 @@ namespace Bend
        
         public void setGenerationCountToZeroHack() {                       
             int highest_valid_gen = 0;
-            if (highest_valid_gen + 1 < num_generations) {
-                num_generations = highest_valid_gen + 1;
+            if (highest_valid_gen + 1 < num_generations_persisted) {
+                num_generations_persisted = highest_valid_gen + 1;
                 store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
-                    RecordUpdate.WithPayload(num_generations.ToString()));
+                    RecordUpdate.WithPayload(num_generations_persisted.ToString()));
             }
         }
        
         public int allocNewGeneration(LayerManager.WriteGroup tx) {
             // allocate a new generation number
-            int newgen = num_generations;
-            num_generations++;
+            int newgen = num_generations_persisted;
+            num_generations_persisted++;
     
             // TODO: write the new generation count, and the rangemap entry for the generation
 
             tx.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
-                RecordUpdate.WithPayload(num_generations.ToString()));
+                RecordUpdate.WithPayload(num_generations_persisted.ToString()));
 
             return newgen;
         }
@@ -252,7 +252,7 @@ namespace Bend
         }
 
         public int genCount() {
-            return num_generations;
+            return num_generations_persisted;
         }
 
         // ------------[ public segmentWalkForKey ] --------------
@@ -296,6 +296,8 @@ namespace Bend
             public int rowAccumulate_TryGet;
             public int rowDeletionTombstonesSkipped;
             public int handlingGeneration;
+
+            public int cursorReloads;
 
             public override String ToString() {
                 var string_lines = new List<string>();
@@ -344,7 +346,7 @@ namespace Bend
                 var segrk = RangeKey.newSegmentRangeKey(
                                 layer.FindNext(null, true).Key,
                                 layer.FindPrev(null, true).Key,
-                                num_generations);
+                                num_generations_persisted);
                 
                 INTERNAL_segmentWalkForNextKey(
                     lowkey,
@@ -352,7 +354,7 @@ namespace Bend
                     layer,
                     segrk,
                     handledIndexRecords,
-                    num_generations,
+                    num_generations_persisted,
                     recordsBeingAssembled,
                     equal_ok,
                     stats:stats);
@@ -417,15 +419,16 @@ namespace Bend
             } else {
                 cur_key = highestKeyTest;
             }
+            SegmentWalkStats stats = new SegmentWalkStats();
 
 #if DEBUG_CURSORS
             Console.WriteLine("getNextRecord_LowLevel_Cursor(cur_key={0})", cur_key);                    
 #endif
             while (true) {
             reload_cursor:
-                SegmentWalkStats stats = new SegmentWalkStats();
+                
                 stats.handlingGeneration = 100; // hack
-
+                stats.cursorReloads++;
                 var handledIndexRecords = new BDSkipList<RecordKey, RecordData>();
                 var recordSegments = new BDSkipList<RangeKey, IScannable<RecordKey, RecordUpdate>>();
 
@@ -439,7 +442,7 @@ namespace Bend
                     layers = this.store.segmentlayers.ToArray();
                 }
 
-                DateTime start = DateTime.Now;
+                DateTime start = DateTime.Now;               
                 
 #if DEBUG_CURSORS || DEBUG_CURSORS_LOW
                 Console.WriteLine("segmentWalkCursorSetup({0}) equal_ok:{1} starting... ", cur_key, equal_ok);
@@ -451,7 +454,7 @@ namespace Bend
 
                 
                     handledIndexRecords,
-                    num_generations,
+                    num_generations_persisted,
                     recordSegments,
                     equal_ok,
                     stats: stats);
@@ -1148,24 +1151,27 @@ namespace Bend
             // segment we found (because we don't want to scan far enoguh to add _all_ candidate tombstones)
 
             var segmentsWithRecords_ByGeneration =
-                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[maxgen+1];
+                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[maxgen+startseg_layers.Length];
 
-            // (1) add working segment to the worklist
-            foreach (SegmentMemoryBuilder layer in startseg_layers) {
-                int index = 0;
+            // (1) add working segment to the worklist            
+            
+            for (int layer_index=0;layer_index<startseg_layers.Length;layer_index++) {            
+                var layer = startseg_layers[layer_index];
+                
                 if (layer.RowCount == 0) {
                     continue;
                 }
+
+                int layer_generation = num_generations_persisted+(startseg_layers.Length-layer_index-1);
                 // make a "full" rangekey
                 RangeKey startseg_rangekey = RangeKey.newSegmentRangeKey(
                                         layer.FindNext(null, true).Key,
                                         layer.FindPrev(null, true).Key,
-                                        num_generations-index);
-                index++;                
+                                        layer_generation);
+                
                 workList.Add(startseg_rangekey, (IScannable<RecordKey, RecordUpdate>)layer);
                 // add the start segments to the handled list 
                 handledIndexRecords.Add(startseg_rangekey);
-
             }
             
 
@@ -1176,8 +1182,9 @@ namespace Bend
                 startkeytest,equal_ok,direction_is_forward);
 #endif
 
-            while (workList.Count > 0) {
-                var item = workList.FindNext(null, false); // grab an item from the worklist
+            while (workList.Count > 0) {            
+                // grab the higest-generation number work item (i.e. end of the worklist)
+                var item = workList.FindPrev(null, false); 
                 IScannable<RecordKey, RecordUpdate> curseg = item.Value;
                 workList.Remove(item.Key);
 
@@ -1216,7 +1223,7 @@ namespace Bend
 
                 if (!curseg_rangekey.directlyContainsKey(GEN_KEY_PREFIX)) {
                     // throw new Exception("why do we have a worklist item that's not an indirect segment?");
-                    break; // nothing to do here.                    
+                    goto next_worklist_item; // we don't need to look for any range keys in this segment....
                 }
 
                 // for each generation, starting with maxgen
@@ -1267,7 +1274,7 @@ namespace Bend
                                     segmentsWithRecords_ByGeneration[i] =
                                             new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>(rk, segment);
                                 }
-                                break;
+                                goto scan_rangekeys;
                             } else {
                                 // we're headed in the opposite direction of the scan, so only grab a 
                                 // segment if we're inside it _and_ not inside our current candidate
@@ -1293,8 +1300,9 @@ namespace Bend
                                 }
 
                             }
-                            break; // stop once we found a real record
+                            goto scan_rangekeys; // stop once we found a real record
                         }
+                    scan_rangekeys:
 #if DEBUG_CURSORS
                         Console.WriteLine("segmentsWithRecords: {0}", segmentsWithRecords);                        
 #endif
@@ -1463,7 +1471,10 @@ namespace Bend
                         }
                     }
                 }
-            }
+
+            next_worklist_item:
+                ; // pass
+            } // while worklist not empty...
 
             // done with worklist
             int candidate_count = 0;
