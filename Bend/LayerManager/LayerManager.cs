@@ -56,27 +56,25 @@ namespace Bend
             workingSegment = new SegmentMemoryBuilder();
             
             segmentlayers.Add(workingSegment);
-            
+            receiver = new Receiver(this);
         }
 
         public LayerManager(InitMode mode, String dir_path)
             : this() {
             this.dir_path = dir_path;
 
-
             if (mode == InitMode.NEW_REGION) {
                 // right now we only have one region type
                 regionmgr = new RegionExposedFiles(InitMode.NEW_REGION, dir_path);
 
                 // get our log online...
-                logwriter = new LogWriter(InitMode.NEW_REGION, regionmgr);
+                logwriter = new LogWriter(InitMode.NEW_REGION, regionmgr, receiver);
 
                 // setup the initial numgenerations record
                 RangemapManager.Init(this);
                 // TODO: do something sane with initial freespace setup
             } else if (mode == InitMode.RESUME) {
-                regionmgr = new RegionExposedFiles(dir_path);
-                receiver = new Receiver(this);
+                regionmgr = new RegionExposedFiles(dir_path);                
                 logwriter = new LogWriter(InitMode.RESUME, regionmgr, receiver);
             } else {
                 throw new Exception("unknown init mode");
@@ -178,11 +176,8 @@ namespace Bend
                 encoder.flush();
                 this.addCommand((byte)LogCommands.UPDATE, writer.ToArray());
 
-                // TODO: switch our writes to always occur through "handling the log"
-                // TODO: make our writes only visible to US?, by creating a "transaction segment"
-                lock (mylayer.segmentlayers) {
-                    mylayer.workingSegment.setRecord(key, update); // add to working set
-                }
+                // Writes are actually applied to the workingSegment when the LgoWriter pushes them to the ILogReceiver.
+                // This assures, for example, that DISK_ATOMIC writes to not apply to the segments until the writegroup is flushed.
             }
 
             public void setValueParsed(String skey, String svalue) {
@@ -207,7 +202,9 @@ namespace Bend
                     // add it to our pending list of commands to flush at the end...
                     pending_cmds.Add(new LogCmd(cmd, cmddata));
                 } else if (this.type == WriteGroupType.MEMORY_ONLY) {
-                    // we don't need to add to the log at all! 
+                    // we don't need to add to the log at all, but it still needs to be pushed
+                    // through the LogWriter so it can be applied to the working segment
+                    mylayer.logwriter.addCommand_NoLog(cmd, cmddata);
                 } else {
                     throw new Exception("unknown write group type");                    
                 }
@@ -469,6 +466,24 @@ namespace Bend
 
             Console.WriteLine("performMerge({0})", mc.ToString());
 
+            // verify the merge is valid and doesn't have any suplicate segments!
+            {
+                var segs_to_merge_hash = new HashSet<SegmentDescriptor>();
+                foreach (var seg in mc.source_segs) {
+                    if (segs_to_merge_hash.Contains(seg)) {
+                        throw new Exception("duplicate segment in performMerge!");
+                    }
+                    segs_to_merge_hash.Add(seg);
+                }
+                foreach (var seg in mc.target_segs) {
+                    if (segs_to_merge_hash.Contains(seg)) {
+                        throw new Exception("duplicate segment in performMerge!");
+                    }
+                    segs_to_merge_hash.Add(seg);
+                }
+            }
+
+
             var segs_to_merge = new List<SegmentDescriptor>();
             segs_to_merge.AddRange(mc.source_segs);
             segs_to_merge.AddRange(mc.target_segs);
@@ -621,7 +636,11 @@ namespace Bend
 
                 // check to see if we can shrink NUMGENERATIONS
 
-                tx.finish();                             // commit the freespace and rangemap transaction
+                
+                lock (this.segmentlayers) {
+                    tx.finish();                             // commit the freespace and rangemap transaction
+                    this.checkpointNumber++;
+                }
 
                 rangemapmgr.setMaxGenCountHack(rangemapmgr.mergeManager.getMaxGeneration() + 1);
                 rangemapmgr.clearSegmentCacheHack();                

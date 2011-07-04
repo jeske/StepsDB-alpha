@@ -22,7 +22,7 @@ namespace BendTests
 
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\1");  // TODO, create random directory
             {
-                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr);
+                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr, null);
                 lr.Dispose();
             }
 
@@ -76,6 +76,13 @@ namespace BendTests
             Assert.AreEqual(receiver.cmds.Count, 0, "there should be no log records");
         }
 
+        public class DummyLogReceiver : ILogReceiver {
+            public void handleCommand(byte cmd, byte[] cmddata) {
+                // do nothing! 
+            }
+        }
+        
+
         [Test]
         public void T00_ResumeWithRecords() {
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\2");
@@ -86,7 +93,7 @@ namespace BendTests
             // make a new empty log
             {
 
-                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr);
+                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr, new DummyLogReceiver());
 
                 // add ONE record to the log
                 long logWaitNumber=0;

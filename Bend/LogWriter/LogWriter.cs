@@ -82,7 +82,7 @@ namespace Bend
         static UInt32 LOG_MAGIC = 0x44332211;
         public static int DEFAULT_LOG_SIZE = 12 * 1024 * 1024;
 
-        LogWriter() {                   
+        private LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
 
             groupCommitWorkerHndl = new AutoResetEvent(false);
@@ -94,13 +94,29 @@ namespace Bend
                 commitThread.Start();
             }
         }
-        // special "init" of a region
-        public LogWriter(InitMode mode, IRegionManager regionmgr)
-            : this() {
-            if (mode != InitMode.NEW_REGION) {
-                throw new Exception("init method must be called with NEW_REGION init");
-            }
 
+                // standard open/resume
+        public LogWriter(InitMode mode, IRegionManager regionmgr, ILogReceiver receiver)
+            : this() {
+            this.receiver = receiver;
+
+            switch (mode) {
+                case InitMode.NEW_REGION:
+                    LogWriter_NewRegion(regionmgr);
+                    break;
+                case InitMode.RESUME:
+                    LogWriter_Resume(regionmgr);
+                    break;
+                default:
+                    throw new Exception("unknown init mode: " + mode);
+                    break;
+            }
+        }
+
+
+
+        // special "init" of a region
+        private void LogWriter_NewRegion(IRegionManager regionmgr) { 
             // test to see if there is already a root record there
             {
                 try {
@@ -116,9 +132,6 @@ namespace Bend
                 } catch (RegionExposedFiles.RegionMissingException) {
                     
                 }
-                
-
-
             }
 
             // create the log and root record
@@ -148,14 +161,7 @@ namespace Bend
             rootblockstream.Flush();
         }
 
-        // standard open/resume
-        public LogWriter(InitMode mode, IRegionManager regionmgr, ILogReceiver receiver)
-            : this() {
-            this.receiver = receiver;
-
-            if (mode != InitMode.RESUME)  {
-                throw new Exception("init method must be called with RESUME init");
-            }
+        private void LogWriter_Resume(IRegionManager regionmgr) {
             this.rootblockstream = regionmgr.readRegionAddr(0).getNewAccessStream();
             root = Util.readStruct<RootBlock>(rootblockstream);
             if (!root.IsValid()) {
@@ -207,6 +213,11 @@ namespace Bend
                 // log resume complete...
             }
         }
+
+        public void addCommand_NoLog(byte cmdtype, byte[] cmdbytes) {
+            receiver.handleCommand(cmdtype, cmdbytes);
+        }
+
         public void addCommand(byte cmdtype, byte[] cmdbytes, ref long logWaitNumber) {
             lock (this) {
                 nextChunkBuffer.Write((UInt32)cmdbytes.Length);
@@ -214,6 +225,8 @@ namespace Bend
                 nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
                 logWaitNumber = this.logWaitSequenceNumber;
             }
+            // we always expect the ILogReceiver to actuall apply the command
+            receiver.handleCommand(cmdtype, cmdbytes);
         }
 
         public void addCommands(List<LogCmd> cmds, ref long logWaitNumber) {
