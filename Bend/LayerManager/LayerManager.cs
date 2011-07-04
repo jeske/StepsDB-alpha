@@ -446,6 +446,19 @@ namespace Bend
            
         }
 
+        public void mergeIfNeeded() {
+            var mc = this.rangemapmgr.mergeManager.getBestCandidate();
+            if (mc == null) { return;  }
+            if (mc.score() > (1.6 + (float)this.rangemapmgr.mergeManager.getMaxGeneration()/12.0f)) {
+                System.Console.WriteLine("** best merge score too high: " + mc);
+                return;
+            }
+            System.Console.WriteLine("merge " + mc);
+                                               
+            this.performMerge(mc);
+        }
+
+
         public void performMerge(MergeCandidate mc) {
             if (mc == null) { return; }
 

@@ -21,13 +21,15 @@ namespace BendTests {
             int num_additions = 0;
             int num_retrievals = 0;
             int num_removals = 0;
+            bool withMerge;
 
             internal int checkpoint_interval;
 
-            internal WriteThreadsTest(int num_values, int checkpoint_interval_rowcount) {
+            internal WriteThreadsTest(int num_values=10, int checkpoint_interval_rowcount=50, bool withMerge=false) {
                 System.GC.Collect();
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\11");
                 this.checkpoint_interval = checkpoint_interval_rowcount;
+                this.withMerge = withMerge;
 
                 Random rnd = new Random();
                 datavalues = new int[num_values];
@@ -67,6 +69,9 @@ namespace BendTests {
                         iteration++;
                         System.Console.WriteLine("checkpoint {0} start ", iteration);
                         db.flushWorkingSegment();
+                        if (this.withMerge) {
+                            db.mergeIfNeeded();
+                        }
                         // db.DEBUG_addNewWorkingSegmentWithoutFlush();
                         double duration_ms = (DateTime.Now - start).TotalMilliseconds;
                         System.Console.WriteLine("checkpoint {0} end in {1} ms", iteration, duration_ms);
@@ -187,6 +192,13 @@ namespace BendTests {
         [Test]
         public void T11_LayerManager_WriteThreads() {
             WriteThreadsTest test = new WriteThreadsTest(10, 50);
+            test.runThreadedTest(100);
+            test.Dispose();
+        }
+
+        [Test]
+        public void T12_LayerManager_WriteThread_WithMerge() {
+            WriteThreadsTest test = new WriteThreadsTest(10, 50, withMerge:true);            
             test.runThreadedTest(100);
             test.Dispose();
         }
