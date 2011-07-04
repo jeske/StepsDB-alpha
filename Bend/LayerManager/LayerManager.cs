@@ -447,15 +447,20 @@ namespace Bend
         }
 
         public void mergeIfNeeded() {
-            var mc = this.rangemapmgr.mergeManager.getBestCandidate();
-            if (mc == null) { return;  }
-            if (mc.score() > (1.6 + (float)this.rangemapmgr.mergeManager.getMaxGeneration()/12.0f)) {
-                System.Console.WriteLine("** best merge score too high: " + mc);
-                return;
+            lock (this) {
+                System.Console.WriteLine("** LayerManager.mergeIfNeeded() --- start");
+                var mc = this.rangemapmgr.mergeManager.getBestCandidate();
+                if (mc == null) { return; }
+                if (mc.score() > (1.6 + (float)this.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
+                    System.Console.WriteLine("** best merge score too high: " + mc);
+                    return;
+                }
+                System.Console.WriteLine("merge " + mc);
+
+                this.performMerge(mc);
+                this.checkpointNumber++;
+                System.Console.WriteLine("** LayerManager.mergeIfNeeded() --- end");
             }
-            System.Console.WriteLine("merge " + mc);
-                                               
-            this.performMerge(mc);
         }
 
 
@@ -592,7 +597,7 @@ namespace Bend
 
            // (2) now perform the merge!
             {
-                WriteGroup tx = new WriteGroup(this);
+                WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC);
 
                 // HACK: we delete the segment mappings first, so if we write the same mapping that we're removing, 
                 // we don't inadvertantly delete the new mapping..
@@ -601,8 +606,8 @@ namespace Bend
                 foreach (SegmentDescriptor segment in segs) {
                     // TODO: it's not safe to free this space yet!
                     rangemapmgr.unmapSegment(tx, segment);
-
                 }
+
                 IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain_head = SortedAscendingCheck.CheckAscending(chain, "merge-final");
 
                 // remove tombstones if we need to        
@@ -619,7 +624,7 @@ namespace Bend
                 tx.finish();                             // commit the freespace and rangemap transaction
 
                 rangemapmgr.setMaxGenCountHack(rangemapmgr.mergeManager.getMaxGeneration() + 1);
-                rangemapmgr.clearSegmentCacheHack();
+                rangemapmgr.clearSegmentCacheHack();                
             }
         }
 

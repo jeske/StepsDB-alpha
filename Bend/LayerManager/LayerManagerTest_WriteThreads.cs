@@ -10,7 +10,7 @@ using Bend;
 using System.Threading;
 
 namespace BendTests {
-    
+
     public partial class A03_LayerManagerTests {
 
         public class WriteThreadsTest : IDisposable {
@@ -22,6 +22,7 @@ namespace BendTests {
             int num_retrievals = 0;
             int num_removals = 0;
             bool withMerge;
+            public int exceptions = 0;
 
             internal int checkpoint_interval;
 
@@ -55,6 +56,7 @@ namespace BendTests {
                         this.parent.testThreadWorker(this.thread_num);
                     } catch (Exception e) {
                         System.Console.WriteLine("EXCEPTION in thread " + thread_num + ": " + e.ToString());
+                        parent.exceptions++;
                     }
                 }
             }
@@ -62,22 +64,27 @@ namespace BendTests {
             // --------[ Checkpointer Thread ]-----------------------------
             // currently this only checkpoints the working segment, should this also do merges?
             public void checkpointer() {
-                int iteration = 0;
+                int iteration = 0;                
                 while (checkpoint_interval != 0) {
-                    if (db.workingSegment.RowCount > checkpoint_interval) {
-                        DateTime start = DateTime.Now;
-                        iteration++;
-                        System.Console.WriteLine("checkpoint {0} start ", iteration);
-                        db.flushWorkingSegment();
-                        if (this.withMerge) {
-                            db.mergeIfNeeded();
+                    try {
+                        if (db.workingSegment.RowCount > checkpoint_interval) {
+                            DateTime start = DateTime.Now;
+                            iteration++;
+                            System.Console.WriteLine("checkpoint {0} start ", iteration);
+                            db.flushWorkingSegment();
+                            if (this.withMerge) {
+                                db.mergeIfNeeded();
+                            }
+                            // db.DEBUG_addNewWorkingSegmentWithoutFlush();
+                            double duration_ms = (DateTime.Now - start).TotalMilliseconds;
+                            System.Console.WriteLine("checkpoint {0} end in {1} ms", iteration, duration_ms);
+                            Thread.Sleep(5);
+                        } else {
+                            Thread.Sleep(5);
                         }
-                        // db.DEBUG_addNewWorkingSegmentWithoutFlush();
-                        double duration_ms = (DateTime.Now - start).TotalMilliseconds;
-                        System.Console.WriteLine("checkpoint {0} end in {1} ms", iteration, duration_ms);
-                        Thread.Sleep(5);
-                    } else {
-                        Thread.Sleep(5);
+                    } catch (Exception e) {
+                        System.Console.WriteLine("EXCEPTION in checkpointer" + e.ToString());
+                        exceptions++;
                     }
                 }
 
@@ -122,11 +129,13 @@ namespace BendTests {
                 System.Console.WriteLine("  {0} additions, {1} retrievals, {2} removals",
                     num_additions, num_retrievals, num_removals);
                 System.Console.WriteLine("  {0} ops/sec", ops_per_sec);
+                System.Console.WriteLine("  {0} exceptions", exceptions);
 
                 int expected_count = numthreads * datavalues.Length;
                 Assert.AreEqual(expected_count, num_additions, "addition count");
                 Assert.AreEqual(expected_count, num_retrievals, "retrieval count");
                 Assert.AreEqual(expected_count, num_removals, "removal count");
+                Assert.AreEqual(exceptions, 0, "exceptions");
 
             }
 

@@ -4,8 +4,11 @@
 
 
 ----[ TODO  ]---------
-   
-  - make background merge
+     
+  - make background merge work
+    - DISK_ATOMIC transaction needs to not apply the writes until the end...
+	- good way to fix this is to make all writes happen through "log apply"
+
   - setup metric based background flush/merge
 
   - TODO fixes:
