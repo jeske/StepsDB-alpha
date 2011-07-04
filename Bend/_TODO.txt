@@ -6,8 +6,6 @@
 ----[ TODO  ]---------
      
   - make background merge work
-    - DISK_ATOMIC transaction needs to not apply the writes until the end...
-	- good way to fix this is to make all writes happen through "log apply"
 	- need to make sure "deleted" segments live until their pointers die.. (or a restart occurs), attach a weakref that frees the segment
 
   - setup metric based background flush/merge
