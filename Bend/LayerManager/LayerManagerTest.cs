@@ -739,7 +739,7 @@ namespace BendPerfTest {
         [Test]
         public void T02_Small_WriteThreads_Perf() {
             A03_LayerManagerTests.WriteThreadsTest test =
-                new A03_LayerManagerTests.WriteThreadsTest(20, 800);
+                new A03_LayerManagerTests.WriteThreadsTest(20, 800, withMerge:true);
             test.runThreadedTest(100);
         }
 
@@ -760,7 +760,7 @@ namespace BendPerfTest {
         [Test]
         public void T11_WriteThreads_Perf() {
             A03_LayerManagerTests.WriteThreadsTest test = 
-                new A03_LayerManagerTests.WriteThreadsTest(500, 7000);
+                new A03_LayerManagerTests.WriteThreadsTest(500, 7000, withMerge:true);
             test.runThreadedTest(60);
             test.Dispose();
         }

@@ -648,11 +648,13 @@ namespace Bend
         }
 
         public void mergeAllSegments() {
-            var allsegs = new List<SegmentDescriptor>();
-            allsegs.AddRange(listAllSegments());
-            allsegs.Sort((a, b) => a.generation.CompareTo(b.generation));
-            
-            mergeSegments(allsegs);
+            lock (this) {
+                var allsegs = new List<SegmentDescriptor>();
+                allsegs.AddRange(listAllSegments());
+                allsegs.Sort((a, b) => a.generation.CompareTo(b.generation));
+
+                mergeSegments(allsegs);
+            }
         }
 
 
