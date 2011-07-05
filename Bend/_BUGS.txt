@@ -36,12 +36,25 @@ LayerManager Threading Test, 1210.0692 ms elapsed
   --------------------------------------------------------------------------------------------------------------------------
 
 
+merge MergeCandidate{ range -0.53 (SegmentDescriptor{1:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."96898376:97")}) 
+                               -> (SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."96898376:98")}) }
+
+performMerge(MergeCandidate{ range -0.53 (SegmentDescriptor{1:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."96898376:97")}) -> 
+                                         (SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."96898376:98")}) })
+
+  
+db gen0 start(RecordKey(".ROOT"."FREELIST"."HEAD")) end(RecordKey("v"."96898376:98"))
+db gen0 start(RecordKey(".ROOT"."FREELIST"."HEAD")) end(RecordKey("v"."96898376:99"))
+listAllSegments: 2 segments listed in 0.0130008 seconds
 
 
-  EXCEPTION in checkpointerSystem.Exception: mergemanager and db.listAllSegments have different data!
+mm gen0 start(RecordKey(".ROOT"."FREELIST"."HEAD")) end(RecordKey("v"."96898376:98"))
+
+EXCEPTION in checkpointer -- System.Exception: mergemanager and db.listAllSegments have different data!
    at Bend.LayerManager.verifySegmentList() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 439
    at Bend.LayerManager.mergeIfNeeded() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 458
-   at BendTests.A03_LayerManagerTests.WriteThreadsTest.checkpointer() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManagerTest_WriteThreads.cs:line 76
+   at BendTests.A03_LayerManagerTests.WriteThreadsTest.checkpointer() in 
+
 
    ------------------------------------------------------------------------------------------------------------------------------
 
