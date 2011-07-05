@@ -1,36 +1,48 @@
 ﻿
-*** extended keystart from: test/rnd/1658249285  to: test/rnd/1646866613
-*** extended keyend from: test/rnd/1691890452  to: test/rnd/1698641090
-allocateNewSegment - next address: 4294971392
-Exposed Region Manager, deleting: c:\BENDtst\bigtest\addr0000000004096.rgm
-died to exception: System.IO.IOException: The process cannot access the file because it is being used by another process.
-   at System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath)
-   at System.IO.File.Move(String sourceFileName, String destFileName)
-   at Bend.RegionExposedFiles.disposeRegionAddr(Int64 region_addr) in C:\Users\David\CODING\Bend\Bend\RegionManager.cs:line 306
-   at Bend.RegionExposedFiles.writeFreshRegionAddr(Int64 region_addr, Int64 length) in C:\Users\David\CODING\Bend\Bend\RegionManager.cs:line 299
-   at Bend.FreespaceManager.allocateNewSegment(WriteGroup tx, Int32 length) in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\FreespaceManager.cs:line 60
-   at Bend.LayerManager._writeSegment(WriteGroup tx, IEnumerable`1 records, Int32 target_generation) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 225
-   at Bend.LayerManager.mergeSegments(IEnumerable`1 segs) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 438
-   at Bend.LayerManager.performMerge(MergeCandidate mc) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 314
-   at Bend.MainBend.do_bringup_test(DbgGUI win) in C:\Users\David\CODING\Bend\Bend\_Main.cs:line 265
-   at Bend.DbgGUI.RunStuff() in C:\Users\David\CODING\Bend\Bend\DbgGUI\DbgGUI.cs:line 27
-press any key...
+--------------------------------------------------------------------------------------------------------------------------
+
+T12_LayerManager_WriteThread_WithMerge
+
+
+CHKPT: commit new checkpoint
+CHKPT: drop old working segment from layers
+** LayerManager.mergeIfNeeded() --- start
+merge MergeCandidate{ range -0.53 (SegmentDescriptor{1:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."97308731:99")}) -> (SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."97308731:99")}) }
+performMerge(MergeCandidate{ range -0.53 (SegmentDescriptor{1:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."97308731:99")}) -> (SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."97308731:99")}) })
+
+=====================================[ Merge Segments ]=================================
+
+
+EXCEPTION in checkpointerSystem.
+
+Exception: Could not load Segment from SegmentDescriptor: 
+     SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey("v"."97308731:99")}
+
+   at Bend.SegmentDescriptor.getSegment(RangemapManager rmm) in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\SegmentDescriptor.cs:line 127
+   at Bend.LayerManager.mergeSegments(IEnumerable`1 segs) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 598
+   at Bend.LayerManager.performMerge(MergeCandidate mc) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 492
+   at Bend.LayerManager.mergeIfNeeded() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 458
+   at BendTests.A03_LayerManagerTests.WriteThreadsTest.checkpointer() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManagerTest_WriteThreads.cs:line 76
+LayerManager Threading Test, 1210.0692 ms elapsed
+  1000 additions, 1000 retrievals, 1000 removals
+  2479.1970574906 ops/sec
+  1 exceptions
 
 
 
-Exposed Region Manager, deleting: c:\BENDtst\bigtest\addr0002143293440.rgm
-mapGenerationToRegion: SegmentDescriptor{0:test/rnd/1140585566:test/rnd/1160219234}
-allocateNewSegment - next address: 2147487744
-Exposed Region Manager, deleting: c:\BENDtst\bigtest\addr0000000000000.rgm
-died to exception: System.IO.IOException: The process cannot access the file because it is being used by another process.
-   at System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath)
-   at System.IO.File.Move(String sourceFileName, String destFileName)
-   at Bend.RegionExposedFiles.disposeRegionAddr(Int64 region_addr) in C:\Users\David\CODING\Bend\Bend\RegionManager.cs:line 306
-   at Bend.RegionExposedFiles.writeFreshRegionAddr(Int64 region_addr, Int64 length) in C:\Users\David\CODING\Bend\Bend\RegionManager.cs:line 299
-   at Bend.FreespaceManager.allocateNewSegment(WriteGroup tx, Int32 length) in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\FreespaceManager.cs:line 60
-   at Bend.LayerManager._writeSegment(WriteGroup tx, IEnumerable`1 records, Int32 target_generation) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 225
-   at Bend.LayerManager.mergeSegments(IEnumerable`1 segs) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 438
-   at Bend.LayerManager.performMerge(MergeCandidate mc) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 314
-   at Bend.MainBend.do_bringup_test(DbgGUI win) in C:\Users\David\CODING\Bend\Bend\_Main.cs:line 265
-   at Bend.DbgGUI.RunStuff() in C:\Users\David\CODING\Bend\Bend\DbgGUI\DbgGUI.cs:line 27
-press any key...
+
+
+
+  --------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+  EXCEPTION in checkpointerSystem.Exception: mergemanager and db.listAllSegments have different data!
+   at Bend.LayerManager.verifySegmentList() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 439
+   at Bend.LayerManager.mergeIfNeeded() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 458
+   at BendTests.A03_LayerManagerTests.WriteThreadsTest.checkpointer() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManagerTest_WriteThreads.cs:line 76
+
+   ------------------------------------------------------------------------------------------------------------------------------
+
+

@@ -7,8 +7,13 @@
      
 
   - make background merge work
-    - make a test which more reliably causes merge/write failures (since it's still happening!) 
+    - resolve issues in BUGS.txt
+	  - failure to load SegmentDescriptor during performMerge
+	  - zlip decoding error in write threads (bad data from unclean test run?)
+	- make a test which more reliably causes merge/write failures (since it's still happening!) 
 	- need to make sure "deleted" segments live until their pointers die.. (or a restart occurs), attach a weakref that frees the segment
+
+
 
   - setup metric based background flush/merge
 

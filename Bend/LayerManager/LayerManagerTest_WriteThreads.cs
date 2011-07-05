@@ -83,7 +83,7 @@ namespace BendTests {
                             Thread.Sleep(5);
                         }
                     } catch (Exception e) {
-                        System.Console.WriteLine("EXCEPTION in checkpointer" + e.ToString());
+                        System.Console.WriteLine("EXCEPTION in checkpointer -- " + e.ToString());
                         exceptions++;
                     }
                 }
@@ -197,7 +197,6 @@ namespace BendTests {
             }
         }
 
-
         [Test]
         public void T11_LayerManager_WriteThreads() {
             WriteThreadsTest test = new WriteThreadsTest(10, 50);
@@ -207,7 +206,7 @@ namespace BendTests {
 
         [Test]
         public void T12_LayerManager_WriteThread_WithMerge() {
-            WriteThreadsTest test = new WriteThreadsTest(10, 50, withMerge:true);            
+            WriteThreadsTest test = new WriteThreadsTest(num_values:90, checkpoint_interval_rowcount:50, withMerge:true);            
             test.runThreadedTest(100);
             test.Dispose();
         }

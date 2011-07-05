@@ -1150,8 +1150,10 @@ namespace Bend
             // pointer, this also acts as a "tombstone" for any pointers bigger than the valid 
             // segment we found (because we don't want to scan far enoguh to add _all_ candidate tombstones)
 
+            int highest_possible_generation = maxgen + startseg_layers.Length;
+
             var segmentsWithRecords_ByGeneration =
-                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[maxgen+startseg_layers.Length];
+                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[highest_possible_generation];
 
             // (1) add working segment to the worklist            
             
@@ -1189,6 +1191,10 @@ namespace Bend
                 workList.Remove(item.Key);
 
                 RangeKey curseg_rangekey = item.Key;
+                if ((curseg_rangekey.generation < 0) || (curseg_rangekey.generation > highest_possible_generation)) {
+                    throw new Exception("generation out of range " + curseg_rangekey.ToString() + 
+                        " highest_possible_generation:" + highest_possible_generation);
+                }
 
                 // check to see if we have records within the current worklist segment
 
