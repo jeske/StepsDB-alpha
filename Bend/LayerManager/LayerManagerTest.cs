@@ -538,6 +538,112 @@ namespace BendTests
         }
 
 
+        class ValueCheckerThread {
+            public string key_to_check, value_to_expect;
+            public int num_checks = 0;
+            public int num_errors = 0;
+            LayerManager db;
+            bool should_end = false;
+
+            public ValueCheckerThread(LayerManager db, string key_to_check, string value_to_expect) {
+                this.db = db;
+                this.key_to_check = key_to_check;
+                this.value_to_expect = value_to_expect;
+            }
+
+            public void doValidate() {
+                int count = 0;
+                while (true) {
+                    try {
+                        RecordKey key = new RecordKey().appendParsedKey(key_to_check);
+                        RecordData data;
+                        num_checks++;
+                        if (db.getRecord(key, out data) != GetStatus.PRESENT) {
+                            num_errors++;
+                        } else {
+                            if (!data.ToString().Equals(value_to_expect)) {
+                                Console.WriteLine(data.ToString() + " != " + value_to_expect);
+                                num_errors++;
+                            }
+                            // check the contents
+                        }
+                    } catch (Exception e) {
+                        System.Console.WriteLine("Exception in ValueCheckerThread {0}, {1}", key_to_check, e.ToString());
+                        num_errors++;
+                    }
+                    if (should_end) {
+                        return;
+                    }
+                    // sleep every Nth iteration
+                    if (count++ > 10) {
+                        count = 0;
+                        Thread.Sleep(0);
+                    }
+                }
+            }
+            public void end() {
+                should_end = true;
+            }
+
+        }
+
+        [Test]
+        public void T05_TestBackgroundMergeConsistency() {
+            // (1) one key to each of three separate segments
+            // (2) setup a separate thread that just repeatedly checks each key
+            // (3) perform a merge
+            // (4) shutdown the threads and see if any detected a readback failure
+
+            LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\7");            
+            List<ValueCheckerThread> checkers = new List<ValueCheckerThread>();
+            int NUM_SEGMENTS = 7;
+
+            for (int x = 0; x < NUM_SEGMENTS; x++) {
+                string key = "test-" + x;
+                string value = "test-value-" + x;
+                db.setValueParsed(key, value);
+
+                // put it in it's own segment
+                db.flushWorkingSegment(); 
+
+                // start a checking thread
+                ValueCheckerThread checker = new ValueCheckerThread(db, key,value);
+                Thread newthread = new Thread(checker.doValidate);
+                newthread.Start();
+                checkers.Add(checker);
+            }
+            Thread.Sleep(5);
+
+            // verify there are no errors
+            foreach (ValueCheckerThread checker in checkers) {
+                Console.WriteLine("Thread  key:{0}  checks:{1}  errors:{2}", checker.key_to_check, checker.num_checks, checker.num_errors);
+            }
+            foreach (ValueCheckerThread checker in checkers) {
+                Assert.AreEqual(0, checker.num_errors, "checker thread error, key:" + checker.key_to_check);
+            }
+
+            // trigger a merge
+
+            for (int x = 0; x < 20; x++) {
+                db.mergeIfNeeded();
+            }
+
+            // verify there are no errors
+            foreach (ValueCheckerThread checker in checkers) {                
+                Console.WriteLine("Thread  key:{0}  checks:{1}  errors:{2}", checker.key_to_check, checker.num_checks, checker.num_errors);                
+            }
+            foreach (ValueCheckerThread checker in checkers) {
+                Assert.AreEqual(0, checker.num_errors, "checker thread error, key:" + checker.key_to_check);
+            }
+
+            // end the threads..
+            foreach (ValueCheckerThread checker in checkers) {
+                checker.end(); 
+            }
+            Thread.Sleep(5);
+        }
+
+
         // TEST: Tombstones
 
         // ----------------------------[ TEST MERGING ]-----------------------------
