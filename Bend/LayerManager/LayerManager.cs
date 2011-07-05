@@ -452,7 +452,7 @@ namespace Bend
                     System.Console.WriteLine("** best merge score too high: " + mc);
                     return;
                 }
-                System.Console.WriteLine("merge " + mc);
+                System.Console.WriteLine("doMerge " + mc);
 
                 this.performMerge(mc);
                 this.checkpointNumber++;
