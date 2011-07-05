@@ -157,10 +157,12 @@ namespace Bend
             // TODO: how do we assure that existing read operations flush and reload all segments?          
             lock (disk_segment_cache) {
                 // clear the entry from the cache
-                // TODO: fix this so it works when we fix setValue...
-                //   ... technically this only works right now because setValue applies immediately.
-                //   ... if it actually applied when the TX commits like it's supposed to, there would
-                //   ... be a race condition here
+                // TODO: fix this so it works when setValue is handled as a log apply instead of immediately
+                //       ... technically there is a race condition here because we can clear the cache
+                //       ... and someone can read/re-add the segment before the segment rows is ACTUALLY
+                //       ... deleted. 
+                //       ... However, now that there is a unique stamp in the segment key, perhaps
+                //       ... this doesn't matter. 
                 try {
                     disk_segment_cache.Remove(key);
                 }
@@ -543,6 +545,7 @@ namespace Bend
             public RecordKey lowkey = null;
             public RecordKey highkey = null;
             public int generation;
+            public long uniq;
 
             private RangeKey() {
             }
@@ -552,6 +555,7 @@ namespace Bend
                 rk.lowkey = lowkey;
                 rk.highkey = highkey;
                 rk.generation = generation;
+                rk.uniq = 0;
                 return rk;
 
                 if (rk.lowkey.CompareTo(rk.highkey) > 0) {
@@ -586,6 +590,7 @@ namespace Bend
                 rangekey.generation = (int)((RecordKeyType_Long)existingkey.key_parts[2]).GetLong();
                 rangekey.lowkey = ((RecordKeyType_RecordKey)existingkey.key_parts[3]).GetRecordKey();
                 rangekey.highkey = ((RecordKeyType_RecordKey)existingkey.key_parts[4]).GetRecordKey();
+                rangekey.uniq = ((RecordKeyType_Long)existingkey.key_parts[5]).GetLong();
 
                 if (rangekey.lowkey.CompareTo(rangekey.highkey) > 0) {
                     throw new Exception(
@@ -604,18 +609,19 @@ namespace Bend
                 key.appendKeyPart(new RecordKeyType_Long(generation));
                 key.appendKeyPart(new RecordKeyType_RecordKey(lowkey));
                 key.appendKeyPart(new RecordKeyType_RecordKey(highkey));
+                key.appendKeyPart(new RecordKeyType_Long(uniq));
                 return key;
             }
 
             public static bool isRangeKey(RecordKey key) {
-                // .ROOT/GEN/X/lk/hk  == 5 parts
+                // .ROOT/GEN/X/lk/hk/uniq  == 6 parts
                 if (key == null) {
                     throw new Exception("isRangeKey() handed a null key");
                 }
                 if (key.key_parts == null) {
                     throw new Exception("isRangeKey() handed a key with null key_parts");
                 }
-                if ( (key.key_parts.Count == 5)  &&
+                if ( (key.key_parts.Count == 6)  &&
                      (key.key_parts[0].Equals(new RecordKeyType_String(".ROOT"))) &&
                      (key.key_parts[1].Equals(new RecordKeyType_String("GEN")))) {
                     return true;
@@ -1061,7 +1067,7 @@ namespace Bend
                                 //        "virtual tombstone" because it shadows tombstones above itself
                                 int cmpval = startkeytest.CompareTo(rk.highkey);
                                 if ((cmpval < 0) || (cmpval == 0 && equal_ok)) {
-                                    var segment = this.segmentReaderFromRow(nextrec);
+                                    SegmentReader segment = this.segmentReaderFromRow(nextrec);
 #if DEBUG_CURSORS
                                     Console.WriteLine("stage(1)    scanBack added: {0}", rk);
 #endif

@@ -481,6 +481,8 @@ namespace BendTests
 
                     db.Dispose();
 
+                    db.debugDump();
+
                     // RESUME
                     db = new LayerManager(InitMode.RESUME, "c:\\BENDtst\\6");
 
@@ -498,6 +500,8 @@ namespace BendTests
                                 db.workingSegment.getRecordUpdate(key, out update);
                             Assert.AreEqual(GetStatus.MISSING, status, "working segment should be MISSING {0}", key);
                         }
+
+                        
 
                         // assure the global query interface finds the NEW VALUES
                         {

@@ -19,6 +19,9 @@ namespace Bend {
         public readonly uint generation;
         public readonly RecordKey start_key;
         public readonly RecordKey end_key;
+        public readonly long uniq;
+
+        private static FastUniqueIds id_gen = new FastUniqueIds();
 
         private readonly RecordKey GEN_PREFIX = new RecordKey().appendParsedKey(".ROOT/GEN");
 
@@ -32,6 +35,7 @@ namespace Bend {
             generation = (uint)((RecordKeyType_Long)key.key_parts[2]).GetLong();
             start_key = ((RecordKeyType_RecordKey)key.key_parts[3]).GetRecordKey();
             end_key = ((RecordKeyType_RecordKey)key.key_parts[4]).GetRecordKey();
+            uniq = ((RecordKeyType_Long)key.key_parts[5]).GetLong();
 
             {
                 var testkey = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
@@ -83,18 +87,21 @@ namespace Bend {
         }
 
         public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {
+            this.generation = generation;
+            this.start_key = start_key;
+            this.end_key = end_key;
+            this.uniq = id_gen.nextTimestamp();
+
 
             RecordKey genkey = new RecordKey()
                 .appendParsedKey(".ROOT/GEN")
                 .appendKeyPart(new RecordKeyType_Long(generation))
                 .appendKeyPart(new RecordKeyType_RecordKey(start_key))
-                .appendKeyPart(new RecordKeyType_RecordKey(end_key));
+                .appendKeyPart(new RecordKeyType_RecordKey(end_key))
+                .appendKeyPart(new RecordKeyType_Long(uniq));
 
             this.record_key = genkey;
-            this.generation = generation;
-            this.start_key = start_key;
-            this.end_key = end_key;
-
+            
 
             // double check that the encode/decode is reversible
             {
@@ -114,7 +121,7 @@ namespace Bend {
 
         public override string ToString() {
             return "SegmentDescriptor{" + generation + ":" + start_key + ":" +
-                end_key + "}";
+                end_key + ":uniq" + uniq + "}";
         }
         public ISortedSegment getSegment(RangemapManager rmm) {
             RecordKey found_key = new RecordKey();
