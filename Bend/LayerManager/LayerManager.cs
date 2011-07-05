@@ -436,12 +436,18 @@ namespace Bend
                     var seg = seginfo.Key;
                     System.Console.WriteLine("mm gen{0} start({1}) end({2})", seg.generation, seg.start_key, seg.end_key);
                 }
+
+                System.Console.WriteLine("======================= verifySegmentList: Discrepancy");
+                this.debugDump();
+                
                 throw new Exception("mergemanager and db.listAllSegments have different data!");
+                // TODO: it would be nice if we could stop all other threads right now...
+                
             }
-
-
            
         }
+
+
 
         public void mergeIfNeeded() {
             lock (this) {
