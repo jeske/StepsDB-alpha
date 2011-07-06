@@ -10,6 +10,7 @@
   - ...update EmailInjector test to use it
   - ...rework EmailInjector to separate msg-parse from inject time (and speed up msg parse!)
 
+  - ...change gui debug display to update based on a trigger notification from db segment changes...
 
   - need to make sure "deleted" segments live until pointers to them die.. (or a restart occurs), attach a weakref that frees the segment
   
@@ -290,6 +291,8 @@
 *** Interactive C# Shell mode? (w/intellisense!!) 
    - http://tirania.org/blog/archive/2008/Sep-08.html
 
+
+*** is there a practical way to incorporate segment-cache-state into computing merge score for a set of segments?
 
 --------------------------------------------------------------------------------------------------------------
 ------------[ DONE ]--------------------

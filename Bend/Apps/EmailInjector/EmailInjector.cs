@@ -181,56 +181,23 @@ namespace Bend.EmailIndexerTest {
                             DateTime cur = DateTime.Now;
                             Console.WriteLine("doc{0}: {1}    elapsed:{2}    docs/sec:{3}", 
                                 count, docid, (cur-start).TotalSeconds, (float)count / (cur-start).TotalSeconds);
-                                
-                            if (count % 15 == 0) {
-                                gui.debugDump(db);
-                                db.flushWorkingSegment();
-                                gui.debugDump(db);
-                                for (int x = 0; x < 30; x++) {
-                                    var mc = db.rangemapmgr.mergeManager.getBestCandidate();
-                                    if (mc == null) { break; }
-                                    if (mc.score() > (1.2 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
-                                        System.Console.WriteLine("** best merge score too high: " + mc);
-                                        break;
-                                    }
-                                    gui.debugDump(db, mc);                                    
-                                    //db.performMerge(mc);
-                                    gui.debugDump(db);
-                                }                                
-                                // return;
+                            gui.debugDump(db);    
+
+                            // end after a certain number of lines...
+                            if (count > 4000000000) {
+                                goto end_now;
                             }
 
-                           
-
-                            // if (count > 40) { return; }
-
-                            if (count > 4000000000) {
-                                db.flushWorkingSegment();
-                                gui.debugDump(db);
-                                for (int x = 0; x < 5; x++) {
-                                    var mc = db.rangemapmgr.mergeManager.getBestCandidate();
-                                    if (mc == null) { break; }
-                                    if (mc.score() > (1.4 + (float)db.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
-                                        System.Console.WriteLine("** best merge score too high: " + mc);
-                                        break;
-                                    }
-                                    gui.debugDump(db, mc);                                    
-                                    //db.performMerge(mc);
-                                    gui.debugDump(db);
-                                }                                
-                                // db.debugDump();
-                                return;
-                           }
                         }
                         lines = new List<string>();
                     } else {
                         lines.Add(line);
                     }
-                    
-                    
-                }
+                } // while adding docs
                 
-            }
+            } // foreach file
+
+            end_now:
 
             // be sure to flush and merge before we search...
             db.flushWorkingSegment();
@@ -239,11 +206,9 @@ namespace Bend.EmailIndexerTest {
                 var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                 gui.debugDump(db, mc);
                 if (mc == null) { break; }
-                // db.performMerge(mc);
+                db.performMerge(mc);
                 gui.debugDump(db);
             }                                
-
-
         }        
 
     }

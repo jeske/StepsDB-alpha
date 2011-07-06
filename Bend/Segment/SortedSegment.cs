@@ -58,9 +58,9 @@ namespace Bend
     class SegmentMemoryBuilder : ISortedSegment, IScannable<RecordKey, RecordUpdate>
     {
         IScannableDictionary<RecordKey, RecordUpdate> items;
+        public long approx_size = 0;
 
-        // TODO: collect some statistics that help us inform the segment/block writing process
-        // int approx_size = 0;
+        // TODO: collect some statistics that help us inform the segment/block writing process       
         // int num_deletions = 0;
 
         public SegmentMemoryBuilder() {
@@ -81,6 +81,9 @@ namespace Bend
 
         public void setRecord(RecordKey key, RecordUpdate value) {
             items[key] = value; // replace the existing value if it is there
+
+            approx_size += key.encode().Length;
+            approx_size += value.data.Length;
         }
 
         public void Clear() {

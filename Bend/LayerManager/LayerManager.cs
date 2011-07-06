@@ -32,7 +32,7 @@ namespace Bend
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
-        private int SEGMENT_BLOCKSIZE = 512 * 1024;
+        private int SEGMENT_BLOCKSIZE = 512 * 1024; // 512k
 
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;
@@ -155,9 +155,11 @@ namespace Bend
 
             private void doWork() {
                 bool didMerge;
+                bool needFlush;
                 LayerManager db;
                 while (keepRunning) {
                     didMerge = false;
+                    needFlush = false;
                     // deref the weak reference
                     try {
                          db = this.db_wr.Target;
@@ -167,11 +169,21 @@ namespace Bend
                     }
                     try {
 
-                        // (1) check the working segment size vs threshold, flush if necessary                        
+                        // (1) check the working segment size vs threshold, flush if necessary         
+                        lock (db.segmentlayers) {
+                            // TODO: this currently does not account for compression, which could make it off by orders of magnitude
+                            if (db.segmentlayers[0].approx_size > db.SEGMENT_BLOCKSIZE * 15) {
+                                needFlush = true;
+                            }
+                        }
+                        if (needFlush) {
+                            System.Console.WriteLine("************************ LayerMaintenanceThread did FLUSH");
+                            db.flushWorkingSegment();
+                        }
                         // (2) check for merge
                         didMerge = db.mergeIfNeeded();
                         if (didMerge) {
-                            System.Console.WriteLine("LayerMaintenanceThread did a merge!");
+                            System.Console.WriteLine("************************ LayerMaintenanceThread did MERGE");
                         }
                     } catch (Exception e) {
                         System.Console.WriteLine("LayerMaintenanceThread Exception\n" + e.ToString());
