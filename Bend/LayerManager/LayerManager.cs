@@ -192,7 +192,7 @@ namespace Bend
                     }
                     db = null;
 
-                    Thread.Sleep(didMerge ? 100 : 2000);
+                    Thread.Sleep(didMerge ? 10 : 2000);
                 }
             }
             public void end() {

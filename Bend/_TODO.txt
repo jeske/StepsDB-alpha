@@ -9,6 +9,7 @@
   - ...update MainTest1 to use it
   - ...update EmailInjector test to use it
   - ...rework EmailInjector to separate msg-parse from inject time (and speed up msg parse!)
+  - ...check for problems with updating MergeManager segment list before the atomic-commit applies... if so, fix
 
   - ...change gui debug display to update based on a trigger notification from db segment changes...
 
