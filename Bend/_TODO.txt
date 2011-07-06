@@ -8,6 +8,7 @@
   - make metrics based background flush/merge thread
   - ...update MainTest1 to use it
   - ...update EmailInjector test to use it
+  - ...rework EmailInjector to separate msg-parse from inject time (and speed up msg parse!)
 
 
   - need to make sure "deleted" segments live until pointers to them die.. (or a restart occurs), attach a weakref that frees the segment

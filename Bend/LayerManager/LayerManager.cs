@@ -12,6 +12,7 @@ using System.Text;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Reflection;
+using System.Threading;
 
 // TODO: eliminate the dual paths for "manual apply" and "log apply"... make it always just do log apply
 
@@ -25,7 +26,6 @@ namespace Bend
     }
 
     // ---------------[ LayerManager ]---------------------------------------------------------
-
 
 
     public class LayerManager : IDisposable, IStepsKVDB
@@ -42,7 +42,9 @@ namespace Bend
         public  IRegionManager regionmgr;
         internal List<WeakReference<WriteGroup>> pending_txns;
         public RangemapManager rangemapmgr;
-        public FreespaceManager freespacemgr;        
+        public FreespaceManager freespacemgr;
+
+        private LayerMaintenanceThread maint_worker;
 
         LogWriter logwriter;
         Receiver receiver;
@@ -137,6 +139,63 @@ namespace Bend
             CHECKPOINT_DROP = 2
         }
 
+        public class LayerMaintenanceThread {
+            WeakReference<LayerManager> db_wr;    // we use a weakref so the db can still be collected while the thread is active 
+            bool keepRunning = true;
+            public static LayerMaintenanceThread startMaintThread(LayerManager db) {
+                LayerMaintenanceThread worker = new LayerMaintenanceThread(db);
+                Thread workerThread = new Thread(worker.doWork);
+                workerThread.Name = "LayerMaintenanceThread";
+                workerThread.Start();
+                return worker;
+            }
+            private LayerMaintenanceThread(LayerManager db) {
+                this.db_wr = new WeakReference<LayerManager>(db);
+            }
+
+            private void doWork() {
+                bool didMerge;
+                LayerManager db;
+                while (keepRunning) {
+                    didMerge = false;
+                    // deref the weak reference
+                    try {
+                         db = this.db_wr.Target;
+                    } catch (InvalidOperationException e) {
+                        keepRunning = false;
+                        return;
+                    }
+                    try {
+
+                        // (1) check the working segment size vs threshold, flush if necessary                        
+                        // (2) check for merge
+                        didMerge = db.mergeIfNeeded();
+                        if (didMerge) {
+                            System.Console.WriteLine("LayerMaintenanceThread did a merge!");
+                        }
+                    } catch (Exception e) {
+                        System.Console.WriteLine("LayerMaintenanceThread Exception\n" + e.ToString());
+                        db = null;
+                        Thread.Sleep(100);
+                    }
+                    db = null;
+
+                    Thread.Sleep(didMerge ? 100 : 2000);
+                }
+            }
+            public void end() {
+                keepRunning = false;
+                Thread.Sleep(5);
+            }
+        }
+
+        public void startMaintThread() {
+            lock (this) {
+                if (maint_worker == null) {
+                    maint_worker = LayerMaintenanceThread.startMaintThread(this);
+                }
+            }
+        }
 
         public class WriteGroup : IDisposable
         {
@@ -449,20 +508,21 @@ namespace Bend
 
 
 
-        public void mergeIfNeeded() {
-            lock (this) {
-                System.Console.WriteLine("** LayerManager.mergeIfNeeded() --- start");
+        public bool mergeIfNeeded() {            
+            lock (this) {                
                 var mc = this.rangemapmgr.mergeManager.getBestCandidate();
-                if (mc == null) { return; }
+                if (mc == null) { return false; }
+                System.Console.WriteLine("** LayerManager.mergeIfNeeded() --- start");
                 if (mc.score() > (1.6 + (float)this.rangemapmgr.mergeManager.getMaxGeneration() / 12.0f)) {
                     System.Console.WriteLine("** best merge score too high: " + mc);
-                    return;
+                    return false;
                 }
                 System.Console.WriteLine("doMerge " + mc);
 
                 this.performMerge(mc);
                 this.checkpointNumber++;
                 System.Console.WriteLine("** LayerManager.mergeIfNeeded() --- end");
+                return true;
             }
         }
 
@@ -919,6 +979,9 @@ namespace Bend
         public void Dispose() {
             if (logwriter != null) {
                 logwriter.Dispose(); logwriter = null;
+            }
+            if (maint_worker != null) {
+                maint_worker.end(); maint_worker = null;
             }
 
             foreach (ISortedSegment segment in segmentlayers) {

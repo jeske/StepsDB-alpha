@@ -47,6 +47,7 @@ namespace Bend.EmailIndexerTest {
             }
             if (args[0].CompareTo("index") == 0) {
                 LayerManager db = new LayerManager(InitMode.NEW_REGION, @"c:\EmailTest\DB");
+                db.startMaintThread();
                 EmailInjector injector = new EmailInjector(db, window);
                 injector.parse_email_messages();
                 injector.indexer.find_email_test();
@@ -93,6 +94,7 @@ namespace Bend.EmailIndexerTest {
                     
             }
             Console.WriteLine("done....");
+            
             Environment.Exit(0);
         }
 
@@ -192,7 +194,7 @@ namespace Bend.EmailIndexerTest {
                                         break;
                                     }
                                     gui.debugDump(db, mc);                                    
-                                    db.performMerge(mc);
+                                    //db.performMerge(mc);
                                     gui.debugDump(db);
                                 }                                
                                 // return;
@@ -213,7 +215,7 @@ namespace Bend.EmailIndexerTest {
                                         break;
                                     }
                                     gui.debugDump(db, mc);                                    
-                                    db.performMerge(mc);
+                                    //db.performMerge(mc);
                                     gui.debugDump(db);
                                 }                                
                                 // db.debugDump();
@@ -237,7 +239,7 @@ namespace Bend.EmailIndexerTest {
                 var mc = db.rangemapmgr.mergeManager.getBestCandidate();
                 gui.debugDump(db, mc);
                 if (mc == null) { break; }
-                db.performMerge(mc);
+                // db.performMerge(mc);
                 gui.debugDump(db);
             }                                
 
