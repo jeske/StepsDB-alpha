@@ -206,7 +206,7 @@ namespace BendTests {
 
         [Test]
         public void T12_LayerManager_WriteThread_WithMerge() {
-            WriteThreadsTest test = new WriteThreadsTest(num_values:90, checkpoint_interval_rowcount:50, withMerge:true);            
+            WriteThreadsTest test = new WriteThreadsTest(num_values:150, checkpoint_interval_rowcount:50, withMerge:true);            
             test.runThreadedTest(100);
             test.Dispose();
         }

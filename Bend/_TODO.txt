@@ -6,17 +6,19 @@
 ----[ TODO  ]---------
      
 
-  - make background merge work
-    - add a timestamp to segment descriptors
+  - (done) make background merge work
+    - (done) add a timestamp to segment descriptors
     - resolve issues in BUGS.txt
-	  - failure to load SegmentDescriptor during performMerge
-	  - zlip decoding error in write threads (bad data from unclean test run?)
-	- make a test which more reliably causes merge/write failures (since it's still happening!) 
-	- need to make sure "deleted" segments live until their pointers die.. (or a restart occurs), attach a weakref that frees the segment
+	  - (done) failure to load SegmentDescriptor during performMerge
+	  - (?? repro?) zlip decoding error in write threads (bad data from unclean test run?)
+	- (done) make a test which more reliably causes merge/write failures (since it's still happening!) 
 
 
+  - setup metric based background flush/merge thread
 
-  - setup metric based background flush/merge
+
+  - need to make sure "deleted" segments live until pointers to them die.. (or a restart occurs), attach a weakref that frees the segment
+  
 
   - TODO fixes:
     - add a "readonly mode" to segment memory builder, to "freeze" it.
