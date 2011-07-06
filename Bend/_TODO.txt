@@ -32,7 +32,9 @@
 	  - allow logs on a separate file (disk)
 	
   - SearchIndexer:
-    - test indexing performance with background checkpoint/merge
+    - test indexing performance test with background checkpoint/merge
+	- ... compare to lucene performance
+	- ... make a release!
 
   - MTREE improvements:
     - estimate 'dbsize between start/end key', return sets of segment 'split' keys -- for splitting ranges
