@@ -4,17 +4,10 @@
 
 
 ----[ TODO  ]---------
-     
-
-  - (done) make background merge work
-    - (done) add a timestamp to segment descriptors
-    - resolve issues in BUGS.txt
-	  - (done) failure to load SegmentDescriptor during performMerge
-	  - (?? repro?) zlip decoding error in write threads (bad data from unclean test run?)
-	- (done) make a test which more reliably causes merge/write failures (since it's still happening!) 
-
-
-  - setup metric based background flush/merge thread
+      
+  - make metrics based background flush/merge thread
+  - ...update MainTest1 to use it
+  - ...update EmailInjector test to use it
 
 
   - need to make sure "deleted" segments live until pointers to them die.. (or a restart occurs), attach a weakref that frees the segment
@@ -24,14 +17,14 @@
     - add a "readonly mode" to segment memory builder, to "freeze" it.
 
   - MTREE "0.1" requirements:
-    - read/write concurrency, "background checkpoint/merge"
-	  - perform atomic "checkpoint" without stopping writes
-	     a. atomic "segment pointer apply" (partially done)
-		 b. fix/check "write threads test"
-		 c. make 'simultaneous write/checkpoint' test (or is this just write threads test?)
-      - perform merge in the background without stopping writes
-	     a. make "merge apply" atomic
-		 b. make "background merge" consistency test
+    - (done) read/write concurrency, "background checkpoint/merge"
+	  - (done) perform atomic "checkpoint" without stopping writes
+	     a. (done) atomic "segment pointer apply" (partially done)
+		 b. (done) fix/check "write threads test"
+		 c. (done) make 'simultaneous write/checkpoint' test (or is this just write threads test?)
+      - (done) perform merge in the background without stopping writes
+	     a. (done) make "merge apply" atomic
+		 b. (done) make "background merge" consistency test
 		 c. make "background merge agent" thread to do this automatically
 	- freelist management	
 	- log truncation/recirculation
