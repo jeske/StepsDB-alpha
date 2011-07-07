@@ -69,28 +69,24 @@ namespace Bend.Indexer {
             }
 
 
-            // then insert the document (actually 1000 copies of the same document)
+            // then insert the document 
+            int doc_numeric_id = incrementing_docid++;
+            txwg.setValue(new RecordKey().appendParsedKey(index_location_prefix)
+                .appendKeyPart(new RecordKeyType_Long(doc_numeric_id)),
+                RecordUpdate.WithPayload(docid));
 
-            for (int x = 0; x < 100; x++) {
-                // assign the docid string to a numeric id
+            // now add all the words for that document
+            foreach (var wordinfo in word_count) {
+                var key = new RecordKey()
+                    .appendParsedKey(index_location_prefix)                      // prefix
+                    .appendKeyPart(wordinfo.Key)                                 // word itself
+                    .appendKeyPart(new RecordKeyType_Long(doc_numeric_id));      // docid
 
-                int doc_numeric_id = incrementing_docid++;
-                txwg.setValue(new RecordKey().appendParsedKey(index_location_prefix)
-                    .appendKeyPart(new RecordKeyType_Long(doc_numeric_id)),
-                    RecordUpdate.WithPayload(docid + ":" + x));
-
-                // now add all the words for that document
-                foreach (var wordinfo in word_count) {
-                    var key = new RecordKey()
-                        .appendParsedKey(index_location_prefix)                      // prefix
-                        .appendKeyPart(wordinfo.Key)                                 // word itself
-                        .appendKeyPart(new RecordKeyType_Long(doc_numeric_id));      // docid
-
-                         txwg.setValue(key, RecordUpdate.WithPayload("" + wordinfo.Value));  // value is word-frequeny in the doc
+                        txwg.setValue(key, RecordUpdate.WithPayload("" + wordinfo.Value));  // value is word-frequeny in the doc
 
                     
-                }
             }
+
         }
         
 
