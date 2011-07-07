@@ -4,6 +4,14 @@
 
 
 ----[ TODO  ]---------
+
+  - make a psudorandom indexer test
+  - ... 
+
+  - when there is a metadata mismatch after a segment change
+  - ... perform a simple recursive walk and see if the mismatch is still there
+  - ... if it was just a cursor walk problem, dump the discrepancy
+  - ... if the simple recursive walk produced the wrong output also, dump the discrepancy
       
   - make metrics based background flush/merge thread
   - ...update MainTest1 to use it
@@ -13,9 +21,8 @@
 
   - ...change gui debug display to update based on a trigger notification from db segment changes...
 
-  - need to make sure "deleted" segments live until pointers to them die.. (or a restart occurs), attach a weakref that frees the segment
+  - make sure "deleted" segment data lives until pointers to them die (or a restart occurs): attach a weakref that frees the actual segment 
   
-
   - TODO fixes:
     - add a "readonly mode" to segment memory builder, to "freeze" it.
 
