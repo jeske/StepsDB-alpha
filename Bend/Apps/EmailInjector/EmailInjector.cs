@@ -193,22 +193,30 @@ namespace Bend.EmailIndexerTest {
                     } else {
                         lines.Add(line);
                     }
+
+
+                    if (count % 50000 == 0) { gui.debugDump(db); }
+
                 } // while adding docs
                 
             } // foreach file
 
-            end_now:
+            Console.WriteLine("=================== EmailInjector end... time to fully optimize...");
 
-            // be sure to flush and merge before we search...
-            db.flushWorkingSegment();
-            gui.debugDump(db);
-            for (int x = 0; x < 40; x++) {
-                var mc = db.rangemapmgr.mergeManager.getBestCandidate();
-                gui.debugDump(db, mc);
-                if (mc == null) { break; }
-                db.performMerge(mc);
+            end_now:
+            // we have to lock to assure we don't collide with the background merge thread
+            lock (db) {
+                // be sure to flush and merge before we search...
+                db.flushWorkingSegment();
                 gui.debugDump(db);
-            }                                
+                for (int x = 0; x < 40; x++) {
+                    var mc = db.rangemapmgr.mergeManager.getBestCandidate();
+                    gui.debugDump(db, mc);
+                    if (mc == null) { break; }
+                    db.performMerge(mc);
+                    gui.debugDump(db);
+                }
+            }
         }        
 
     }

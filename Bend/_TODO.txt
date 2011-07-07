@@ -7,6 +7,7 @@
 
   - make a psudorandom indexer test
   - ... 
+  
 
   - when there is a metadata mismatch after a segment change
   - ... perform a simple recursive walk and see if the mismatch is still there
@@ -23,6 +24,10 @@
 
   - make sure "deleted" segment data lives until pointers to them die (or a restart occurs): attach a weakref that frees the actual segment 
   
+  - how do we make sure a merge-candidate remains valid until the merge is done... (i.e. that nobody merged something conflicting in the meantime?)
+  - ... require a lock between merge-candidate and doing the merge? (i.e. only the merger asks for the merge candidate)
+  - ... revalidate a merge-candidate at the beginning of a merge?
+
   - TODO fixes:
     - add a "readonly mode" to segment memory builder, to "freeze" it.
 

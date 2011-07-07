@@ -152,7 +152,9 @@ namespace Bend
             this.unmapSegment(tx, segment.record_key, null);
         }
 
-        public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {            
+        public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
+            SegmentDescriptor sdesc = getSegmentDescriptorFromRecordKey(key);
+            System.Console.WriteLine("unmapSegment: " + sdesc);
 
             // TODO: how do we assure that existing read operations flush and reload all segments?          
             lock (disk_segment_cache) {
@@ -172,11 +174,8 @@ namespace Bend
             }
             tx.setValue(key, RecordUpdate.DeletionTombstone());
 
-            // TODO: assure this happens only if the txn commits
-            SegmentDescriptor sdesc = getSegmentDescriptorFromRecordKey(key);
+            // TODO: assure this happens only if the txn commits            
             mergeManager.notify_removeSegment(sdesc);
-
-            System.Console.WriteLine("unmapSegment: " + sdesc);
 
             // we can't really do this because the file is still open
             // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data)); 

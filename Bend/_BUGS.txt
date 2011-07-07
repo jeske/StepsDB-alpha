@@ -1,4 +1,60 @@
-﻿
+﻿-----------------------------------------------------------------------------------------------------------------------------
+
+performMerge(
+  MergeCandidate{ range -3.393333 (
+      SegmentDescriptor{2:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey(".zdata"."index"."your".7175L):uniq85855682101312},
+	  SegmentDescriptor{1:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey(".zdata"."index"."feedback".5453L):uniq85855682101302},
+	  SegmentDescriptor{1:RecordKey(".zdata"."index"."feedback".5500L):RecordKey(".zdata"."index"."zvv261".5117L):uniq85855682101308}) 
+	     -> (SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey(".zdata"."index"."161".2672L):uniq85855682101287},
+		     SegmentDescriptor{0:RecordKey(".zdata"."index"."161".2675L):RecordKey(".zdata"."index"."a".1504L):uniq85855682101290},
+			 SegmentDescriptor{0:RecordKey(".zdata"."index"."a".1505L):RecordKey(".zdata"."index"."google".4854L):uniq85855682101298},
+			 SegmentDescriptor{0:RecordKey(".zdata"."index"."google".4855L):RecordKey(".zdata"."index"."released".1607L):uniq85855682101299},
+			 SegmentDescriptor{0:RecordKey(".zdata"."index"."released".1620L):RecordKey(".zdata"."index"."zzn".4961L):uniq85855682101300}) })
+
+
+=====================================[ Merge Segments ]=================================
+                                          --open SegmentReader 21499904
+unmapSegment: SegmentDescriptor{0:RecordKey(".zdata"."index"."a".1505L):RecordKey(".zdata"."index"."google".4854L):uniq85855682101298}
+unmapSegment: SegmentDescriptor{0:RecordKey(".zdata"."index"."161".2675L):RecordKey(".zdata"."index"."a".1504L):uniq85855682101290}
+unmapSegment: SegmentDescriptor{0:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey(".zdata"."index"."161".2672L):uniq85855682101287}
+unmapSegment: SegmentDescriptor{1:RecordKey(".ROOT"."FREELIST"."HEAD"):RecordKey(".zdata"."index"."feedback".5453L):uniq85855682101302}
+allocateNewSegment - next address: 23072768
+makeFilepath(23072768) -> c:\EmailTest\DB\addr0000023072768.rgm
+Exposed Region Manager, deleting: c:\EmailTest\DB\addr0000023072768.rgm
+makeFilepath(23072768) -> c:\EmailTest\DB\addr0000023072768.rgm
+                                          --open SegmentReader 20975616
+                                          --zz uncached region
+makeFilepath(20975616) -> c:\EmailTest\DB\addr0000020975616.rgm
+                                          --open SegmentReader 21499904
+                                          --open SegmentReader 18354176
+                                          --open SegmentReader 20451328
+                                          --zz uncached region
+makeFilepath(20451328) -> c:\EmailTest\DB\addr0000020451328.rgm
+                                          --open SegmentReader 19927040
+                                          --open SegmentReader 18878464
+                                          --open SegmentReader 18354176
+                                          --open SegmentReader 22024192
+                                          --zz uncached region
+makeFilepath(22024192) -> c:\EmailTest\DB\addr0000022024192.rgm
+                                          --open SegmentReader 21499904
+                                          --open SegmentReader 22548480
+unmapSegment: SegmentDescriptor{0:RecordKey(".zdata"."index"."released".1620L):RecordKey(".zdata"."index"."zzn".4961L):uniq85855682101300}
+unmapSegment: SegmentDescriptor{0:RecordKey(".zdata"."index"."google".4855L):RecordKey(".zdata"."index"."released".1607L):uniq85855682101299}
+
+Unhandled Exception: System.Exception: MergeManager notify_removeSegment() for unknown segment: SegmentDescriptor{0:RecordKey(".zdata"."index"."a".1505L):RecordKey(".zdata"."index"."google".4854L):uniq85855682101298}
+   at Bend.MergeManager_Incremental.notify_removeSegment(SegmentDescriptor segdesc) in C:\Users\David\CODING\Bend\Bend\LayerManager\MergeManager.cs:line 309
+   at Bend.RangemapManager.unmapSegment(WriteGroup tx, RecordKey key, RecordData data) in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\RangemapManager.cs:line 177
+   at Bend.LayerManager.mergeSegments(IEnumerable`1 segs) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 701
+   at Bend.LayerManager.performMerge(MergeCandidate mc) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 569
+   at Bend.EmailIndexerTest.EmailInjector.parse_email_messages() in C:\Users\David\CODING\Bend\Bend\Apps\EmailInjector\EmailInjector.cs:line 213
+   at Bend.EmailIndexerTest.EmailInjector.do_test(DbgGUI window, String[] args) in C:\Users\David\CODING\Bend\Bend\Apps\EmailInjector\EmailInjector.cs:line 52
+   at Bend.EmailIndexerTest.EmailInjector.<>c__DisplayClass1.<Main>b__0() in C:\Users\David\CODING\Bend\Bend\Apps\EmailInjector\EmailInjector.cs:line 37
+   at System.Threading.ThreadHelper.ThreadStart_Context(Object state)
+   at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, ContextCallback callback, Object state, Boolean ignoreSyncCtx)
+   at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.ThreadHelper.ThreadStart()
+
+
 --------------------------------------------------------------------------------------------------------------------------
 
 T12_LayerManager_WriteThread_WithMerge
