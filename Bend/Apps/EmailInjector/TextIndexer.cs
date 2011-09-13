@@ -29,7 +29,7 @@ namespace Bend.Indexer {
         }
 
 
-        public void index_document(LayerManager.WriteGroup txwg, string docid, string txtbody) {
+        public void index_document(LayerManager.WriteGroup txwg, string docid, string txtbody, out int numwords) {
             //System.Console.WriteLine(msg.Body);
             int wordpos = 0;
             IDictionary<string, int> word_count = new BDSkipList<string, int>();            
@@ -67,6 +67,7 @@ namespace Bend.Indexer {
                 // System.Console.WriteLine(key);                
                 wordpos++;
             }
+            numwords = wordpos;
 
 
             // then insert the document 

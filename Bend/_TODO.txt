@@ -4,13 +4,18 @@
 
 
 ----[ Concurrency/Background Flush TODO  ]---------
-
   
+  - design log-truncation/recirculation/extension scheme  (default log = 4x chunk size)
+
   - make metrics based background flush/merge thread
   - ...update MainTest1 to use it
   - ...update EmailInjector test to use it
   - ...rework EmailInjector to separate msg-parse from inject time (and speed up msg parse!)
   - ...check for problems with updating MergeManager segment list before the atomic-commit applies... if so, fix
+
+  
+  
+  - test performance w/background flush thread (writegroup on/off), (keys/second, bytes/second)
 
   - ...change gui debug display to update based on a trigger notification from db segment changes...
 
@@ -30,7 +35,7 @@
 ----[ TODO  ]---------
 
   
-  - make a psudorandom indexer test (what is the purpose of this?!?)
+  - make a psudorandom indexer perf test (because the email test is gated by email parse speed)
   - ...   
 
   - TODO fixes:

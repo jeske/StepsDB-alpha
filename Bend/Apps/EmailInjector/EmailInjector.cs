@@ -118,7 +118,7 @@ namespace Bend.EmailIndexerTest {
             return "";
         }
 
-        public void parse_msg(LayerManager.WriteGroup txwg, string docid, string msgtxt) {
+        public void parse_msg(LayerManager.WriteGroup txwg, string docid, string msgtxt, out int numwords) {
             if (msgtxt.Length > 4 * 1024) {
                 msgtxt = msgtxt.Substring(0, 4 * 1024 - 1);
             }
@@ -131,12 +131,12 @@ namespace Bend.EmailIndexerTest {
                 SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
                 System.Console.WriteLine("Subject: " + msg.Subject);
 
-                indexer.index_document(txwg, docid, msg.Body);
+                indexer.index_document(txwg, docid, msg.Body, out numwords);
             } else {
                 // LumiSoft                
                 Mime msg = LumiSoft.Net.Mime.Mime.Parse(System.Text.Encoding.Default.GetBytes(msgtxt));
                 System.Console.WriteLine("Subject: " + msg.MainEntity.Subject);
-                indexer.index_document(txwg, docid, msg.MainEntity.DataText);
+                indexer.index_document(txwg, docid, msg.MainEntity.DataText, out numwords);
 
             }
 
@@ -154,7 +154,8 @@ namespace Bend.EmailIndexerTest {
             // http://www.csharp-examples.net/get-files-from-directory/
             string[] filePaths = Directory.GetFiles(basepath);
 
-            int count = 1;
+            int doc_count = 1;
+            int word_count = 1;
             DateTime start = DateTime.Now;
 
             foreach (var fn in filePaths) {
@@ -173,18 +174,21 @@ namespace Bend.EmailIndexerTest {
                     if (line.Length > 6 && line.Substring(0, 5) == "From ") {
                         if (lines.Count > 0) {
                             string msg = String.Join("\n", lines);
-                            count++;
+                            doc_count++;
                             
-                            string docid = fullpath + ":" + count;
-                            parse_msg(txwg, docid, msg);
+                            string docid = fullpath + ":" + doc_count;
+                            int doc_numwords;
+                            parse_msg(txwg, docid, msg, out doc_numwords);
+                            word_count += doc_numwords;
 
                             DateTime cur = DateTime.Now;
-                            Console.WriteLine("doc{0}: {1}    elapsed:{2}    docs/sec:{3}", 
-                                count, docid, (cur-start).TotalSeconds, (float)count / (cur-start).TotalSeconds);
+                            double  elapsed_s = (cur - start).TotalSeconds;
+                            Console.WriteLine("doc{0}: {1}    elapsed:{2}    docs/sec:{3}    words/sec:{4}",
+                                doc_count, docid, elapsed_s, (float)doc_count / elapsed_s, (float)word_count / elapsed_s);
                             gui.debugDump(db);    
 
                             // end after a certain number of lines...
-                            if (count > 4000000000) {
+                            if (doc_count > 4000000000) {
                                 goto end_now;
                             }
 
@@ -195,7 +199,7 @@ namespace Bend.EmailIndexerTest {
                     }
 
 
-                    if (count % 50000 == 0) { gui.debugDump(db); }
+                    if (doc_count % 50000 == 0) { gui.debugDump(db); }
 
                 } // while adding docs
                 
