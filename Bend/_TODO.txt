@@ -3,18 +3,34 @@
 --- [ Main WIKI SITE:    http://stepsdb.pbworks.com/    ] -----
 
 
-----[ Concurrency/Background Flush TODO  ]---------
-  
-  - design log-truncation/recirculation/extension scheme  (default log = 4x chunk size)
+----[ Standalone steps-mtree ]----
+ 
+ - bound the log size
+   - allow separate log file
+   - add recirculation, be sure to update log-ptr before circulating over the start
+   - (default log = 20x chunk size, 512k chunks = 10MB log)	
+   - trigger "flush" if log is running out of space
+   - keep "reserve" log space to 
+ 
+ - freelist management
 
-  - make metrics based background flush/merge thread
+  - (assert) properly handle a metadata mismatch after a segment change before it is truly applied
+  - ... put the change in a "fake segment", then do a full-walk... make sure they match before applying
+    - ... perform a simple recursive walk and see if the mismatch is still there
+    - ... if it was just a cursor walk problem, dump the discrepancy
+    - ... if the simple recursive walk produced the wrong output also, dump the discrepancy
+
+  - simple code obfuscator
+  - regression test
+
+----[ Concurrency/Background Flush TODO  ]---------
+ 
+  - (done) make metrics based background flush/merge thread
   - ...update MainTest1 to use it
   - ...update EmailInjector test to use it
   - ...rework EmailInjector to separate msg-parse from inject time (and speed up msg parse!)
   - ...check for problems with updating MergeManager segment list before the atomic-commit applies... if so, fix
 
-  
-  
   - test performance w/background flush thread (writegroup on/off), (keys/second, bytes/second)
 
   - ...change gui debug display to update based on a trigger notification from db segment changes...
@@ -24,19 +40,10 @@
   - how do we make sure a merge-candidate remains valid until the merge is done... (i.e. that nobody merged something conflicting in the meantime?)
   - ... require a lock between merge-candidate and doing the merge? (i.e. only the merger asks for the merge candidate)
   - ... revalidate a merge-candidate at the beginning of a merge?
-
-
-  - (assert) handle a metadata mismatch after a segment change... how?
-  - ... perform a simple recursive walk and see if the mismatch is still there
-  - ... if it was just a cursor walk problem, dump the discrepancy
-  - ... if the simple recursive walk produced the wrong output also, dump the discrepancy
-      
-
+     
 ----[ TODO  ]---------
 
-  
   - make a psudorandom indexer perf test (because the email test is gated by email parse speed)
-  - ...   
 
   - TODO fixes:
     - add a "readonly mode" to segment memory builder, to "freeze" it.
@@ -51,8 +58,8 @@
 	     a. (done) make "merge apply" atomic
 		 b. (done) make "background merge" consistency test
 		 c. make "background merge agent" thread to do this automatically
-	- freelist management	
-	- log truncation/recirculation
+	
+	
 	- add "FileSpacesRegionManager" that puts data in a file or set of files
 	  - allow logs on a separate file (disk)
 	
