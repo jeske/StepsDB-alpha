@@ -63,28 +63,28 @@ namespace Bend
     {
         /* This "Node" class models a node in the Skip List structure. It holds a pair of (key, value)
          * and also three pointers towards Node situated to the right, upwards and downwards. */
-        private class Node<K,V> where K: IComparable<K> 
+        private class Node<NK,NV> where NK: IComparable<NK> 
         {
 
             private Node() {  // only we are allowed to call this
                 this.left = this.right = this.up = this.down = null;
             }
-            public Node(K key, V value)
+            public Node(NK key, NV value)
                 : this() {
                 this.key = key;
                 this.value = value;
                 this.is_sentinel = false;
             }
-            internal static Node<K, V> newSentinel() {
-                Node<K, V> node = new Node<K, V>();
+            internal static Node<NK, NV> newSentinel() {
+                Node<NK, NV> node = new Node<NK, NV>();
                 node.is_sentinel = true;
                 return node;
             }
 
-            public K key;
-            public V value;
+            public NK key;
+            public NV value;
             public bool is_sentinel;
-            public Node<K,V> left, right, up, down;
+            public Node<NK,NV> left, right, up, down;
         }
 
         /* Public constructor of the class. Receives as parameters the maximum number

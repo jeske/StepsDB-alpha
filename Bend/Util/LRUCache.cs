@@ -6,10 +6,10 @@ namespace Bend
 {
     class LRUCache<K, V>
     {
-        class _PriorityNode<K, V>
+        class _PriorityNode<NK, NV>
         {
-            internal _PriorityNode<K, V> next;
-            internal _PriorityNode<K, V> prev;
+            internal _PriorityNode<NK, NV> next;
+            internal _PriorityNode<NK, NV> prev;
             internal K key;
             internal V value;
         }
