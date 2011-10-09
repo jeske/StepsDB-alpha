@@ -93,7 +93,7 @@ namespace BendTests
 
             byte[] input = { 1, 2, 3, 4, 47, 5, 6 };
             byte[] expected_output = { 1, 2, 3, 4, 43, 0, 5, 6 };
-            byte[] escape_list = { 47, 43 };
+            byte[] escape_list = { CH_SLASH, CH_PLUS };
             byte escape_char = 43;
 
             SimpleEncoder enc = new SimpleEncoder(escape_list, escape_char);

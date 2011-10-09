@@ -57,12 +57,14 @@ namespace Bend.Indexer {
                 }
                 word_count[word]++;
 
+#if false
                 if (false) {
                     // WORDHITS
                     var key = new RecordKey().appendParsedKey(index_location_prefix)
                        .appendKeyPart(word).appendKeyPart(docid).appendKeyPart("" + wordpos);
                     txwg.setValue(key, RecordUpdate.WithPayload(""));
                 }
+#endif
 
                 // System.Console.WriteLine(key);                
                 wordpos++;

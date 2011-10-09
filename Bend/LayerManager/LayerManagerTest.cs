@@ -281,6 +281,7 @@ namespace BendTests
             }
 
 
+#if false
             if (false) {
                 RecordData data;
                 Assert.AreEqual(
@@ -291,6 +292,7 @@ namespace BendTests
                     .appendKeyPart("</>"), out data),
                     ".ROOT/GEN/0/</>  key is missing");
             }
+#endif
 
             // TODO: assure we subtracted the new range record from the freespace
 

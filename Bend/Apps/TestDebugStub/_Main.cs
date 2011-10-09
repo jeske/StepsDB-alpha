@@ -83,8 +83,7 @@ namespace MyTestStub {
         static void fetchHitsTest() {
 
             
-
-            int count = 0;
+            
             LayerManager db = new LayerManager(InitMode.RESUME, @"c:\EmailTest\DB");
 
             Console.WriteLine("====================== FETCH HITS TEST =======================");
@@ -100,15 +99,16 @@ namespace MyTestStub {
             var first_row = db.FindNext(kprefix, true);
 
             Console.WriteLine("First foudn key: {0}", first_row);
-
-            return;
-
+            
+#if false
+            int count = 0;
             foreach (var hit in db.scanForward(new ScanRange<RecordKey>(kprefix, RecordKey.AfterPrefix(kprefix), null))) {
                 Console.WriteLine(hit);
                 count++;
             }
             Console.WriteLine("scanned {0} hits", count);
-            
+#endif
+
         }
     }
 }

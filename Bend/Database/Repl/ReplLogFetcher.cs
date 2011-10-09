@@ -70,7 +70,7 @@ namespace Bend.Repl {
                 try {
                     doFetch();
                 } catch (ThreadAbortException e) {
-                    Console.WriteLine("fetcher stopped (thread abort)..");
+                    Console.WriteLine("fetcher stopped (thread abort).." + e.ToString());
                     _isCaughtUp = false;
                     keep_running = false;
                     

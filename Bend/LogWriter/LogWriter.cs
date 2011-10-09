@@ -108,8 +108,7 @@ namespace Bend
                     LogWriter_Resume(regionmgr);
                     break;
                 default:
-                    throw new Exception("unknown init mode: " + mode);
-                    break;
+                    throw new Exception("unknown init mode: " + mode);                    
             }
         }
 

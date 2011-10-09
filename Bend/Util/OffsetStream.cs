@@ -65,11 +65,9 @@ namespace Bend
                             String.Format(", parms({0},{1})",offset,origin.ToString()) +
                             String.Format(", new_offset({0}) os_offset({1}) os_length({2})", new_offset, os_offset,os_length));
                     }
-                    return ostream.Seek(new_offset, SeekOrigin.Begin) - os_offset;
-                    break;
+                    return ostream.Seek(new_offset, SeekOrigin.Begin) - os_offset;                    
                 default:
-                    throw new Exception("unknown SeekOrigin value" + origin.ToString());
-                    break;
+                    throw new Exception("unknown SeekOrigin value" + origin.ToString());                    
             }
         }
 

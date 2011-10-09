@@ -260,7 +260,7 @@ namespace Bend
             KeyValuePair<RecordKey, _SegBlock> blockkvp;
             try {
                 blockkvp = blocks.FindPrev(keytest,false);
-            } catch (KeyNotFoundException ex1) {
+            } catch (KeyNotFoundException) {
                 // keytest is before any blocks, check the first block
                 try {
                     blockkvp = blocks.FindNext(new ScanRange<RecordKey>.minKey(), true); // get the first block

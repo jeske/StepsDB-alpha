@@ -76,7 +76,7 @@ namespace Bend {
         public int getMaxGeneration() {            
             try {
                 return (int)segmentInfo.FindPrev(new ScanRange<SegmentDescriptor>.maxKey(), true).Key.generation;
-            } catch (KeyNotFoundException e) {
+            } catch (KeyNotFoundException) {
                 return 0;
             }            
         }

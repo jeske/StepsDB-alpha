@@ -72,16 +72,15 @@ namespace Bend {
             var element = doc.GetElement(field_name);
             switch (element.Value.BsonType) {
                 case BsonType.String:
-                    return new RecordKeyType_String(element.Value.AsString);
-                    break;
+                    return new RecordKeyType_String(element.Value.AsString);                    
                 case BsonType.Int64:
-                    return new RecordKeyType_Long(element.Value.AsInt64);
-                    break;
+                    return new RecordKeyType_Long(element.Value.AsInt64);                    
                 case BsonType.Int32:
                     return new RecordKeyType_Long(element.Value.AsInt32);
-                    break;
+                default:
+                    throw new Exception("unsupported index type");
             }
-            throw new Exception("unsupported index type");
+            
         }
 
         private RecordKey _appendKeypartsForIndexSpec(BsonDocument doc, IndexSpec index_spec, RecordKey index_key) {

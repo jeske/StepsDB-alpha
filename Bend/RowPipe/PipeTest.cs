@@ -51,9 +51,8 @@ namespace BendTests
                 // process the HDF context, should be an error because "table" doesn't exist..
                 try {
                     p.generateRowFromContext(ctx);
-                }
-                catch (PipeGenerateException exc) {
-                    err = true;
+                } catch (PipeGenerateException) {
+                    err = true;                    
                 }
                 Assert.AreEqual(true, err, "error on pipe element not in context");
             }

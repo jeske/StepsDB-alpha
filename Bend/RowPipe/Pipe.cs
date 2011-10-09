@@ -101,7 +101,7 @@ namespace Bend
             return key_part_qualifiers.GetEnumerator();
         }
 
-        public string ToString() {
+        public override string ToString() {
             string output = "";
             foreach (QualifierBase part in key_part_qualifiers) {
                 output = output + "/" + part.ToString();

@@ -176,6 +176,10 @@ namespace Bend {
                 }
             }
 
+            if (at_endmarker != true) {
+                throw new Exception("SegmentBlockBasicDecoder: finished record without being at_endmarker");
+            }
+
             RecordKey key = new RecordKey(keystr.ToArray());
             RecordUpdate value = RecordUpdate.FromEncodedData(valuestr.ToString());
             // Debug.WriteLine("scanning " + key.ToString() + " : " + value.ToString());

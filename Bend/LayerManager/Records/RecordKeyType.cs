@@ -58,20 +58,15 @@ namespace Bend
             RecordKeySubtype subtype_enum = (RecordKeySubtype)subtype_byte;
             switch (subtype_enum) {
                 case RecordKeySubtype.STRING:
-                    return RecordKeyType_String.decodeSubtypeFrom(r);
-                    break;
+                    return RecordKeyType_String.decodeSubtypeFrom(r);                    
                 case RecordKeySubtype.LONG:
-                    return RecordKeyType_Long.decodeSubtypeFrom(r);
-                    break;
+                    return RecordKeyType_Long.decodeSubtypeFrom(r);                    
                 case RecordKeySubtype.RECORD_KEY:
-                    return RecordKeyType_RecordKey.decodeSubtypeFrom(r);
-                    break;
+                    return RecordKeyType_RecordKey.decodeSubtypeFrom(r);                   
                 case RecordKeySubtype.RAW_BYTES:
-                    return RecordKeyType_RawBytes.decodeSubtypeFrom(r);
-                    break;
+                    return RecordKeyType_RawBytes.decodeSubtypeFrom(r);                    
                 case RecordKeySubtype.TS_ATTRIBUTE:
-                    return RecordKeyType_AttributeTimestamp.decodeSubtypeFrom(r);
-                    break;
+                    return RecordKeyType_AttributeTimestamp.decodeSubtypeFrom(r);                   
             }
             throw new Exception("RecordKeyType.decodeFrom: no decoder for subtype: " + subtype_enum.ToString());
         }

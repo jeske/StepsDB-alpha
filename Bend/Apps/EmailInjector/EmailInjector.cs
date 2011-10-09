@@ -126,19 +126,19 @@ namespace Bend.EmailIndexerTest {
             // gui.debugDump(db);
 
 
-            if (true) {
+#if true      
                 // sharptools                
                 SharpMessage msg = new anmar.SharpMimeTools.SharpMessage(msgtxt);
                 System.Console.WriteLine("Subject: " + msg.Subject);
 
                 indexer.index_document(txwg, docid, msg.Body, out numwords);
-            } else {
+#else
                 // LumiSoft                
                 Mime msg = LumiSoft.Net.Mime.Mime.Parse(System.Text.Encoding.Default.GetBytes(msgtxt));
                 System.Console.WriteLine("Subject: " + msg.MainEntity.Subject);
                 indexer.index_document(txwg, docid, msg.MainEntity.DataText, out numwords);
-
-            }
+#endif
+      
 
             //foreach (SharpAttachment msgpart in msg.Attachments) {
             //    if (msgpart.MimeTopLevelMediaType == MimeTopLevelMediaType.text &&
@@ -154,8 +154,8 @@ namespace Bend.EmailIndexerTest {
             // http://www.csharp-examples.net/get-files-from-directory/
             string[] filePaths = Directory.GetFiles(basepath);
 
-            int doc_count = 1;
-            int word_count = 1;
+            long doc_count = 1;
+            long word_count = 1;
             DateTime start = DateTime.Now;
 
             foreach (var fn in filePaths) {
