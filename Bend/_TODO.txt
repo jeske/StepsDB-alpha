@@ -1,9 +1,23 @@
+**** [ Main WIKI SITE:    http://stepsdb.pbworks.com/    ] ****
 
 
---- [ Main WIKI SITE:    http://stepsdb.pbworks.com/    ] -----
+****[ High Level TODO ]***
+
+- freelist management
+  - (done) provide free blocks back to the freelist manager
+  - change segment pointers to include LENGTH (addr,length)    
+  - address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
+    - delete/rename disk-files when handle discarded    
+  - allocate blocks from freelist instead of top-of-heap  
 
 
-----[ Standalone steps-mtree ]----
+- paxos experimentation
+- distributed DB
+
+
+****[ Standalone steps-mtree ]****
+ 
+ - freelist management
  
  - bound the log size
    - allow separate log file
@@ -11,8 +25,6 @@
    - (default log = 20x chunk size, 512k chunks = 10MB log)	
    - trigger "flush" if log is running out of space
    - keep "reserve" log space to 
- 
- - freelist management
 
   - (assert) properly handle a metadata mismatch after a segment change before it is truly applied
   - ... put the change in a "fake segment", then do a full-walk... make sure they match before applying
@@ -69,6 +81,7 @@
 	- ... make a release!
 
   - MTREE improvements:
+    - allow the merge to "skip blocks" (when no new key touches an old-block, simply remove it from the merge)
     - estimate 'dbsize between start/end key', return sets of segment 'split' keys -- for splitting ranges
     - SortedSegment: prefix/suffix compression
     - fix the block decoder selection to be dynamic instead of hardcoded

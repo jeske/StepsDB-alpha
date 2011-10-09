@@ -222,7 +222,8 @@ namespace Bend
                 MEMORY_ONLY,
                 DISK_ATOMIC
             };
-            WriteGroupType type;
+            public readonly WriteGroupType type;
+
             enum WriteGroupState
             {
                 PENDING,
@@ -230,6 +231,7 @@ namespace Bend
                 CLOSED,                
             }
             WriteGroupState state = WriteGroupState.PENDING;
+
             public WriteGroup(LayerManager _layer, WriteGroupType type=WriteGroupType.DISK_INCREMENTAL) {
                 this.mylayer = _layer;
                 this.tsn = System.DateTime.Now.ToBinary();
@@ -660,6 +662,8 @@ namespace Bend
             uint target_generation = int.MaxValue; // will contain "minimum generation of the segments"
             int last_generation = int.MinValue;
 
+            
+
             // (1) iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
 
@@ -695,10 +699,16 @@ namespace Bend
                 // HACK: we delete the segment mappings first, so if we write the same mapping that we're removing, 
                 // we don't inadvertantly delete the new mapping..
 
+                
                 // remove the old segment mappings
+                // and, free the space from the old segments
                 foreach (SegmentDescriptor segment in segs) {
                     // TODO: it's not safe to free this space yet!
                     rangemapmgr.unmapSegment(tx, segment);
+
+
+                    FreespaceExtent segment_extent = segment.getFreespaceExtent(rangemapmgr);
+                    this.freespacemgr.freeSegment(tx, segment_extent);
                 }
 
                 IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain_head = SortedAscendingCheck.CheckAscending(chain, "merge-final");
@@ -710,8 +720,8 @@ namespace Bend
 
                 this._writeSegment(tx, chain_head , (int)target_generation);
 
-                // free the space from the old segments
-
+                
+                
                 // check to see if we can shrink NUMGENERATIONS
 
                 

@@ -12,18 +12,24 @@ using System.IO;
 // Number representation - we will start with a simple positive integer zero-padded representation    
 namespace Bend
 {
-    // .ROOT/FREELIST/(address start:10)/(address end:10) -> ()
-    // .ROOT/FREELIST/0000004000/0000008000 -> ()
-    // .ROOT/FREELIST/0000008000/* -> ()                    * is a special dynamic growth end marker
+    // .ROOT/FREELIST/HEAD
+    // .ROOT/FREELIST/EXTENTS/(address start:10)/(address end:10) -> ()
+    // .ROOT/FREELIST/EXTENTS/0000004000/0000008000 -> ()
+    // .ROOT/FREELIST/EXTENTS/0000008000/* -> ()                    * is a special dynamic growth end marker
 
+    // TODO: maintain this data through a "table manager" so table 
+    //       data can be indexed/exposed via normal mechanisms.     
 
-    // TODO: this should be talking to our high-level indexing manager, so the
-    // indexing manager can keep an index on the blocks_by_size automatically, 
-    // and so the table format can be read by the higher level table manager
+    public struct FreespaceExtent {
+        public long start_addr;
+        public long end_addr;
+    }
+
     public class FreespaceManager
     {
         long next_allocation;
-        
+        BDSkipList<long, FreespaceExtent> freespace = new BDSkipList<long, FreespaceExtent>();
+
         LayerManager store;
         public FreespaceManager(LayerManager store) {
             this.store = store;
@@ -41,14 +47,20 @@ namespace Bend
             }
         }
 
-        // right now we're going to use a "top of heap" allocation strategy with no reclamation
-        // .ROOT/FREELIST/HEAD -> "top of heap"
         public IRegion allocateNewSegment(LayerManager.WriteGroup tx, int length) {
+
+            return growHeap(tx, length);
+
+        }
+
+        // grow the top "top of heap" 
+        // .ROOT/FREELIST/HEAD -> "top of heap"
+        private IRegion growHeap(LayerManager.WriteGroup tx, int minimum_extension) {            
             long new_addr;
             // grab a chunk
 
             new_addr = next_allocation;
-            next_allocation = next_allocation + (long)length;
+            next_allocation = next_allocation + (long)minimum_extension;
 
             Console.WriteLine("allocateNewSegment - next address: " + new_addr);
             // write our new top of heap pointer
@@ -61,7 +73,24 @@ namespace Bend
                 throw new Exception("invalid address in allocateNewSegment: " + new_addr);
             }
 
-            return store.regionmgr.writeFreshRegionAddr(new_addr, length);
+            return store.regionmgr.writeFreshRegionAddr(new_addr, minimum_extension);
+        }
+
+        public void freeSegment(LayerManager.WriteGroup tx, FreespaceExtent segment_extent) {
+            
+            if (tx.type != LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC) {
+                throw new Exception("freeSegment() requires DISK_ATOMIC write group");
+            }            
+
+            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS")
+                .appendKeyPart(new RecordKeyType_Long(segment_extent.end_addr));
+
+            RecordUpdate payload = RecordUpdate.WithPayload("");
+            tx.setValue(key, payload);
+            
+            // NOTE: DISK_ATOMIC writes are not seen in the memory segment until the atomic write group applies
+            //       so these changes will not be seen until then
+            
         }
     }
 }

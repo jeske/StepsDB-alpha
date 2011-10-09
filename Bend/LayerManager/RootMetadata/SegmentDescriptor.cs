@@ -25,6 +25,7 @@ namespace Bend {
 
         private readonly RecordKey GEN_PREFIX = new RecordKey().appendParsedKey(".ROOT/GEN");
 
+        #region Constructors
         public SegmentDescriptor(RecordKey key) {            
             if (!key.isSubkeyOf(GEN_PREFIX)) {
                 throw new Exception("can't decode key as segment descriptor: " + key.ToString());
@@ -46,6 +47,40 @@ namespace Bend {
             }
 
         }
+
+        public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {
+            this.generation = generation;
+            this.start_key = start_key;
+            this.end_key = end_key;
+            this.uniq = id_gen.nextTimestamp();
+
+
+            RecordKey genkey = new RecordKey()
+                .appendParsedKey(".ROOT/GEN")
+                .appendKeyPart(new RecordKeyType_Long(generation))
+                .appendKeyPart(new RecordKeyType_RecordKey(start_key))
+                .appendKeyPart(new RecordKeyType_RecordKey(end_key))
+                .appendKeyPart(new RecordKeyType_Long(uniq));
+
+            this.record_key = genkey;
+
+
+            // double check that the encode/decode is reversible
+            {
+                SegmentDescriptor check_sdesc = new SegmentDescriptor(this.record_key);
+
+                if (this.CompareTo(check_sdesc) != 0) {
+                    Console.WriteLine("start key: hext {1} - {0}", start_key, Lsd.ToHexString(start_key.encode()));
+                    Console.WriteLine("end_key: hex {1} - {0}", end_key, Lsd.ToHexString(end_key.encode()));
+
+                    throw new Exception(
+                        String.Format("mapGenerationToRegion: segment descriptor pack/unpack error\n input ({0}) \ndecoded to ({1})",
+                        this, check_sdesc));
+                }
+            }
+
+        }
+        #endregion
 
         public int CompareTo(SegmentDescriptor target) {
             int cmpvalue = this.generation.CompareTo(target.generation);
@@ -86,38 +121,6 @@ namespace Bend {
             return this.directlyContainsKey(GEN_PREFIX);            
         }
 
-        public SegmentDescriptor(uint generation, RecordKey start_key, RecordKey end_key) {
-            this.generation = generation;
-            this.start_key = start_key;
-            this.end_key = end_key;
-            this.uniq = id_gen.nextTimestamp();
-
-
-            RecordKey genkey = new RecordKey()
-                .appendParsedKey(".ROOT/GEN")
-                .appendKeyPart(new RecordKeyType_Long(generation))
-                .appendKeyPart(new RecordKeyType_RecordKey(start_key))
-                .appendKeyPart(new RecordKeyType_RecordKey(end_key))
-                .appendKeyPart(new RecordKeyType_Long(uniq));
-
-            this.record_key = genkey;
-            
-
-            // double check that the encode/decode is reversible
-            {
-                SegmentDescriptor check_sdesc = new SegmentDescriptor(this.record_key);
-
-                if (this.CompareTo(check_sdesc) != 0) {
-                    Console.WriteLine("start key: hext {1} - {0}",start_key,Lsd.ToHexString(start_key.encode()));
-                    Console.WriteLine("end_key: hex {1} - {0}",end_key,Lsd.ToHexString(end_key.encode()));
-
-                    throw new Exception(
-                        String.Format("mapGenerationToRegion: segment descriptor pack/unpack error\n input ({0}) \ndecoded to ({1})",
-                        this,check_sdesc));
-                }
-            }
-
-        }
 
         public override string ToString() {
             return "SegmentDescriptor{" + generation + ":" + start_key + ":" +
@@ -135,6 +138,21 @@ namespace Bend {
                 }
             }
             throw new Exception("Could not load Segment from SegmentDescriptor: " + this);
+        }
+
+        public FreespaceExtent getFreespaceExtent(RangemapManager rmm) {
+            RecordKey found_key = new RecordKey();
+            RecordData found_record = new RecordData(RecordDataState.NOT_PROVIDED, found_key);
+            if (rmm.getNextRecord(this.record_key, true, ref found_key, ref found_record, true) == GetStatus.PRESENT) {
+                if (this.record_key.Equals(found_key) && found_record.State == RecordDataState.FULL) {                    
+                    return rmm.getFreespaceExtentFromMetadata(found_record);
+                }
+                if (found_record.State == RecordDataState.DELETED) {
+                    throw new Exception("Segment{" + this.ToString() + "}.getSegment() returned tombstone");
+                }
+            }
+            throw new Exception("Could not load Segment from SegmentDescriptor: " + this);
+
         }
 
     }

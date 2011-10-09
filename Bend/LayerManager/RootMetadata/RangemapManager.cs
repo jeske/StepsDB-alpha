@@ -224,6 +224,28 @@ namespace Bend
             return Lsd.lsdToNumber(data);
         }
 
+        private FreespaceExtent unpackRegionExtent(byte[] data) {
+            // throw new Exception("Not implemented");
+            // TODO: unpack the update data properly when we change it to <addr>:<length>"
+            FreespaceExtent extent;
+            extent.start_addr = Lsd.lsdToNumber(data);
+            extent.end_addr = extent.start_addr;  // FIXMIE, this is a lie!! 
+            return extent;
+        }
+
+        public FreespaceExtent getFreespaceExtentFromMetadata(byte[] data) {
+            FreespaceExtent extent = unpackRegionExtent(data);
+            return extent;
+        }
+        public FreespaceExtent getFreespaceExtentFromMetadata(RecordData data) {
+            return getFreespaceExtentFromMetadata(data.data);                    
+        }
+        public FreespaceExtent getFreespaceExtentFromMetadata(RecordUpdate update) {
+            return getFreespaceExtentFromMetadata(update.data);        
+        }
+
+
+
         private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
             // we now have a pointer to a segment addres for GEN<max>
             long region_addr = unpackRegionAddr(data);
