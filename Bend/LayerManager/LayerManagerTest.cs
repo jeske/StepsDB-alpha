@@ -638,8 +638,9 @@ namespace BendTests
                     // trigger a merge
 
                     for (int x = 0; x < 20; x++) {
-                        db.mergeIfNeeded();
+                        db.mergeIfNeeded();                        
                     }
+                    Thread.Sleep(5);
 
                     // verify there are no errors
                     foreach (ValueCheckerThread checker in checkers) {
@@ -663,6 +664,7 @@ namespace BendTests
                         db.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.DeletionTombstone());
                     }
                     db.flushWorkingSegment();
+                    Thread.Sleep(5);
                     db.mergeIfNeeded();
                     Thread.Sleep(5);
                     performed_iterations = iter;

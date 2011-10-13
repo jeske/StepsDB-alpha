@@ -658,7 +658,7 @@ namespace Bend
 
         public void mergeSegments(IEnumerable<SegmentDescriptor> segs) {
 
-            Console.WriteLine("=====================================[ Merge Segments ]=================================");
+            Console.WriteLine("=====================================[ Merge Segments (Begin) ]=================================");
 
             // TODO: assure this is a valid merge
             // TODO: change this to map/unmap segments as an atomic operation at the end
@@ -751,6 +751,7 @@ namespace Bend
                 rangemapmgr.setMaxGenCountHack(rangemapmgr.mergeManager.getMaxGeneration() + 1);
                 rangemapmgr.clearSegmentCacheHack();                
             }
+            Console.WriteLine("=====================================[ Merge Segments (End) ]=================================");
         }
 
         public void mergeAllSegments() {
