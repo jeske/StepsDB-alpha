@@ -3,6 +3,20 @@
 
 ****[ High Level TODO ]***
 
+- TestBackgroundMergeConsistency FAILS!! 
+
+!!!!! Exception in ValueCheckerThread test-7, System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Bend.RangemapManager.INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(IComparable`1 startkeytest, Boolean direction_is_forward, SegmentMemoryBuilder[] startseg_layers, IScannableDictionary`2 handledIndexRecords2, Int32 maxgen, IScannableDictionary`2 segmentsWithRecords, Boolean equal_ok, SegmentWalkStats stats) 
+      ... in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\RangemapManager.cs:line 992
+   at Bend.RangemapManager.<getRecord_LowLevel_Cursor>d__4.MoveNext() in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\RangemapManager.cs:line 391
+   at Bend.LayerManager.FindNext(IComparable`1 keytest, Boolean equal_ok) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 895
+   at Bend.LayerManager.getRecord(RecordKey key, RecordData& record) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 874
+   at BendTests.A03_LayerManagerTests.ValueCheckerThread.doValidate() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManagerTest.cs:line 567
+
+
+
+
+
 - freelist management
   - (done) provide free blocks back to the freelist manager
   - change segment pointers to include LENGTH (addr,length)    

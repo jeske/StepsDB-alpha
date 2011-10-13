@@ -566,15 +566,17 @@ namespace BendTests
                         num_checks++;
                         if (db.getRecord(key, out data) != GetStatus.PRESENT) {
                             num_errors++;
+                            System.Console.WriteLine("!!!!! ValueCheckerThread ERROR: key(" + key_to_check + ") not present.");
                         } else {
-                            if (!data.ToString().Equals(value_to_expect)) {
-                                Console.WriteLine(data.ToString() + " != " + value_to_expect);
+                            if (!data.ToString().Equals(value_to_expect)) {                                
                                 num_errors++;
+                                System.Console.WriteLine("!!!!! ValueCheckerThread ERROR: key(" + key_to_check + 
+                                    ") value mismatch, " + data.ToString() + " != " + value_to_expect);
                             }
                             // check the contents
                         }
                     } catch (Exception e) {
-                        System.Console.WriteLine("Exception in ValueCheckerThread {0}, {1}", key_to_check, e.ToString());
+                        System.Console.WriteLine("!!!!! Exception in ValueCheckerThread {0}, {1}", key_to_check, e.ToString());
                         num_errors++;
                     }
                     if (should_end) {
@@ -595,7 +597,7 @@ namespace BendTests
 
         [Test]
         public void T05_TestBackgroundMergeConsistency() {
-            // (1) one key to each of three separate segments
+            // (1) one key to each of NUM_SEGMENTS separate segments
             // (2) setup a separate thread that just repeatedly checks each key
             // (3) perform a merge
             // (4) shutdown the threads and see if any detected a readback failure
@@ -603,50 +605,71 @@ namespace BendTests
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\7");            
             List<ValueCheckerThread> checkers = new List<ValueCheckerThread>();
             int NUM_SEGMENTS = 7;
+            int performed_iterations = 0;
+            int TARGET_ITERATIONS = 10;
+            try {
+                for (int iter = 0; iter < TARGET_ITERATIONS; iter++) {
 
-            for (int x = 0; x < NUM_SEGMENTS; x++) {
-                string key = "test-" + x;
-                string value = "test-value-" + x;
-                db.setValueParsed(key, value);
+                    // setup the initial keys and checker threads
+                    for (int x = 0; x < NUM_SEGMENTS; x++) {
+                        string key = "test-" + x;
+                        string value = "test-value-" + x;
+                        db.setValueParsed(key, value);
 
-                // put it in it's own segment
-                db.flushWorkingSegment(); 
+                        // put it in it's own segment
+                        db.flushWorkingSegment();
 
-                // start a checking thread
-                ValueCheckerThread checker = new ValueCheckerThread(db, key,value);
-                Thread newthread = new Thread(checker.doValidate);
-                newthread.Start();
-                checkers.Add(checker);
+                        // start a checking thread
+                        ValueCheckerThread checker = new ValueCheckerThread(db, key, value);
+                        Thread newthread = new Thread(checker.doValidate);
+                        newthread.Start();
+                        checkers.Add(checker);
+                    }
+                    Thread.Sleep(5);
+
+                    // verify there are no errors
+                    foreach (ValueCheckerThread checker in checkers) {
+                        Console.WriteLine("Thread  key:{0}  checks:{1}  errors:{2}", checker.key_to_check, checker.num_checks, checker.num_errors);
+                    }
+                    foreach (ValueCheckerThread checker in checkers) {
+                        Assert.AreEqual(0, checker.num_errors, "checker thread error, key(" + checker.key_to_check + ") error count != 0");
+                    }
+
+                    // trigger a merge
+
+                    for (int x = 0; x < 20; x++) {
+                        db.mergeIfNeeded();
+                    }
+
+                    // verify there are no errors
+                    foreach (ValueCheckerThread checker in checkers) {
+                        Console.WriteLine("Thread  key:{0}  checks:{1}  errors:{2}", checker.key_to_check, checker.num_checks, checker.num_errors);
+                    }
+                    foreach (ValueCheckerThread checker in checkers) {
+                        Assert.AreEqual(0, checker.num_errors, "checker thread error, key:" + checker.key_to_check);
+                    }
+
+                    // end the threads..
+                    foreach (ValueCheckerThread checker in checkers) {
+                        checker.end();
+                    }
+                    Thread.Sleep(5);
+
+                    // delete the keys
+
+                    for (int x = 0; x < NUM_SEGMENTS; x++) {
+                        string key = "test-" + x;
+                        string value = "test-value-" + x;
+                        db.setValue(new RecordKey().appendParsedKey(key), RecordUpdate.DeletionTombstone());
+                    }
+                    db.flushWorkingSegment();
+                    db.mergeIfNeeded();
+                    Thread.Sleep(5);
+                    performed_iterations = iter;
+                }
+            } finally {
+                System.Console.WriteLine("performed iterations = " + performed_iterations + " target iterations = " + TARGET_ITERATIONS);
             }
-            Thread.Sleep(5);
-
-            // verify there are no errors
-            foreach (ValueCheckerThread checker in checkers) {
-                Console.WriteLine("Thread  key:{0}  checks:{1}  errors:{2}", checker.key_to_check, checker.num_checks, checker.num_errors);
-            }
-            foreach (ValueCheckerThread checker in checkers) {
-                Assert.AreEqual(0, checker.num_errors, "checker thread error, key:" + checker.key_to_check);
-            }
-
-            // trigger a merge
-
-            for (int x = 0; x < 20; x++) {
-                db.mergeIfNeeded();
-            }
-
-            // verify there are no errors
-            foreach (ValueCheckerThread checker in checkers) {                
-                Console.WriteLine("Thread  key:{0}  checks:{1}  errors:{2}", checker.key_to_check, checker.num_checks, checker.num_errors);                
-            }
-            foreach (ValueCheckerThread checker in checkers) {
-                Assert.AreEqual(0, checker.num_errors, "checker thread error, key:" + checker.key_to_check);
-            }
-
-            // end the threads..
-            foreach (ValueCheckerThread checker in checkers) {
-                checker.end(); 
-            }
-            Thread.Sleep(5);
         }
 
 
