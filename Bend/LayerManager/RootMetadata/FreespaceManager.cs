@@ -6,10 +6,11 @@
 using System;
 using System.IO;
 
+
 // .ROOT metadata
 
-
 // Number representation - we will start with a simple positive integer zero-padded representation    
+
 namespace Bend
 {
     // .ROOT/FREELIST/HEAD
@@ -23,6 +24,14 @@ namespace Bend
     public struct FreespaceExtent {
         public long start_addr;
         public long end_addr;
+        public byte[] pack() {
+            byte[] data;
+            Util.writeStruct(this, out data);
+            return data;
+        }
+        public static FreespaceExtent unpack(byte[] buf) {
+            return Util.readStruct<FreespaceExtent>(new MemoryStream(buf));
+        }
     }
 
     public class FreespaceManager
@@ -49,8 +58,17 @@ namespace Bend
 
         public IRegion allocateNewSegment(LayerManager.WriteGroup tx, int length) {
 
-            return growHeap(tx, length);
+            lock (this) {   // use one big nasty lock to prevent race conditions
 
+                // try to find an extent with enough space to carve off a chunk
+
+
+                // if we can't find a free segment, grow the heap
+                return growHeap(tx, length);
+
+                // then carve a segment out of the new grown heap
+
+            }
         }
 
         // grow the top "top of heap" 

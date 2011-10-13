@@ -117,10 +117,6 @@ namespace Bend
         }
         
 
-
-
-
-
         public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
             // TODO: consider putting the address or a GUID into the key so two descriptors can't be mixed up
