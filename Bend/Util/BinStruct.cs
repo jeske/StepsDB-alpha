@@ -37,6 +37,12 @@ namespace Bend {
                 }
             }
 
+            public static void writeStruct<E>(E obj, out byte[] outbuf) where E : struct {
+                MemoryStream ms = new MemoryStream();
+                writeStruct(obj, ms);
+                outbuf = ms.ToArray();
+            }
+
             // http://mmarinov.blogspot.com/2007/01/reflection-modify-value-types-by.html
             public static E  readStruct<E>(Stream input) where E: struct {
                 BinaryReader r = new BinaryReader(input);
