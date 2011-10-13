@@ -78,7 +78,7 @@ namespace Bend
 
         public void freeSegment(LayerManager.WriteGroup tx, FreespaceExtent segment_extent) {
             
-            if (tx.type != LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC) {
+            if (tx.type != LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH) {
                 throw new Exception("freeSegment() requires DISK_ATOMIC write group");
             }            
 

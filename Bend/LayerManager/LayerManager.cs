@@ -13,6 +13,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Threading;
+using System.ComponentModel;
 
 // TODO: eliminate the dual paths for "manual apply" and "log apply"... make it always just do log apply
 
@@ -217,11 +218,28 @@ namespace Bend
 
             List<LogCmd> pending_cmds = new List<LogCmd>();
 
-            public enum WriteGroupType {                
-                DISK_INCREMENTAL,
-                MEMORY_ONLY,
-                DISK_ATOMIC
+            public enum WriteGroupType {
+                [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log")]
+                DISK_INCREMENTAL,    
+
+                [Description("Changes are immediately added only to the working-segment. They will only survive if a checkpoint occurs before shutdown.")]
+                MEMORY_ONLY,          
+
+                [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish().")]
+                DISK_ATOMIC_FLUSH
             };
+
+            // DISK_INCREMENTAL : changes are immediately added to the pending-log-queue and the working segment.
+            //                    The log is written to disk optimistically, so individual changes may be written to the 
+            //                    log separately. In the case of a crash, some may survive while others are not logged. 
+            // MEMORY_ONLY : changes are only added to the working segment. They will disappear if the system 
+            //               crashes before a checkpoint. However, this avoids double-writing them to the log.
+            // DISK_ATOMIC_FLUSH : Changes are buffered and not applied to the working segment until the writegroup is 
+            //               flushed. The changes will be written as a single atomic log packet which will either apply
+            //               or not. Likewise they will all either appear in the working segment or not, though
+            //               they do not appear when originally issued.
+
+
             public readonly WriteGroupType type;
 
             enum WriteGroupState
@@ -271,7 +289,7 @@ namespace Bend
                 if (this.type == WriteGroupType.DISK_INCREMENTAL) {
                     // if we are allowed to add each write to the disk log, then do it now
                     mylayer.logwriter.addCommand(cmd, cmddata, ref this.last_logwaitnumber);
-                } else if (this.type == WriteGroupType.DISK_ATOMIC) {
+                } else if (this.type == WriteGroupType.DISK_ATOMIC_FLUSH) {
                     // add it to our pending list of commands to flush at the end...
                     pending_cmds.Add(new LogCmd(cmd, cmddata));
                 } else if (this.type == WriteGroupType.MEMORY_ONLY) {
@@ -302,7 +320,7 @@ namespace Bend
                     if (this.last_logwaitnumber != 0) {
                         mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
                     }
-                } if (type == WriteGroupType.DISK_ATOMIC) {
+                } if (type == WriteGroupType.DISK_ATOMIC_FLUSH) {
                     // we need to atomically add a
                     mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
                     this.pending_cmds.Clear();
@@ -437,7 +455,7 @@ namespace Bend
 
                 {
                     // (3) write the checkpoint segment to disk, accumulating the rangemap entries into tx
-                    WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC);
+                    WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
 
 #if DEBUG_CHECKPOINT
                     System.Console.WriteLine("CHKPT: write old working segment to disk segments");
@@ -694,7 +712,7 @@ namespace Bend
 
            // (2) now perform the merge!
             {
-                WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC);
+                WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
 
                 // HACK: we delete the segment mappings first, so if we write the same mapping that we're removing, 
                 // we don't inadvertantly delete the new mapping..
