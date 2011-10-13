@@ -43,12 +43,12 @@ namespace Bend.Indexer {
                 }
                 word_count[word]++;
 
-                if (false) {
+#if falase
                     // WORDHITS
                     var key = new RecordKey().appendParsedKey(index_location_prefix)
                        .appendKeyPart(word).appendKeyPart(docid).appendKeyPart("" + wordpos);
-                    txwg.setValue(key, RecordUpdate.WithPayload(""));
-                }
+                    txwg.setValue(key, RecordUpdate.WithPayload(""));                
+#endif
 
                 // System.Console.WriteLine(key);                
                 wordpos++;
@@ -256,7 +256,7 @@ namespace Bend.Indexer {
                     hit = term.advancePastDocid(stats,hit.docid);
                     hits.Add(hit.docid);
                     //System.Console.WriteLine("search returned: {0}", hit);
-                } catch (KeyNotFoundException e) {
+                } catch (KeyNotFoundException) {
                     //System.Console.WriteLine("search exception: " + e.ToString());
                     break;
                 }

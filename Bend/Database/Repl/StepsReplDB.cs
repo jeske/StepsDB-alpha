@@ -636,8 +636,7 @@ namespace Bend.Repl {
                     break;
                 default:
                     // UNKNOWN ReplState
-                    throw new Exception("unknown ReplState: " + this.state.ToString());
-                    break;
+                    throw new Exception("unknown ReplState: " + this.state.ToString());                    
             }
         }
 

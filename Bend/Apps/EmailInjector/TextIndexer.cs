@@ -273,7 +273,7 @@ namespace Bend.Indexer {
                     hit = term.advancePastDocid(stats,hit.docid);
                     hits.Add(hit.docid);
                     //System.Console.WriteLine("search returned: {0}", hit);
-                } catch (KeyNotFoundException e) {
+                } catch (KeyNotFoundException) {
                     //System.Console.WriteLine("search exception: " + e.ToString());
                     break;
                 }

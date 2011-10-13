@@ -164,7 +164,7 @@ namespace Bend
                     // deref the weak reference
                     try {
                          db = this.db_wr.Target;
-                    } catch (InvalidOperationException e) {
+                    } catch (InvalidOperationException) {
                         keepRunning = false;
                         return;
                     }

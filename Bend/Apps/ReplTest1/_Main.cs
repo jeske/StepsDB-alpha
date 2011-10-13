@@ -15,7 +15,8 @@ namespace Bend.ReplTest1 {
 
         [STAThread]
         static void Main(string[] args) {
-            if (false) {
+
+#if false            
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 var window = new DbgGUI();
@@ -23,15 +24,13 @@ namespace Bend.ReplTest1 {
                 Thread newThread = new Thread(_Main.do_test);
                 newThread.Start();
                 Application.Run(window);
-            } else {
+#else            
                 try {
                     _Main.do_test();
                 } catch (Exception e) {
                     Console.WriteLine(e.ToString());
                 }
-            }
-
-            
+#endif            
         }
 
         public static void waitUntilActive(LayerManager db, ReplHandler srvr) {
