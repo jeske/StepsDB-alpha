@@ -550,6 +550,7 @@ namespace BendTests
             public int num_errors = 0;
             LayerManager db;
             bool should_end = false;
+            bool is_ended = false;
 
             public ValueCheckerThread(LayerManager db, string key_to_check, string value_to_expect) {
                 this.db = db;
@@ -580,6 +581,7 @@ namespace BendTests
                         num_errors++;
                     }
                     if (should_end) {
+                        is_ended = true;
                         return;
                     }
                     // sleep every Nth iteration
@@ -591,6 +593,11 @@ namespace BendTests
             }
             public void end() {
                 should_end = true;
+            }
+            public void waitForEnd() {
+                if (!is_ended) {
+                    Thread.Sleep(1);
+                }
             }
 
         }
@@ -638,7 +645,7 @@ namespace BendTests
                     // trigger a merge
 
                     for (int x = 0; x < 20; x++) {
-                        db.mergeIfNeeded();                        
+                        db.mergeIfNeeded();                                     
                     }
                     Thread.Sleep(5);
 
@@ -654,9 +661,14 @@ namespace BendTests
                     foreach (ValueCheckerThread checker in checkers) {
                         checker.end();
                     }
+                    foreach (ValueCheckerThread checker in checkers) {
+                        checker.waitForEnd();
+                    }
+
                     Thread.Sleep(5);
 
                     // delete the keys
+                    System.Console.WriteLine("======= Clearing for next run...");
 
                     for (int x = 0; x < NUM_SEGMENTS; x++) {
                         string key = "test-" + x;
@@ -667,6 +679,7 @@ namespace BendTests
                     Thread.Sleep(5);
                     db.mergeIfNeeded();
                     Thread.Sleep(5);
+                    System.Console.WriteLine("======= Cleared for next run...");
                     performed_iterations = iter;
                 }
             } finally {

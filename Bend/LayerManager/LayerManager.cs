@@ -424,7 +424,7 @@ namespace Bend
                 // TODO: make this work concurrently in the background
 
 
-                Console.WriteLine("=====================================[ Flush Working Segment ]=================================");
+                Console.WriteLine("=====================================[ Flush Working Segment (Begin) ]=================================");
                 // (1) create a new working segment            
                 SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
                 SegmentMemoryBuilder checkpointSegment;
@@ -495,6 +495,7 @@ namespace Bend
                     }
                 }
             }
+            Console.WriteLine("=====================================[ Flush Working Segment (End) ]=================================");
 
         }
 
