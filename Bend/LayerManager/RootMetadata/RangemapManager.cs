@@ -949,8 +949,14 @@ namespace Bend
 
             int highest_possible_generation = maxgen + startseg_layers.Length;
 
+
+            // TODO FIXME HACK : Flush can cause the number of generations to change while this function is executing
+            //                   causing the allocation of this fixed-size array to be not big enough. It's also
+            //                   a horrible hack for the in-memory segments to just be jammed along side the disk segments.
+            //                   IF we have D1,D2,D3,M4,M5  .. a Flush of M4 could create D4, overwriting M4. Is this safe?
+
             var segmentsWithRecords_ByGeneration =
-                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[highest_possible_generation];
+                new KeyValuePair<RangeKey, IScannable<RecordKey, RecordUpdate>>[highest_possible_generation+1];
 
             // (1) add working segment to the worklist            
             

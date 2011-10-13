@@ -3,7 +3,11 @@
 
 ****[ High Level TODO ]***
 
-- TestBackgroundMergeConsistency FAILS!! 
+- Background Flush Data Consistency Problem!!
+
+
+
+- Background Flush Exception!! 
 
 !!!!! Exception in ValueCheckerThread test-4, System.IndexOutOfRangeException: Index was outside the bounds of the array.
    at Bend.RangemapManager.INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(IComparable`1 startkeytest, Boolean direction_is_forward, SegmentMemoryBuilder[] startseg_layers, IScannableDictionary`2 handledIndexRecords2, Int32 maxgen, IScannableDictionary`2 segmentsWithRecords, Boolean equal_ok, SegmentWalkStats stats) 
@@ -14,8 +18,13 @@
    at BendTests.A03_LayerManagerTests.ValueCheckerThread.doValidate() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManagerTest.cs:line 568
 
 
-
-
+   1) fix a race condition with (INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive).
+       adding data for a new generation number overflows segmentsWithRecords_ByGeneration[]
+	   a) test the index value against expected maxgen and abort if exceeded
+	   b) use a linked list instead of array
+	   c) fix the hacky situation where "memory segments" are just given phantom generation numbers which then collide with the new flush
+	   d) make a better fix than this horrible +1 hack, segmentsWithRecords_ByGeneration[highest_possible_generation+1]
+	   e) what happens if there are N>2 flushes while a scan is progressing!!?!? 
 
 - freelist management
   - (done) provide free blocks back to the freelist manager

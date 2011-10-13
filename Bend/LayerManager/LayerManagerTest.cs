@@ -603,7 +603,7 @@ namespace BendTests
         }
 
         [Test]
-        public void T05_TestBackgroundMergeConsistency() {
+        public void T05_TestBackgroundFlushAndMergeConsistency() {
             // (1) one key to each of NUM_SEGMENTS separate segments
             // (2) setup a separate thread that just repeatedly checks each key
             // (3) perform a merge
@@ -661,9 +661,11 @@ namespace BendTests
                     foreach (ValueCheckerThread checker in checkers) {
                         checker.end();
                     }
+                    Thread.Sleep(10);
                     foreach (ValueCheckerThread checker in checkers) {
                         checker.waitForEnd();
                     }
+                    checkers.Clear();
 
                     Thread.Sleep(5);
 
