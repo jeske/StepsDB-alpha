@@ -225,8 +225,13 @@ namespace Bend
                 [Description("Changes are immediately added only to the working-segment. They will only survive if a checkpoint occurs before shutdown.")]
                 MEMORY_ONLY,          
 
+                [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish(). In addition, .finish() will only return once they are flushed to the log")]
+                DISK_ATOMIC_FLUSH,
+
                 [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish().")]
-                DISK_ATOMIC_FLUSH
+                DISK_ATOMIC_NOFLUSH,
+
+
             };
 
             // DISK_INCREMENTAL : changes are immediately added to the pending-log-queue and the working segment.
@@ -296,8 +301,11 @@ namespace Bend
                     // we don't need to add to the log at all, but it still needs to be pushed
                     // through the LogWriter so it can be applied to the working segment
                     mylayer.logwriter.addCommand_NoLog(cmd, cmddata);
+                } else if (this.type == WriteGroupType.DISK_ATOMIC_NOFLUSH) {
+                    // add it to our pending list of commands to flush at the end...
+                    pending_cmds.Add(new LogCmd(cmd, cmddata));
                 } else {
-                    throw new Exception("unknown write group type");                    
+                    throw new Exception("unknown write group type in addCommand() " + type.ToString());
                 }
             }
             
@@ -321,14 +329,21 @@ namespace Bend
                         mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
                     }
                 } if (type == WriteGroupType.DISK_ATOMIC_FLUSH) {
-                    // we need to atomically add a
+                    // send the group of commands to the log and clear the pending list
                     mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
                     this.pending_cmds.Clear();
 
+                    // wait until the atomic log packet is flushed
                     mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
-                } else {
+                } if (type == WriteGroupType.DISK_ATOMIC_NOFLUSH) {
+                    // send the group of commands to the log and clear the pending list
+                    mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
+                    this.pending_cmds.Clear();
+                } if (type == WriteGroupType.MEMORY_ONLY) {
                     // we turned off logging, so the only way to commit is to checkpoint!
-                    // TODO: force checkpoint
+                    // TODO: force checkpoint ?? 
+                } else {                
+                    throw new Exception("unknown write group type in .finish(): " + type.ToString());
                 }
 
                 if (this.pending_cmds.Count != 0) {

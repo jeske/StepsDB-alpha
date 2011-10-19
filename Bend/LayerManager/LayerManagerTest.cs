@@ -843,6 +843,11 @@ namespace BendTests
     public class ZZ_Todo_LayerManagerTests
     {
         [Test]
+        public void T01_TestWriteGroupModes() {
+            // test all WriteGroup modes (DISK_ATOMIC, MEMORY_ONLY, etc...)
+            Assert.Fail("test not implemented");            
+        }
+        [Test]
         public void T12_LayerManager_AssureTombstones_DeleteRecords() {
             Assert.Fail("TODO: test to assure tombstones kill records in segment merge process");
         }
