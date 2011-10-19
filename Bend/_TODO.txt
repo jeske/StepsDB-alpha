@@ -4,11 +4,13 @@
 ****[ High Level TODO ]***
 
 - freelist management
-  - (done) provide free blocks back to the freelist manager
-  - change segment pointers to include LENGTH (addr,length)    
-  - address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
-    - delete/rename disk-files when handle discarded    
-  - allocate blocks from freelist instead of top-of-heap  
+  1) (done) provide free blocks back to the freelist manager
+  2) change segment pointers to include LENGTH (addr,length)    
+  3) address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
+    3a) delete/rename disk-files when handle discarded    
+  4) allocate blocks from freelist instead of top-of-heap  
+
+
 
 - paxos experimentation
 - distributed DB
