@@ -13,10 +13,13 @@ using System.IO;
 
 namespace Bend
 {
-    // .ROOT/FREELIST/HEAD
-    // .ROOT/FREELIST/EXTENTS/(address start:10)/(address end:10) -> ()
-    // .ROOT/FREELIST/EXTENTS/0000004000/0000008000 -> ()
-    // .ROOT/FREELIST/EXTENTS/0000008000/* -> ()                    * is a special dynamic growth end marker
+    // .ROOT/FREELIST/HEAD -> (address for top of heap)
+    // .ROOT/FREELIST/PENDING/(address start) -> (start, end)
+    // .ROOT/FREELIST/EXTENTS/(address end:10) -> (start,end)
+    // .ROOT/FREELIST/EXTENTS/0000004000 -> (start,end)
+    
+    // We store extents by the "end address" so we can carve blocks off the start of the extent
+    // by writing the data-payload, without changing the row key.
 
     // TODO: maintain this data through a "table manager" so table 
     //       data can be indexed/exposed via normal mechanisms.     
