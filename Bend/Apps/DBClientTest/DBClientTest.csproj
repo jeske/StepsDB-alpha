@@ -34,9 +34,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Bend">
-      <HintPath>..\..\obj\Release\Bend.dll</HintPath>
-    </Reference>
     <Reference Include="MongoDB.Bson, Version=0.7.0.3959, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\ThirdParty\Lib\MongoDB.Bson.dll</HintPath>
@@ -52,6 +49,12 @@
   <ItemGroup>
     <Compile Include="DBClientTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Bend.csproj">
+      <Project>{5DB435AE-C387-4600-BC01-0996E28DA344}</Project>
+      <Name>Bend</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
