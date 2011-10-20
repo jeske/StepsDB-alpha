@@ -323,27 +323,33 @@ namespace Bend
                 if (this.state == WriteGroupState.CLOSED) {
                     throw new Exception("flush called on closed WriteGroup"); // TODO: add LSN/info
                 }
-                if (type == WriteGroupType.DISK_INCREMENTAL) {                
-                    // we've been incrementally writing commands, so ask them to flush
-                    if (this.last_logwaitnumber != 0) {
-                        mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
-                    }
-                } if (type == WriteGroupType.DISK_ATOMIC_FLUSH) {
-                    // send the group of commands to the log and clear the pending list
-                    mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
-                    this.pending_cmds.Clear();
+                switch (type) {
+                    case WriteGroupType.DISK_INCREMENTAL:
+                        // we've been incrementally writing commands, so ask them to flush
+                        if (this.last_logwaitnumber != 0) {
+                            mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
+                        }
+                        break;
+                    case WriteGroupType.DISK_ATOMIC_FLUSH:
+                        // send the group of commands to the log and clear the pending list
+                        mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
+                        this.pending_cmds.Clear();
 
-                    // wait until the atomic log packet is flushed
-                    mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
-                } if (type == WriteGroupType.DISK_ATOMIC_NOFLUSH) {
-                    // send the group of commands to the log and clear the pending list
-                    mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
-                    this.pending_cmds.Clear();
-                } if (type == WriteGroupType.MEMORY_ONLY) {
-                    // we turned off logging, so the only way to commit is to checkpoint!
-                    // TODO: force checkpoint ?? 
-                } else {                
-                    throw new Exception("unknown write group type in .finish(): " + type.ToString());
+                        // wait until the atomic log packet is flushed
+                        mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
+                        break;
+                    case WriteGroupType.DISK_ATOMIC_NOFLUSH:
+
+                        // send the group of commands to the log and clear the pending list
+                        mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
+                        this.pending_cmds.Clear();
+                        break;
+                    case  WriteGroupType.MEMORY_ONLY:
+                        // we turned off logging, so the only way to commit is to checkpoint!
+                        // TODO: force checkpoint ?? 
+                        break;
+                    default:                
+                        throw new Exception("unknown write group type in .finish(): " + type.ToString());
                 }
 
                 if (this.pending_cmds.Count != 0) {
