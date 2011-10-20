@@ -69,7 +69,7 @@ namespace Bend {
 
             while (true) {
                 if (curend == data.Length) {
-                    // flush first
+                    // flush any pending bytes
                     if (curstart != curend) {
                         o.Write(data, curstart, (curend - curstart));
                         curstart = curend;
@@ -78,9 +78,10 @@ namespace Bend {
                 } else {
                     byte cur = data[curend];
                     if ((cur >= FIRST_SPECIAL && cur <= LAST_SPECIAL)) {
-                        // flush first
+                        // flush first                        
                         if (curstart != curend) {
-                            o.Write(data, curstart, (curend - curstart));
+                            int prevend = curend - 1;
+                            o.Write(data, curstart, (prevend - curstart));
                             curstart = curend;
                         }
                         // write the escape char
@@ -91,8 +92,7 @@ namespace Bend {
                     } else {
                         curend++;
                     }
-                }
-                
+                }                
             }
         }
 
@@ -126,7 +126,7 @@ namespace Bend {
             // ..TODO: considering adding two separate record start/end markers
 
             // Accumulate the key.
-            List<byte> keystr = new List<byte>();
+            List<byte> keydata = new List<byte>();
             // StringBuilder keystr = new StringBuilder();
             bool keydone = false;
 
@@ -142,13 +142,13 @@ namespace Bend {
                         byte nc = (byte)rs.ReadByte(); 
                         byte unescaped = (byte)(nc + 0x7F);
                         if (unescaped < 0x80 || unescaped > 0x82) {
-                            // throw new Exception("unhandled escape sequence");
+                            throw new Exception("unhandled escape sequence 1: " + unescaped.ToString());
                         }
-                        keystr.Add(unescaped);
+                        keydata.Add(unescaped);
                         // keystr.Append((char)unescaped);
                         break;
                     default:
-                        keystr.Add(c);
+                        keydata.Add(c);
                         // keystr.Append((char)c);
                         break;
                 }
@@ -156,7 +156,7 @@ namespace Bend {
             if (!keydone) { throw new Exception("reached end of buffer before keydone!"); }
             // accumulate the value
             // TODO: switch this to use List<byte> instead of string builder!!!
-            StringBuilder valuestr = new StringBuilder();
+            List<byte> valuedata = new List<byte>();            
             bool valuedone = false;
             while (rs.Position < rs.Length && !valuedone) {
                 at_endmarker = false;
@@ -168,10 +168,16 @@ namespace Bend {
                         break;
                     case 0x82:   // key value delimiter
                         throw new Exception("found keyvalue delimiter in value");
-                    case 0x81:
-                        throw new Exception("unhandled escape sequence");
-                    default:
-                        valuestr.Append((char)c);
+                    case 0x81:                        
+                        byte nc = (byte)rs.ReadByte();
+                        byte unescaped = (byte)(nc + 0x7F);
+                        if (unescaped < 0x80 || unescaped > 0x82) {
+                            throw new Exception("unhandled escape sequence 2: " + unescaped.ToString());
+                        }
+                        keydata.Add(unescaped);
+                        break;
+                    default:                        
+                        valuedata.Add(c);
                         break;
                 }
             }
@@ -180,8 +186,8 @@ namespace Bend {
                 throw new Exception("SegmentBlockBasicDecoder: finished record without being at_endmarker");
             }
 
-            RecordKey key = new RecordKey(keystr.ToArray());
-            RecordUpdate value = RecordUpdate.FromEncodedData(valuestr.ToString());
+            RecordKey key = new RecordKey(keydata.ToArray());
+            RecordUpdate value = RecordUpdate.FromEncodedData(valuedata.ToArray());
             // Debug.WriteLine("scanning " + key.ToString() + " : " + value.ToString());
             return new KeyValuePair<RecordKey, RecordUpdate>(key, value);
         }

@@ -88,13 +88,7 @@ namespace Bend {
             update.data = encoded_data.Skip(1).ToArray();
             return update;
         }
-
-        [Obsolete]
-        public static RecordUpdate FromEncodedData(String encoded_data) {
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            byte[] data = enc.GetBytes(encoded_data);
-            return RecordUpdate.FromEncodedData(data);
-        }
+      
         public static RecordUpdate DeletionTombstone() {
             // TODO: should make this object a singleton
             RecordUpdate update = new RecordUpdate();
@@ -104,9 +98,22 @@ namespace Bend {
         }
 
         public override String ToString() {
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            String keystring = "RecordUpdate: " + type.ToString() + ":" + enc.GetString(this.data);
-            return keystring;
+            bool is_ascii = true;
+            foreach (byte x in this.data) {
+                if (x > 0x80 || x < 12) {
+                    is_ascii = false;
+                    break;
+                }
+            }
+            if (is_ascii) {
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                String keystring = "RecordUpdate: " + type.ToString() + ":" + enc.GetString(this.data);
+                return keystring;
+            } else {
+                String keystring = "RecordUpdate: " + type.ToString() + ":" + BitConverter.ToString(this.data);
+                return keystring;
+            }
+
         }
 
 

@@ -100,6 +100,7 @@ namespace Bend
             return __segmentReaderFromData(key, data.data);
         }
         internal SegmentReader segmentReaderFromRow(RecordKey key, RecordUpdate update) {
+            System.Console.WriteLine("segmentReaderFromRow: " + key.ToString() + " => " + update.ToString());
             return __segmentReaderFromData(key, update.data);
         }
 
@@ -120,19 +121,46 @@ namespace Bend
         public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
             // TODO: consider putting the address or a GUID into the key so two descriptors can't be mixed up
+
+            // use SegmentDescriptor to generate a record key for the segment descriptor
             SegmentDescriptor sdesc = new SegmentDescriptor((uint)gen_number, start_key, end_key);
             RecordKey key = sdesc.record_key;
 
-            System.Console.WriteLine("mapGenerationToRegion: {0} -> {1}",sdesc,region);
+            System.Console.WriteLine("mapGenerationToRegion: {0} -> {1}", sdesc, region);
 
+
+            FreespaceExtent seginfo = new FreespaceExtent();
+            seginfo.start_addr = region.getStartAddress();
+            seginfo.end_addr = region.getStartAddress() + region.getSize();
+            byte[] packed_seginfo = seginfo.pack();
+            tx.setValue(key, RecordUpdate.WithPayload(packed_seginfo));
+
+            FreespaceExtent readback = FreespaceExtent.unpack(packed_seginfo);
+            System.Console.WriteLine("unpacked Extent info: {0}:{1}", readback.start_addr, readback.end_addr);
+
+
+
+#if false
             // TODO: pack the metdata record <addr>:<size>
             // String segmetadata = String.Format("{0}:{1}", region.getStartAddress(), region.getSize());            
             String seg_metadata = "" + region.getStartAddress();
             tx.setValue(key, RecordUpdate.WithPayload(seg_metadata));
+#endif
             
             // TODO: make this occur only when the txn commits!
             mergeManager.notify_addSegment(sdesc);
         }
+
+        private long unpackRegionAddr(byte[] data) {
+            return FreespaceExtent.unpack(data).start_addr;             
+        }
+
+        private FreespaceExtent unpackRegionExtent(byte[] data) {
+            // throw new Exception("Not implemented");
+            // TODO: unpack the update data properly when we change it to <addr>:<length>"
+            return FreespaceExtent.unpack(data);
+        }
+
 
         public void clearSegmentCacheHack() {            
             lock (disk_segment_cache) {
@@ -215,19 +243,6 @@ namespace Bend
 
         }
 
-        private long unpackRegionAddr(byte[] data) {
-            // TODO:unpack the update data when we change it to "<addr>:<length>"
-            return Lsd.lsdToNumber(data);
-        }
-
-        private FreespaceExtent unpackRegionExtent(byte[] data) {
-            // throw new Exception("Not implemented");
-            // TODO: unpack the update data properly when we change it to <addr>:<length>"
-            FreespaceExtent extent;
-            extent.start_addr = Lsd.lsdToNumber(data);
-            extent.end_addr = extent.start_addr;  // FIXMIE, this is a lie!! 
-            return extent;
-        }
 
         public FreespaceExtent getFreespaceExtentFromMetadata(byte[] data) {
             FreespaceExtent extent = unpackRegionExtent(data);
@@ -244,7 +259,11 @@ namespace Bend
 
         private SegmentReader getSegmentFromMetadataBytes(byte[] data) {
             // we now have a pointer to a segment addres for GEN<max>
-            long region_addr = unpackRegionAddr(data);
+            FreespaceExtent seg_extent = unpackRegionExtent(data);
+            System.Console.WriteLine("getSegmentFromMetadaBytes, unpacked Extent info: {0}:{1}", seg_extent.start_addr, seg_extent.end_addr);
+
+            long region_addr = seg_extent.start_addr;
+            
 
             if (region_addr == 0) {                
                 throw new Exception("segment bytes unpacked to zero! (" + BitConverter.ToString(data) + ")");

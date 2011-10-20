@@ -29,9 +29,9 @@ namespace Bend {
                     Type t = f.FieldType;
                     if (t == typeof(System.UInt32)) {
                         w.Write((System.UInt32) f.GetValue(obj));
-                    } else if (t == typeof(int)) {
+                    } else if (t == typeof(System.Int32)) {
                         w.Write((System.Int32) f.GetValue(obj));
-                    } else if (t == typeof(long)) {
+                    } else if (t == typeof(System.Int64)) {
                         w.Write((System.Int64) f.GetValue(obj));
                     } else {
                         throw new Exception("BinStruct unimplemented type: " + t.ToString());
@@ -84,8 +84,10 @@ namespace Bend {
                         size += sizeof(System.UInt32);
                     } else if (t == typeof(System.Int32)) {
                         size += sizeof(System.Int32);
-                    } else {                        
-                        throw new Exception("unimplemented");
+                    } else if (t == typeof(System.Int64)) {
+                        size += sizeof(System.Int64);
+                    } else {
+                        throw new Exception("BinStruct unimplemented type: " + t.ToString());
                     }
                 }
             return size;

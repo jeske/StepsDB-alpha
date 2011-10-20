@@ -5,6 +5,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 
 // .ROOT metadata
@@ -24,13 +25,13 @@ namespace Bend
     // TODO: maintain this data through a "table manager" so table 
     //       data can be indexed/exposed via normal mechanisms.     
 
-    public struct FreespaceExtent {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct FreespaceExtent { 
         public long start_addr;
         public long end_addr;
+
         public byte[] pack() {
-            byte[] data;
-            Util.writeStruct(this, out data);
-            return data;
+            byte[] data; Util.writeStruct(this, out data); return data;
         }
         public static FreespaceExtent unpack(byte[] buf) {
             return Util.readStruct<FreespaceExtent>(new MemoryStream(buf));
@@ -65,7 +66,6 @@ namespace Bend
 
                 // try to find an extent with enough space to carve off a chunk
 
-
                 // if we can't find a free segment, grow the heap
                 return growHeap(tx, length);
 
@@ -76,12 +76,12 @@ namespace Bend
 
         // grow the top "top of heap" 
         // .ROOT/FREELIST/HEAD -> "top of heap"
-        private IRegion growHeap(LayerManager.WriteGroup tx, int minimum_extension) {            
+        private IRegion growHeap(LayerManager.WriteGroup tx, int length) {            
             long new_addr;
             // grab a chunk
 
             new_addr = next_allocation;
-            next_allocation = next_allocation + (long)minimum_extension;
+            next_allocation = next_allocation + (long)length;
 
             Console.WriteLine("allocateNewSegment - next address: " + new_addr);
             // write our new top of heap pointer
@@ -94,7 +94,7 @@ namespace Bend
                 throw new Exception("invalid address in allocateNewSegment: " + new_addr);
             }
 
-            return store.regionmgr.writeFreshRegionAddr(new_addr, minimum_extension);
+            return store.regionmgr.writeFreshRegionAddr(new_addr, length);
         }
 
         public void freeSegment(LayerManager.WriteGroup tx, FreespaceExtent segment_extent) {
