@@ -31,8 +31,10 @@ namespace Bend {
                         w.Write((System.UInt32) f.GetValue(obj));
                     } else if (t == typeof(int)) {
                         w.Write((System.Int32) f.GetValue(obj));
+                    } else if (t == typeof(long)) {
+                        w.Write((System.Int64) f.GetValue(obj));
                     } else {
-                        throw new Exception("unimplemented");              
+                        throw new Exception("BinStruct unimplemented type: " + t.ToString());
                     }
                 }
             }
@@ -58,13 +60,13 @@ namespace Bend {
                     if (t == typeof(System.UInt32)) {
                         // f.SetValueDirect(vref, r.ReadUInt32());
                         f.SetValue(oval, r.ReadUInt32());
-                    }
-                    else if (t == typeof(System.Int32)) {
+                    } else if (t == typeof(System.Int32)) {
                         // f.SetValueDirect(vref, r.ReadInt32());                    
                         f.SetValue(oval, r.ReadInt32());
-                    }
-                    else {
-                        throw new Exception("unimplemented");
+                    } else if (t == typeof(System.Int64)) {
+                        f.SetValue(oval, r.ReadInt64());
+                    } else {
+                        throw new Exception("BinStruct unimplemented type: " + t.ToString());
                     }
                 }
                 // return val;
