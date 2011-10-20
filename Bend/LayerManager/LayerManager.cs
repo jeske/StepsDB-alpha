@@ -222,11 +222,12 @@ namespace Bend
 
         public class WriteGroup : IDisposable
         {
-            LayerManager mylayer;
+            public LayerManager mylayer;
             long tsn; // transaction sequence number
             long last_logwaitnumber = 0; // log-sequence-number from our most recent addCommand
 
             List<LogCmd> pending_cmds = new List<LogCmd>();
+            public const WriteGroupType DEFAULT_WG_TYPE = WriteGroupType.DISK_INCREMENTAL;
 
             public enum WriteGroupType {
                 [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log")]
@@ -265,7 +266,7 @@ namespace Bend
             }
             WriteGroupState state = WriteGroupState.PENDING;
 
-            public WriteGroup(LayerManager _layer, WriteGroupType type=WriteGroupType.DISK_INCREMENTAL) {
+            public WriteGroup(LayerManager _layer, WriteGroupType type = DEFAULT_WG_TYPE) {
                 this.mylayer = _layer;
                 this.tsn = System.DateTime.Now.ToBinary();
                 this.type = type;
@@ -379,8 +380,9 @@ namespace Bend
 
         // impl ....
 
-        public WriteGroup newWriteGroup() {
-            WriteGroup newtx = new WriteGroup(this);
+        public WriteGroup newWriteGroup(WriteGroup.WriteGroupType type=WriteGroup.DEFAULT_WG_TYPE) {
+
+            WriteGroup newtx = new WriteGroup(this, type: type);
             pending_txns.Add(new WeakReference<WriteGroup>(newtx));  // make sure we don't prevent collection
             return newtx;
         }
@@ -395,7 +397,8 @@ namespace Bend
             while (segmentWriter.hasMoreData()) {
                 DateTime start = DateTime.Now;
                 // allocate new segment address from freespace
-                IRegion writer = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
+                NewUnusedSegment cur_segment = freespacemgr.allocateNewSegment(tx, SEGMENT_BLOCKSIZE);
+                IRegion writer = cur_segment.getWritableRegion();
                 Stream wstream = writer.getNewAccessStream();
                 SegmentWriter.WriteInfo wi = segmentWriter.writeToStream(wstream);
 
@@ -417,7 +420,8 @@ namespace Bend
                 if (target_generation == -1) {
                     use_gen = rangemapmgr.mergeManager.minSafeGenerationForKeyRange(wi.start_key, wi.end_key);
                 }
-                rangemapmgr.mapGenerationToRegion(tx, use_gen, wi.start_key, wi.end_key, reader);
+                // rangemapmgr.mapGenerationToRegion(tx, use_gen, wi.start_key, wi.end_key, reader);
+                cur_segment.mapSegment(tx, use_gen, wi.start_key, wi.end_key, reader);
             }                
             
 

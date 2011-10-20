@@ -15,9 +15,8 @@ using System.Runtime.InteropServices;
 namespace Bend
 {
     // .ROOT/FREELIST/HEAD -> (address for top of heap)
-    // .ROOT/FREELIST/PENDING/(address start) -> (start, end)
-    // .ROOT/FREELIST/EXTENTS/(address end:10) -> (start,end)
-    // .ROOT/FREELIST/EXTENTS/0000004000 -> (start,end)
+    // .ROOT/FREELIST/PENDING/(address start) -> FreelistExtent(start, end)
+    // .ROOT/FREELIST/EXTENTS/(address end:10) -> FreelistExtent(start, end)    
     
     // We store extents by the "end address" so we can carve blocks off the start of the extent
     // by writing the data-payload, without changing the row key.
@@ -30,12 +29,44 @@ namespace Bend
         public long start_addr;
         public long end_addr;
 
+        public long length() {
+            return (end_addr - start_addr);
+        }
         public byte[] pack() {
             byte[] data; Util.writeStruct(this, out data); return data;
         }
         public static FreespaceExtent unpack(byte[] buf) {
             return Util.readStruct<FreespaceExtent>(new MemoryStream(buf));
         }
+    }
+    public class NewUnusedSegment {
+        FreespaceExtent location;
+        LayerManager store; 
+        public NewUnusedSegment(LayerManager store, FreespaceExtent extent) {
+            this.location = extent;
+            this.store = store;
+        }
+        public IRegion getWritableRegion() {
+            return store.regionmgr.writeFreshRegionAddr(location.start_addr, location.length());
+        }
+
+        public void mapSegment(LayerManager.WriteGroup tx, int use_gen, 
+            RecordKey start_key, RecordKey end_key, IRegion reader) {
+
+            if (! (tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH ||
+                   tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH)) {
+                       throw new Exception("NewUnusedSegment.mapSegment() must be provided an ATOMIC write group");
+            } 
+
+            // remove the pending entry
+            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
+            key.appendKeyPart(new RecordKeyType_Long(reader.getStartAddress()));
+            tx.setValue(key, RecordUpdate.DeletionTombstone());
+            
+            // add the new map
+            tx.mylayer.rangemapmgr.mapGenerationToRegion(tx, use_gen, start_key, end_key, reader);
+        }
+
     }
 
     public class FreespaceManager
@@ -60,7 +91,7 @@ namespace Bend
             }
         }
 
-        public IRegion allocateNewSegment(LayerManager.WriteGroup tx, int length) {
+        public NewUnusedSegment allocateNewSegment(LayerManager.WriteGroup tx, int length) {
 
             lock (this) {   // use one big nasty lock to prevent race conditions
 
@@ -76,25 +107,48 @@ namespace Bend
 
         // grow the top "top of heap" 
         // .ROOT/FREELIST/HEAD -> "top of heap"
-        private IRegion growHeap(LayerManager.WriteGroup tx, int length) {            
+        private NewUnusedSegment growHeap(LayerManager.WriteGroup tx, int length) {
             long new_addr;
-            // grab a chunk
+            FreespaceExtent newblock_info;
 
-            new_addr = next_allocation;
-            next_allocation = next_allocation + (long)length;
+            // make an atomic write-group to "carve off" a pending chunk
+            LayerManager.WriteGroup carveoff_wg =
+                tx.mylayer.newWriteGroup(type: LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
 
-            Console.WriteLine("allocateNewSegment - next address: " + new_addr);
-            // write our new top of heap pointer
-            {
-                RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
-                tx.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 13)));
+            // lock to make sure two threads don't carve off at the same time...
+            lock (this) {
+                // HACK: currently we just grab off the top of heap
+                new_addr = next_allocation;
+                next_allocation = next_allocation + (long)length;
+
+                if (new_addr <= 0) {
+                    throw new Exception("invalid address in allocateNewSegment: " + new_addr);
+                }
+
+                newblock_info = new FreespaceExtent();
+                newblock_info.start_addr = new_addr;
+                newblock_info.end_addr = new_addr + length;
+
+                // add the pending chunk
+                {
+                    RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
+                    key.appendKeyPart(new RecordKeyType_Long(new_addr));
+                    
+                    carveoff_wg.setValue(key, RecordUpdate.WithPayload(newblock_info.pack()));
+                }
+
+                Console.WriteLine("allocateNewSegment - next address: " + new_addr);
+                // add our new top of heap pointer
+                {
+                    RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD");
+                    carveoff_wg.setValue(key, RecordUpdate.WithPayload(Lsd.numberToLsd(next_allocation, 13)));
+                }
+
+                // commit the metadata tx
+                carveoff_wg.finish();
             }
 
-            if (new_addr <= 0) {
-                throw new Exception("invalid address in allocateNewSegment: " + new_addr);
-            }
-
-            return store.regionmgr.writeFreshRegionAddr(new_addr, length);
+            return new NewUnusedSegment(store,newblock_info);            
         }
 
         public void freeSegment(LayerManager.WriteGroup tx, FreespaceExtent segment_extent) {

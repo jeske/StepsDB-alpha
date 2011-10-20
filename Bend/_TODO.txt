@@ -4,8 +4,11 @@
 
 - freelist management	
     
+  - add atomic mechanism for carving off a "pending block" (DISK_ATOMIC_NOFLUSH)
+  - add mechanism to encapsulate converting the "pending block" into a segment pointer
+     (so it can be deferred until the block has been finalized)
   - allocate blocks from freelist instead of top-of-heap  
-     - add atomic mechanism for carving off a free block
+    
 
   - address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
      - delete/rename disk-files when handle discarded    
