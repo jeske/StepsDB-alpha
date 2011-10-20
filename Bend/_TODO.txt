@@ -2,17 +2,18 @@
 
 ****[ High Level TODO ]***
 
-- freelist management
-  2) change segment pointers to include LENGTH (addr,length)    
-     - RangemapManager:mapGenerationToRegion 
-	 - FIX the binary data readback bug.... 
+- freelist management	
+    
+  - allocate blocks from freelist instead of top-of-heap  
+     - add atomic mechanism for carving off a free block
 
-  3) address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
-    3a) delete/rename disk-files when handle discarded    
-  4) allocate blocks from freelist instead of top-of-heap  
+  - address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
+     - delete/rename disk-files when handle discarded    
 
-     done: 
-        1) (done) provide free blocks back to the freelist manager
+  (done)
+      (done) provide free blocks back to the freelist manager
+	  (done) FIX the binary data readback bug.... 
+	  (done) 2) change segment pointers to include LENGTH (addr,length)            
 
 - paxos experimentation
 - distributed DB
