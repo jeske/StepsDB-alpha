@@ -31,6 +31,8 @@ namespace BendTests {
             MergeCandidate mc;
 
             var mm = new MergeManager_Incremental(null);
+            mm.MIN_MERGE_SIZE = 1; // force small merge sizes okay for ours tests
+            mm.MAX_MERGE_SIZE = 1000; // force 'infinite' merge sizes for our tests
             var gen0seg = new SegmentDescriptor(0, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("Z"));
             var gen1seg = new SegmentDescriptor(1, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("Z"));
             var gen2seg = new SegmentDescriptor(2, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("Z"));
@@ -39,7 +41,7 @@ namespace BendTests {
             mm.notify_addSegment(gen0seg);
             mm.notify_addSegment(gen1seg);
 
-            Assert.AreEqual(1, mm.getNumberOfCandidates());
+            Assert.AreEqual(1, mm.getNumberOfCandidates(), "candidate count 1");
             mc = mm.getBestCandidate();            
             Assert.AreEqual(new SegmentDescriptor[1] { gen1seg }, mc.source_segs);
             Assert.AreEqual(new SegmentDescriptor[1] { gen0seg }, mc.target_segs);
@@ -50,14 +52,14 @@ namespace BendTests {
 
             mc = mm.getBestCandidate();
             System.Console.WriteLine(mc.ToString());
-            Assert.AreEqual(3, mm.getNumberOfCandidates());
+            Assert.AreEqual(3, mm.getNumberOfCandidates(), "candidate count 2");
             Assert.AreEqual(new SegmentDescriptor[2] { gen2seg, gen1seg }, mc.source_segs);
             Assert.AreEqual(new SegmentDescriptor[1] { gen0seg }, mc.target_segs);
 
 
             // test removal
             mm.notify_removeSegment(gen2seg);
-            Assert.AreEqual(1, mm.getNumberOfCandidates());
+            Assert.AreEqual(1, mm.getNumberOfCandidates(), "candidate count 3");
             mc = mm.getBestCandidate();
             Assert.AreEqual(new SegmentDescriptor[1] { gen1seg }, mc.source_segs);
             Assert.AreEqual(new SegmentDescriptor[1] { gen0seg }, mc.target_segs);
@@ -77,6 +79,7 @@ namespace BendTests {
             MergeCandidate mc;
 
             var mm = new MergeManager_Incremental(null);
+            mm.MIN_MERGE_SIZE = 1; // force small merge sizes okay for our tests
             mm.MAX_MERGE_SIZE = 1000; // force 'infinite' merge sizes for our tests
             mm.getMaxGeneration();
 
@@ -89,7 +92,7 @@ namespace BendTests {
             mm.notify_addSegment(gen0abseg);
             mm.notify_addSegment(gen0dfseg);
 
-            Assert.AreEqual(0, mm.getNumberOfCandidates());
+            Assert.AreEqual(0, mm.getNumberOfCandidates(), "candidate count 1");
 
             // add gen1 seg
             mm.notify_addSegment(gen1acseg);
@@ -103,7 +106,7 @@ namespace BendTests {
             mm.notify_addSegment(gen2azseg);
 
             dumpPrioritizedMergeList(mm);
-            Assert.AreEqual(3, mm.getNumberOfCandidates());
+            Assert.AreEqual(3, mm.getNumberOfCandidates(), "candidate count 2");
             mc = mm.getBestCandidate();
             Assert.AreEqual(new SegmentDescriptor[2] { gen2azseg, gen1acseg }, mc.source_segs);
             Assert.AreEqual(new SegmentDescriptor[2] { gen0abseg, gen0dfseg }, mc.target_segs);
@@ -113,7 +116,7 @@ namespace BendTests {
             var gen0acseg = new SegmentDescriptor(0, new RecordKey().appendParsedKey("A"), new RecordKey().appendParsedKey("C"));            
             mm.notify_removeSegment(gen1acseg);
             mm.notify_removeSegment(gen0abseg);
-            Assert.AreEqual(0, mm.getNumberOfCandidates());
+            Assert.AreEqual(0, mm.getNumberOfCandidates(), "candidate count 3");
             mm.notify_addSegment(gen0acseg);
 
             dumpPrioritizedMergeList(mm);
