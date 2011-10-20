@@ -38,12 +38,12 @@ namespace Bend {
     {
         Stream output;
 
-        internal static byte FIRST_SPECIAL = 0x80;
-        internal static byte END_OF_LINE = 0x80;
-        internal static byte ESCAPE_CHAR = 0x81;
-        internal static byte KEY_VAL_SEP = 0x82;
-        internal static byte ESCAPE_OFFSET = (byte)(FIRST_SPECIAL - 1);
-        internal static byte LAST_SPECIAL = 0x82;
+        internal const byte ESCAPE_OFFSET = (byte)(FIRST_SPECIAL - 1);
+        internal const byte FIRST_SPECIAL = 0x80; //---------
+        internal const byte END_OF_LINE = 0x80;
+        internal const byte ESCAPE_CHAR = 0x81;
+        internal const byte KEY_VAL_SEP = 0x82;        
+        internal const byte LAST_SPECIAL = 0x82;  // --------
         
         // TODO: we need to make an Allocation-Is-Initialization Factory method, insetad of
         // this setStream call
@@ -61,7 +61,18 @@ namespace Bend {
             output.WriteByte(END_OF_LINE);
         }
 
-       
+#if true
+        private static void writeEncoded(Stream o, byte[] data) {
+            foreach (byte b in data) {
+                if ((b >= FIRST_SPECIAL && b <= LAST_SPECIAL)) {
+                    o.WriteByte(ESCAPE_CHAR);
+                    o.WriteByte((byte)(b - ESCAPE_OFFSET));
+                } else {
+                    o.WriteByte(b);
+                }                
+            }
+        }
+#else
 
         private static void writeEncoded(Stream o, byte[] data) {
             int curstart = 0;
@@ -95,6 +106,7 @@ namespace Bend {
                 }                
             }
         }
+#endif
 
         public void flush() {
             // already flushed
@@ -119,62 +131,54 @@ namespace Bend {
         }
 
 
-        private static KeyValuePair<RecordKey, RecordUpdate> _decodeRecordFromBlock(BlockAccessor rs) {            
-            bool at_endmarker = false;
-            
+        private static KeyValuePair<RecordKey, RecordUpdate> _decodeRecordFromBlock(BlockAccessor rs) {                                    
             // ..we are ASSUMING that the records starts right here in the stream, it better be true!
             // ..TODO: considering adding two separate record start/end markers
 
             // Accumulate the key.
-            List<byte> keydata = new List<byte>();
-            // StringBuilder keystr = new StringBuilder();
+            List<byte> keydata = new List<byte>();            
             bool keydone = false;
 
             while (rs.Position < rs.Length && !keydone) {
                 byte c = (byte)rs.ReadByte(); 
                 switch (c) {
-                    case 0x80:   // end of line 
+                    case SegmentBlockBasicEncoder.END_OF_LINE:   // end of line 
                         throw new Exception("reached end of line before keyvalue delimiter");
-                    case 0x82:   // key value delimiter
+                    case SegmentBlockBasicEncoder.KEY_VAL_SEP:   // key value delimiter
                         keydone = true;
                         break;
-                    case 0x81:
+                    case SegmentBlockBasicEncoder.ESCAPE_CHAR:
                         byte nc = (byte)rs.ReadByte(); 
-                        byte unescaped = (byte)(nc + 0x7F);
-                        if (unescaped < 0x80 || unescaped > 0x82) {
-                            throw new Exception("unhandled escape sequence 1: " + unescaped.ToString());
+                        byte unescaped = (byte)(nc + (byte)SegmentBlockBasicEncoder.ESCAPE_OFFSET);
+                        if (unescaped < SegmentBlockBasicEncoder.FIRST_SPECIAL || unescaped > SegmentBlockBasicEncoder.LAST_SPECIAL) {
+                            throw new Exception("unhandled escape payload 1: " + ((int)nc).ToString());
                         }
-                        keydata.Add(unescaped);
-                        // keystr.Append((char)unescaped);
+                        keydata.Add(unescaped);                        
                         break;
                     default:
-                        keydata.Add(c);
-                        // keystr.Append((char)c);
+                        keydata.Add(c);                        
                         break;
                 }
             }
             if (!keydone) { throw new Exception("reached end of buffer before keydone!"); }
-            // accumulate the value
-            // TODO: switch this to use List<byte> instead of string builder!!!
+            // accumulate the value            
             List<byte> valuedata = new List<byte>();            
-            bool valuedone = false;
-            while (rs.Position < rs.Length && !valuedone) {
-                at_endmarker = false;
+            bool valuedone = false;            
+            while (rs.Position < rs.Length && !valuedone) {                
                 byte c = (byte)rs.ReadByte();
                 switch (c) {
-                    case 0x80:   // end of line 
-                        valuedone = true;
-                        at_endmarker = true;
+                    case SegmentBlockBasicEncoder.END_OF_LINE:   // end of line 
+                        valuedone = true;                        
                         break;
-                    case 0x82:   // key value delimiter
+                    case SegmentBlockBasicEncoder.KEY_VAL_SEP:   // key value delimiter
                         throw new Exception("found keyvalue delimiter in value");
-                    case 0x81:                        
+                    case SegmentBlockBasicEncoder.ESCAPE_CHAR:                        
                         byte nc = (byte)rs.ReadByte();
-                        byte unescaped = (byte)(nc + 0x7F);
-                        if (unescaped < 0x80 || unescaped > 0x82) {
+                        byte unescaped = (byte)(nc + SegmentBlockBasicEncoder.ESCAPE_OFFSET);
+                        if (unescaped < SegmentBlockBasicEncoder.FIRST_SPECIAL || unescaped > SegmentBlockBasicEncoder.LAST_SPECIAL) {
                             throw new Exception("unhandled escape sequence 2: " + unescaped.ToString());
                         }
-                        keydata.Add(unescaped);
+                        valuedata.Add(unescaped);
                         break;
                     default:                        
                         valuedata.Add(c);
@@ -182,8 +186,8 @@ namespace Bend {
                 }
             }
 
-            if (at_endmarker != true) {
-                throw new Exception("SegmentBlockBasicDecoder: finished record without being at_endmarker");
+            if (valuedone != true) {
+                throw new Exception("SegmentBlockBasicDecoder: finished record without reaching END_OF_LINE");
             }
 
             RecordKey key = new RecordKey(keydata.ToArray());

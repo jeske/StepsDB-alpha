@@ -8,21 +8,60 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Bend;
 
-namespace BendPerfTest
+namespace BendTests
 {
     [TestFixture]
-    public partial class A01_Block_Perf { }
+    public partial class A00_Block {
+        [Test]
+        public static void T01_BlockEncodeDecodeTest() {
+            MemoryStream ms = new MemoryStream();
+            byte[] testdata = { 0x00, 0x10, 0x78, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00 };
+
+            // init an encoder and add one key which requires escaping
+            {
+                ISegmentBlockEncoder enc = new SegmentBlockBasicEncoder();
+                enc.setStream(ms);
+
+                RecordKey key = new RecordKey().appendParsedKey("TESTSETEST");                
+                RecordUpdate update = RecordUpdate.WithPayload(testdata);
+
+                enc.add(key, update);
+                enc.flush();
+                ms.Flush();
+
+                System.Console.WriteLine("Test Update: " + update.ToString());
+            }
+
+            byte[] block_contents = ms.ToArray();
+            System.Console.WriteLine("Block Output: " + BitConverter.ToString(block_contents));
+
+
+            // init the decoder
+            {
+                ISegmentBlockDecoder dec = new SegmentBlockBasicDecoder(new BlockAccessor(ms.ToArray()));
+
+                foreach (var kvp in dec.sortedWalk()) {
+                    System.Console.WriteLine("Payload Update: " + kvp.Value.ToString());
+
+                    byte[] payload = kvp.Value.data;                    
+                    Assert.AreEqual(testdata, payload, "payload data mismatch!");
+                }
+            }
+
+        }
+    
+    }
 
 }
 
-namespace BendTests
+namespace BendPerfTest
 {
     public interface IBlockTestFactory {
         ISegmentBlockEncoder makeEncoder();
         ISegmentBlockDecoder makeDecoder(BlockAccessor block);
     }
 
-    public class SegmentBlock_Tests
+    public class SegmentBlockPerf_Tests
     {
         public static void Block_Perftest(IBlockTestFactory factory) {
             // iterate through blocksizes, randomly generating input data, and then doing some

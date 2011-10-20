@@ -179,7 +179,7 @@ namespace BendPerfTest
 
         [Test]
         public void T10_BlockBasic_Perftest() {
-            SegmentBlock_Tests.Block_Perftest(new BasicBlockTestFactory());
+            SegmentBlockPerf_Tests.Block_Perftest(new BasicBlockTestFactory());
         } // testend
     }
 }

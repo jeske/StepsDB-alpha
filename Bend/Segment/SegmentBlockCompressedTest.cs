@@ -10,8 +10,7 @@ using Bend;
 
 namespace BendPerfTest
 {
-    using System.Threading;
-    using BendTests;
+    using System.Threading;    
     
     public partial class A01_Block_Perf
     {
@@ -31,7 +30,7 @@ namespace BendPerfTest
 
         [Test]
         public void T10_CompressedBlock_Perftest() {
-            SegmentBlock_Tests.Block_Perftest(new CompressedBlockTestFactory());
+            SegmentBlockPerf_Tests.Block_Perftest(new CompressedBlockTestFactory());
         } // testend
     }
 }
