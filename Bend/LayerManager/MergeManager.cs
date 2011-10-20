@@ -15,8 +15,11 @@ namespace Bend {
     public class MergeManager_Incremental {
         public BDSkipList<SegmentDescriptor, List<MergeCandidate>> segmentInfo;
         public BDSkipList<MergeCandidate,int> prioritizedMergeCandidates;
-        public int MAX_MERGE_SIZE = 10;
+
+        public int MIN_MERGE_SIZE = 4;
+        public int MAX_MERGE_SIZE = 10;        
         public int MAX_HISTO_MERGE_SIZE = 8;
+        
         public RangemapManager rangemapmgr;
         
         public MergeManager_Incremental(RangemapManager rmm) {
@@ -247,9 +250,11 @@ namespace Bend {
                 }
                 
                 if (targetSegments.Count > 0) {
-                    // add the merge candidate
-                    this.addMergeCandidate(sourceSegments, targetSegments);
-                    merge_candidates++;
+                    // add the merge candidate if it includes at least MIN_MERGE_SIZE segments
+                    if ((sourceSegments.Count + targetSegments.Count) >= MIN_MERGE_SIZE) {
+                        this.addMergeCandidate(sourceSegments, targetSegments);
+                        merge_candidates++;
+                    }
 
                     // expand the start/end range based on the targetSegments if necessary
                     foreach (var seg in targetSegments) {
@@ -410,19 +415,19 @@ namespace Bend {
 
 
             // boost based on highest generation in the merge
-            this.merge_ratio -=  0.2f * (float) highest_generation; 
+            this.merge_ratio -=  0.02f * (float) highest_generation; 
 
             // TODO: boost based on generation size proportion
             //  (i.e. if the top gen is too big to fit in cache, boost more,
             //     if it's very small, then unboost)
 
             // the larger the merge, the more we should prefer it.
-            this.merge_ratio -= number_of_segments * 0.3f;
+            this.merge_ratio -= number_of_segments * 0.003f;
 
             // boost when the contains segment pointers 
             if (contains_pointers) {                
-                this.merge_ratio -= 0.3f * (float)generation_span;
-                this.merge_ratio -= 0.2f * (float)number_of_segments;
+                this.merge_ratio -= 0.03f * (float)generation_span;
+                this.merge_ratio -= 0.02f * (float)number_of_segments;
             }
 
             // boost when the merge spans multiple generations
