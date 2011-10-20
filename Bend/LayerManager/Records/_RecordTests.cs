@@ -136,17 +136,18 @@ namespace BendTests
         [Test]
         public void T03_RecordDataAssembly() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
-            Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 1");
+            Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State, "empty rec 1");            
             RecordDataUpdateResult result;
 
 
             result = data.applyUpdate(RecordUpdate.NoUpdate());
-            Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 2");
+            Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State, "empty rec 2");                        
             Assert.AreEqual(result, RecordDataUpdateResult.SUCCESS, "apply result 2");
             Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State, "apply state 2");
 
-            result = data.applyUpdate(RecordUpdate.WithPayload("1"));
-            Assert.AreEqual("1", data.ToString(), "apply 3");
+            byte[] payload1 = new byte[] { 1 };
+            result = data.applyUpdate(RecordUpdate.WithPayload(payload1));
+            Assert.AreEqual(payload1, data.data, "apply 3");
             Assert.AreEqual(result, RecordDataUpdateResult.FINAL, "apply result 3");
             Assert.AreEqual(RecordDataState.FULL, data.State, "apply state 3");
 
@@ -164,13 +165,15 @@ namespace BendTests
             }
             Assert.AreEqual("1", data.ToString());
             */
+
             // if we already have a full update, our update should not change it
             {
-                data.applyUpdate(RecordUpdate.WithPayload("2"));
-                Assert.AreEqual("1", data.ToString());
+                byte[] payload2 = new byte[] { 2 };
+                data.applyUpdate(RecordUpdate.WithPayload(payload2));
+                Assert.AreEqual(payload1, data.data);
 
                 data.applyUpdate(RecordUpdate.DeletionTombstone());
-                Assert.AreEqual("1", data.ToString());
+                Assert.AreEqual(payload1, data.data);
             }
             
 
@@ -180,10 +183,9 @@ namespace BendTests
         [Test]
         public void T04_RecordTombstones() {
             RecordData data = new RecordData(RecordDataState.NOT_PROVIDED, new RecordKey());
-            Assert.AreEqual("[NOT_PROVIDED] ", data.ToString(), "empty rec 1");
+            Assert.AreEqual(RecordDataState.NOT_PROVIDED, data.State, "empty rec 1");
 
-            RecordDataUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());
-            Assert.AreEqual("[DELETED] ", data.ToString(), "tomb update 1"); 
+            RecordDataUpdateResult result = data.applyUpdate(RecordUpdate.DeletionTombstone());            
             Assert.AreEqual(RecordDataUpdateResult.FINAL,result, "tomb result 1");
             Assert.AreEqual(RecordDataState.DELETED, data.State, "tomb state 1");
 
@@ -198,9 +200,8 @@ namespace BendTests
              * Assert.AreEqual(err, true);
              */
             // data after a tombstone should be ignored
-            Assert.AreEqual(RecordDataUpdateResult.FINAL, data.applyUpdate(RecordUpdate.WithPayload("1"))); 
-            Assert.AreEqual("[DELETED] ", data.ToString(), "tomb after update 2"); // still empty...
-            Assert.AreEqual(RecordDataState.DELETED, data.State);
+            Assert.AreEqual(RecordDataUpdateResult.FINAL, data.applyUpdate(RecordUpdate.WithPayload("1")));           
+            Assert.AreEqual(RecordDataState.DELETED, data.State, "still empty 1");
 
         }
 

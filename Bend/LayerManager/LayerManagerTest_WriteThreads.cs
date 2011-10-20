@@ -170,11 +170,11 @@ namespace BendTests {
                     string key = this.composeKey(thread_num, data);
 
                     if (db.getRecord(new RecordKey().appendParsedKey(key), out rdata) == GetStatus.PRESENT) {
-                        if (datavalues[i].ToString() == rdata.ToString()) {
+                        if (datavalues[i].ToString() == rdata.ReadDataAsString()) {
                             Interlocked.Increment(ref num_retrievals);
                         } else {
                             System.Console.WriteLine("-- ERR: record data didn't match for key({0}). expected {1} != got {2}",
-                                key, datavalues[i].ToString(), rdata.ToString());
+                                key, datavalues[i].ToString(), rdata.ReadDataAsString());
                         }
                     } else {
                         System.Console.WriteLine("-- ERR: missing record, thread({0}), key({1})",

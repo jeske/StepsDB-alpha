@@ -229,7 +229,8 @@ namespace Bend
         }
 
         public void addCommands(List<LogCmd> cmds, ref long logWaitNumber) {
-            // this will atomically adda
+            // TODO: make this atomically add ALL the log commands at once, not
+            //  one by one! 
             lock (this) {
                 foreach (var log_entry in cmds) {
                     this.addCommand(log_entry.cmd, log_entry.cmddata, ref logWaitNumber);

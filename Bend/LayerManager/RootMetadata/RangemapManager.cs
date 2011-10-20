@@ -100,7 +100,9 @@ namespace Bend
             return __segmentReaderFromData(key, data.data);
         }
         internal SegmentReader segmentReaderFromRow(RecordKey key, RecordUpdate update) {
-            System.Console.WriteLine("segmentReaderFromRow: " + key.ToString() + " => " + update.ToString());
+#if false
+            System.Console.WriteLine("segmentReaderFromRow: {0} => ({1}) {2}", key.ToString(), update.data.Length, update.ToString());
+#endif
             return __segmentReaderFromData(key, update.data);
         }
 
@@ -126,17 +128,22 @@ namespace Bend
             SegmentDescriptor sdesc = new SegmentDescriptor((uint)gen_number, start_key, end_key);
             RecordKey key = sdesc.record_key;
 
-            System.Console.WriteLine("mapGenerationToRegion: {0} -> {1}", sdesc, region);
-
-
             FreespaceExtent seginfo = new FreespaceExtent();
             seginfo.start_addr = region.getStartAddress();
             seginfo.end_addr = region.getStartAddress() + region.getSize();
             byte[] packed_seginfo = seginfo.pack();
-            tx.setValue(key, RecordUpdate.WithPayload(packed_seginfo));
+            
+            if (packed_seginfo.Length != Util.structSize(ref seginfo)) {
+                throw new Exception("bad seginfo: " + BitConverter.ToString(packed_seginfo));
+            }
+            RecordUpdate update = RecordUpdate.WithPayload(packed_seginfo);
+            tx.setValue(key, update);
+
+            System.Console.WriteLine("mapGenerationToRegion: {0} -> {1} : RAW {2}", sdesc, region, update.ToString());
 
             FreespaceExtent readback = FreespaceExtent.unpack(packed_seginfo);
             System.Console.WriteLine("unpacked Extent info: {0}:{1}", readback.start_addr, readback.end_addr);
+
 
 
 

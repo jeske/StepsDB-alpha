@@ -31,6 +31,7 @@ namespace Bend {
     public class RecordUpdate : IEquatable<RecordUpdate> {
         public RecordUpdateTypes type;
         public byte[] data;
+        
         private RecordUpdate(RecordUpdateTypes type, String sdata) {
             this.type = type;
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
@@ -71,7 +72,7 @@ namespace Bend {
         public static RecordUpdate WithPayload(byte[] payload) {
             return new RecordUpdate(RecordUpdateTypes.FULL, payload);
         }
-
+        
         public static RecordUpdate WithPayload(String payload) {
             return new RecordUpdate(RecordUpdateTypes.FULL, payload);
         }
@@ -98,6 +99,7 @@ namespace Bend {
         }
 
         public override String ToString() {
+            // see if it looks like ASCII
             bool is_ascii = true;
             foreach (byte x in this.data) {
                 if (x > 0x80 || x < 12) {
@@ -107,18 +109,17 @@ namespace Bend {
             }
             if (is_ascii) {
                 System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-                String keystring = "RecordUpdate: " + type.ToString() + ":" + enc.GetString(this.data);
+                String keystring = "RU: " + type.ToString() + ":" + enc.GetString(this.data);
                 return keystring;
             } else {
-                String keystring = "RecordUpdate: " + type.ToString() + ":" + BitConverter.ToString(this.data);
+                String keystring = "RU: " + type.ToString() + ":" + BitConverter.ToString(this.data);
                 return keystring;
             }
 
         }
 
-
         public String DebugToString() {
-            return "RU(" + this.ToString() + ")";
+            return this.ToString();
         }
 
         public byte[] encode() {

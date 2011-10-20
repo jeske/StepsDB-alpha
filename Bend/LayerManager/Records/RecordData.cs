@@ -68,13 +68,27 @@ namespace Bend {
             }
         }
 
-        public override String ToString() {
+        public String ReadDataAsString() {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            return enc.GetString(this.data);
+        }
 
-            if (state == RecordDataState.FULL) {
-                return enc.GetString(data);
+        public override String ToString() {
+            // see if it looks like ASCII
+            bool is_ascii = true;
+            foreach (byte x in this.data) {
+                if (x > 0x80 || x < 12) {
+                    is_ascii = false;
+                    break;
+                }
+            }
+            if (is_ascii) {
+                System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+                String keystring = "RD: " + state.ToString() + ":" + enc.GetString(this.data);
+                return keystring;
             } else {
-                return String.Format("[{0}] {1}", state.ToString(), enc.GetString(data));
+                String keystring = "RD: " + state.ToString() + ":" + BitConverter.ToString(this.data);
+                return keystring;
             }
         }
 

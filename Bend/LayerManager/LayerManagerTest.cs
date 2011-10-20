@@ -272,7 +272,7 @@ namespace BendTests
                 RecordData data;
                 RecordKey key = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
                 Assert.AreEqual(GetStatus.PRESENT,db.getRecord(key, out data),"missing numgenerations record");
-                Assert.AreEqual("1", data.ToString(),"generation count");
+                Assert.AreEqual("1", data.ReadDataAsString(),"generation count");
 
                 RecordUpdate update;
                 Assert.AreEqual(GetStatus.PRESENT,
@@ -314,7 +314,7 @@ namespace BendTests
                     RecordData data;
                     GetStatus status = db.getRecord(key, out data);
                     Assert.AreEqual(GetStatus.PRESENT, status, "records should be found in layers, {0} missing", key);
-                    Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord()");
+                    Assert.AreEqual(values[i], data.ReadDataAsString(), "LayerManager.getRecord()");
                 }
             }
 
@@ -358,7 +358,7 @@ namespace BendTests
                         RecordData data;
                         GetStatus status = db.getRecord(key, out data);
                         Assert.AreEqual(GetStatus.PRESENT, status, "records should be found in layers");
-                        Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord()");
+                        Assert.AreEqual(values[i], data.ReadDataAsString(), "LayerManager.getRecord()");
                     }
                 }
             }
@@ -395,7 +395,7 @@ namespace BendTests
                         RecordData data;
                         GetStatus status = db.getRecord(key, out data);
                         Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
-                        Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                        Assert.AreEqual(values[i], data.ReadDataAsString(), "LayerManager.getRecord() should see NEW VALUES");
                     }
                 }
 
@@ -420,7 +420,7 @@ namespace BendTests
                         RecordData data;
                         GetStatus status = db.getRecord(key, out data);
                         Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
-                        Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                        Assert.AreEqual(values[i], data.ReadDataAsString(), "LayerManager.getRecord() should see NEW VALUES");
                     }
                 }
             }
@@ -464,7 +464,7 @@ namespace BendTests
                         RecordData data;
                         GetStatus status = db.getRecord(key, out data);
                         Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES");
-                        Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                        Assert.AreEqual(values[i], data.ReadDataAsString(), "LayerManager.getRecord() should see NEW VALUES");
                     }
                 }
 
@@ -510,7 +510,7 @@ namespace BendTests
                             RecordData data;
                             GetStatus status = db.getRecord(key, out data);
                             Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES : {0}", key);
-                            Assert.AreEqual(values[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES : {0}", key);
+                            Assert.AreEqual(values[i], data.ReadDataAsString(), "LayerManager.getRecord() should see NEW VALUES : {0}", key);
                         }
                     }
                     db.debugDump();
@@ -534,7 +534,7 @@ namespace BendTests
                             RecordData data;
                             GetStatus status = db.getRecord(key, out data);
                             Assert.AreEqual(GetStatus.PRESENT, status, "LayerManager should see NEW VALUES, where is: " + key);
-                            Assert.AreEqual(secondvalues[i], data.ToString(), "LayerManager.getRecord() should see NEW VALUES");
+                            Assert.AreEqual(secondvalues[i], data.ReadDataAsString(), "LayerManager.getRecord() should see NEW VALUES");
                         }
                     }
                    
@@ -569,10 +569,10 @@ namespace BendTests
                             num_errors++;
                             System.Console.WriteLine("!!!!! ValueCheckerThread ERROR: key(" + key_to_check + ") not present.");
                         } else {
-                            if (!data.ToString().Equals(value_to_expect)) {                                
+                            if (!data.ReadDataAsString().Equals(value_to_expect)) {                                
                                 num_errors++;
                                 System.Console.WriteLine("!!!!! ValueCheckerThread ERROR: key(" + key_to_check + 
-                                    ") value mismatch, " + data.ToString() + " != " + value_to_expect);
+                                    ") value mismatch, " + data.ReadDataAsString() + " != " + value_to_expect);
                             }
                             // check the contents
                         }

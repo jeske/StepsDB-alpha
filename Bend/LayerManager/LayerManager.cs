@@ -107,6 +107,16 @@ namespace Bend
                     foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in decoder.sortedWalk()) {
                         // populate our working segment
                         lock (mylayer.segmentlayers) {
+#if false
+                            if (RangemapManager.RangeKey.isRangeKey(kvp.Key)) {
+                                System.Console.WriteLine("LayerManager.handleCommand : setValue() {0} => {1}",
+                                    kvp.Key.ToString(), kvp.Value.ToString());
+                                if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE && kvp.Value.data.Length != 16) {
+                                    throw new Exception("!!! corrupted rangekey appeared in handleCommand");
+                                }
+                            }
+#endif
+                            
                             mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
                         }
                     }
@@ -270,6 +280,7 @@ namespace Bend
                 encoder.setStream(writer);
                 encoder.add(key, update);
                 encoder.flush();
+                writer.Flush();
                 this.addCommand((byte)LogCommands.UPDATE, writer.ToArray());
 
                 // Writes are actually applied to the workingSegment when the LgoWriter pushes them to the ILogReceiver.
