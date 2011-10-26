@@ -24,6 +24,9 @@ namespace Bend
     // TODO: maintain this data through a "table manager" so table 
     //       data can be indexed/exposed via normal mechanisms.     
 
+
+    // ---- helper classes ----------------
+
     [StructLayout(LayoutKind.Sequential)]
     public struct FreespaceExtent { 
         public long start_addr;
@@ -38,7 +41,11 @@ namespace Bend
         public static FreespaceExtent unpack(byte[] buf) {
             return Util.readStruct<FreespaceExtent>(new MemoryStream(buf));
         }
+        public override string ToString() {
+            return String.Format("{0}-{1} ({2})", start_addr, end_addr, end_addr - start_addr);
+        }
     }
+
     public class NewUnusedSegment {
         FreespaceExtent location;
         LayerManager store; 
@@ -68,6 +75,11 @@ namespace Bend
         }
 
     }
+
+
+    // ---------------------------------------------------------------------------
+    //                     FreespaceManager
+    // ---------------------------------------------------------------------------
 
     public class FreespaceManager
     {
@@ -160,12 +172,43 @@ namespace Bend
             RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS")
                 .appendKeyPart(new RecordKeyType_Long(segment_extent.end_addr));
 
-            RecordUpdate payload = RecordUpdate.WithPayload("");
+            RecordUpdate payload = RecordUpdate.WithPayload(segment_extent.pack());
             tx.setValue(key, payload);
             
             // NOTE: DISK_ATOMIC writes are not seen in the memory segment until the atomic write group applies
             //       so these changes will not be seen until then
             
         }
-    }
-}
+
+        RecordKey pending_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
+        RecordKey freelist_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS");
+        public void debugDumbCurrentFreespace() {
+            long total_freespace = 0;
+            long total_pendingspace = 0;
+
+            System.Console.WriteLine("------------------- Freelist Extents (Pending) ---------------");
+            foreach (var rec in store.scanForward(new ScanRange<RecordKey>(pending_prefix,
+                                            RecordKey.AfterPrefix(pending_prefix), null))) {
+                FreespaceExtent extent = FreespaceExtent.unpack(rec.Value.data);
+                System.Console.WriteLine("{0} -> {1}",
+                    rec.Key.ToString(),
+                    extent.ToString());
+                total_pendingspace += extent.length();
+            }
+
+            System.Console.WriteLine("------------------- Freelist Extents (FREE)-------------------");
+            foreach (var rec in store.scanForward(new ScanRange<RecordKey>(freelist_prefix,
+                                            RecordKey.AfterPrefix(freelist_prefix), null))) {
+                FreespaceExtent extent = FreespaceExtent.unpack(rec.Value.data);
+                System.Console.WriteLine("{0} -> {1}",
+                    rec.Key.ToString(),
+                    extent.ToString());
+                total_freespace += extent.length();
+            }
+            System.Console.WriteLine("------------------- Freelist Extents END (pending: {0}, free {1}) ---------------",
+                total_pendingspace,total_freespace);
+                    
+        }
+
+    } // class FreespaceManager
+} // namespace Bend

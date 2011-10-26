@@ -3,20 +3,31 @@
 ****[ High Level TODO ]***
 
 - freelist management	
-    
-  - add atomic mechanism for carving off a "pending block" (DISK_ATOMIC_NOFLUSH)
-  - add mechanism to encapsulate converting the "pending block" into a segment pointer
-     (so it can be deferred until the block has been finalized)
-  - allocate blocks from freelist instead of top-of-heap  
-    
+          
+  - write some freelist tests...
+
+  - ** allocation should try to select new pending blocks from freelist instead of top-of-heap **  
 
   - address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
+     - why does this happen? 
+	   1) scanner is currently reading the block.
+	   2) cache is holding the block.
+	   3) cache block was re-populated after the cache block was removed, but before the block was invalidated,
+	      because the cache block is removed when the writegroup command is written, not when it applies.
      - delete/rename disk-files when handle discarded    
+
+  - write "fsck" to audit the freelist and the current live segments
+  - ? growing top-of-heap should grow more than a single segment
+  - write threaded group-commit write-throughput test
 
   (done)
       (done) provide free blocks back to the freelist manager
 	  (done) FIX the binary data readback bug.... 
 	  (done) 2) change segment pointers to include LENGTH (addr,length)            
+	  (done) add atomic mechanism for carving off a "pending block" (DISK_ATOMIC_NOFLUSH)
+	  (done) add mechanism to encapsulate converting the "pending block" into a segment pointer
+              (so it can be deferred until the block has been finalized) 
+      (done) add freelistDebug to print the current freelist info
 
 - paxos experimentation
 - distributed DB

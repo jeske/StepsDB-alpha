@@ -867,6 +867,8 @@ namespace Bend
                 Console.WriteLine("--- Memory Layer : " + layer.GetHashCode());
                 debugDump(layer, "  ", new HashSet<string>());
             }
+
+            freespacemgr.debugDumbCurrentFreespace();
         }
 
         

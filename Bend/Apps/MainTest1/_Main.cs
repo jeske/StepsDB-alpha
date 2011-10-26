@@ -260,8 +260,9 @@ namespace Bend
                     System.Console.WriteLine("*** RANDOM SEED: " + seed);
                     write_group.finish(); write_group = db.newWriteGroup();
                     System.Console.WriteLine("start % 1000 cycle..");
-                    db.flushWorkingSegment();                    
-                    
+                    db.flushWorkingSegment();
+
+                    db.freespacemgr.debugDumbCurrentFreespace();
                     win.debugDump(db);
                     dumpMergeCandidates(db);
                     
