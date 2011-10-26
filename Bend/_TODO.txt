@@ -4,7 +4,7 @@
 
 - freelist management	
           
-  - write some freelist tests...
+  
 
   - ** allocation should try to select new pending blocks from freelist instead of top-of-heap **  
 
@@ -15,6 +15,9 @@
 	   3) cache block was re-populated after the cache block was removed, but before the block was invalidated,
 	      because the cache block is removed when the writegroup command is written, not when it applies.
      - delete/rename disk-files when handle discarded    
+
+
+  - write some freelist tests...
 
   - write "fsck" to audit the freelist and the current live segments
   - ? growing top-of-heap should grow more than a single segment
@@ -29,8 +32,16 @@
               (so it can be deferred until the block has been finalized) 
       (done) add freelistDebug to print the current freelist info
 
+
 - paxos experimentation
 - distributed DB
+
+- "perf unit tests"
+  - add a perf test that quickly tests and records performance for basic operations
+  - store the results in a file with the calendar week/day number (for checkin to the repository)
+  - compare the results with most recent previous results, error on big negative changes
+  - write perf, read perf, recovery/replay, scan, etc.
+
 
 ****[ Background Flush/Merge Cleanup]***
 
