@@ -87,6 +87,10 @@ namespace Bend
         BDSkipList<long, FreespaceExtent> freespace = new BDSkipList<long, FreespaceExtent>();
 
         LayerManager store;
+
+        RecordKey pending_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
+        RecordKey freelist_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS");
+
         public FreespaceManager(LayerManager store) {
             this.store = store;
             // read the freelist and "index" into memory for now (TODO: use a real freelist)
@@ -105,9 +109,44 @@ namespace Bend
 
         public NewUnusedSegment allocateNewSegment(LayerManager.WriteGroup tx, int length) {
 
-            lock (this) {   // use one big nasty lock to prevent race conditions
+            // use one big nasty lock to prevent race conditions
+            lock (this) {   
 
+#if false
                 // try to find an extent with enough space to carve off a chunk
+                foreach (var rec in store.scanForward(new ScanRange<RecordKey>(freelist_prefix,
+                                RecordKey.AfterPrefix(freelist_prefix), null))) {
+                    FreespaceExtent extent = FreespaceExtent.unpack(rec.Value.data);
+
+                    if (extent.length() == length) {
+                        // the extent is exactly the right size... make it pending
+                        LayerManager.WriteGroup makepending_wg =
+                            tx.mylayer.newWriteGroup(type: LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
+
+                        // add a pending entry for this block
+                        {
+                            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
+                            key.appendKeyPart(new RecordKeyType_Long(extent.start_addr));
+                            makepending_wg.setValue(key, RecordUpdate.WithPayload(extent.pack()));
+                        }
+
+                        // remove the freelist entry
+                        {
+                            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS");
+                            key.appendKeyPart(new RecordKeyType_Long(extent.end_addr));
+                            makepending_wg.setValue(key, RecordUpdate.DeletionTombstone());
+                        }
+
+                        makepending_wg.finish();
+                        return new NewUnusedSegment(store, extent);
+                    } else if (extent.length() > length) {
+                        // carve a piece off the extent and return the pending piece
+
+                    }
+                }
+
+
+#endif
 
                 // if we can't find a free segment, grow the heap
                 return growHeap(tx, length);
@@ -180,8 +219,6 @@ namespace Bend
             
         }
 
-        RecordKey pending_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
-        RecordKey freelist_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS");
         public void debugDumbCurrentFreespace() {
             long total_freespace = 0;
             long total_pendingspace = 0;

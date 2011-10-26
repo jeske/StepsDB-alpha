@@ -5,6 +5,7 @@
 - freelist management	
           
   
+  - assure merge-apply/flush is atomic WRT cursor setup
 
   - ** allocation should try to select new pending blocks from freelist instead of top-of-heap **  
 
