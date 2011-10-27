@@ -814,7 +814,7 @@ namespace Bend
                 allsegs.AddRange(listAllSegments());
                 allsegs.Sort((a, b) => a.generation.CompareTo(b.generation));
 
-                mergeSegments(allsegs);
+                mergeSegments(allsegs);                
             }
         }
 

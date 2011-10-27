@@ -21,15 +21,14 @@ namespace Bend {
     class RegionExposedFiles : IRegionManager {
         String dir_path;
 
-        LRUCache<long, EFRegion> region_cache;
-
+        LRUCache<long, WeakReference<EFRegion>> region_cache;
 
         public class RegionMissingException : Exception {
             public RegionMissingException(String msg) : base(msg) { }
         }
         public RegionExposedFiles(String location) {
             this.dir_path = location;
-            region_cache = new LRUCache<long, EFRegion>(20);
+            region_cache = new LRUCache<long, WeakReference<EFRegion>>(20);
         }
 
         // first time init        
@@ -86,16 +85,30 @@ namespace Bend {
                 this.mode = mode;
                 this.filepath = filepath;
                 my_streams = new Dictionary<int, WeakReference<Stream>>();
-                subblock_cache = new LRUCache<int, byte[]>(500);
+                subblock_cache = new LRUCache<int, byte[]>(20);
 
+            }
+
+            ~EFRegion () {
+                this.Dispose();
+            }
+
+            public void Dispose() {
+                // (1) be sure all the filestreams are closed.. this happens through RegionFileStream
+                //     holding a reference to us...
+                System.Console.WriteLine("EFRegion({0}): Dispose", this.address);
+                if (this.del != null) {
+                    this.del(this.address);
+                    this.del = null;
+                }
             }
 
             public override string ToString() {
                 return String.Format("addr:{0}  len:{1}", this.address, this.length);
             }
 
-            internal void addDisposeDelegate(handleRegionSafeToFreeDelegate del) {
-                this.del = del;                
+            internal void addDisposeDelegate(handleRegionSafeToFreeDelegate delfn) {
+                this.del = delfn;                
             }
 
             public Stream getNewAccessStream() {
@@ -118,14 +131,7 @@ namespace Bend {
                 }
             }
 
-            public void Dispose() {
-                // (1) be sure all the filestreams are closed.. this happens through RegionFileStream
-                //     holding a reference to us...
-
-                if (this.del != null) {
-                    this.del(this.address);
-                }
-            }
+            
 
 #if false
             // TODO: Is this really safe? 
@@ -235,21 +241,27 @@ namespace Bend {
         EFRegion INTERNAL_readRegionAddrNonExcl(long region_addr) {
             lock (region_cache) {
                 if (region_cache.ContainsKey(region_addr)) {
-                    return region_cache[region_addr];
+                    EFRegion region = region_cache[region_addr].Target;
+                    if (region != null) {
+                        return region;
+                    }
+                    
                 }
-
 
                 System.Console.WriteLine(RangemapManager.altdebug_pad + "zz uncached region");
                 String filepath = makeFilepath(region_addr);
                 if (File.Exists(filepath)) {
                     // open non-exclusive
 
+                    // TODO: FIX THIS HACK, where we figure out the length by opening the file.. it should be passed
+                    // in when the region is opened...
                     FileStream reader = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
                     long length = reader.Length;
+                    reader.Close();
                     reader.Dispose();
 
-                    EFRegion newregion = new EFRegion(region_addr, length, filepath, EFRegionMode.READ_ONLY_SHARED);             
-                    region_cache[region_addr] = newregion;
+                    EFRegion newregion = new EFRegion(region_addr, length, filepath, EFRegionMode.READ_ONLY_SHARED);
+                    region_cache[region_addr] = new WeakReference<EFRegion>(newregion);
              
                     return newregion;
                 } else {

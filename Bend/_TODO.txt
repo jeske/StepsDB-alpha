@@ -17,6 +17,7 @@
 	      because the cache block is removed when the writegroup command is written, not when it applies.
      - delete/rename disk-files when handle discarded    
 
+  - add LENGTH to all regionmanager calls, remove the file-length hack
 
   - write some freelist tests...
 
