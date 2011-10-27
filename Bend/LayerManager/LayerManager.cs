@@ -784,10 +784,7 @@ namespace Bend
 
                     // ... and free the space from the old segments
                     FreespaceExtent segment_extent = segment.getFreespaceExtent(rangemapmgr);
-                    this.freespacemgr.freeSegment(tx, segment_extent);
-
-                    // ... and make a completion to clear the segment from the segment cache
-                    tx.addCompletion(delegate() { rangemapmgr.clearSegmentCacheHack(); });
+                    this.freespacemgr.freeSegment(tx, segment_extent);                    
                 }
 
                 // (2b) actually perform the merge, writing out the new segments..

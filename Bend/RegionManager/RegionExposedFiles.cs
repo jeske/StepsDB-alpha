@@ -167,7 +167,7 @@ namespace Bend {
                     }
                 }
 
-                System.Console.WriteLine("**** zz uncached sub-block");
+                // System.Console.WriteLine("**** zz uncached sub-block");
                 // Stream mystream = this.getThreadStream();
                 Stream mystream = this.getNewAccessStream();
 

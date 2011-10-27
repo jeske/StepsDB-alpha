@@ -20,6 +20,9 @@
 
   - write some freelist tests...
 
+  - assure atomic write groups are "really" atomic...
+  - reduce the number of "zz uncached sub-block" occurances (cached decompressed blocks in SegmentReader ?)
+
   - write "fsck" to audit the freelist and the current live segments
   - ? growing top-of-heap should grow more than a single segment
   - write threaded group-commit write-throughput test

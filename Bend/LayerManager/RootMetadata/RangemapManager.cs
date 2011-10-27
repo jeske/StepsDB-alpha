@@ -168,7 +168,7 @@ namespace Bend
             return FreespaceExtent.unpack(data);
         }
 
-
+        [Obsolete]
         public void clearSegmentCacheHack() {            
             lock (disk_segment_cache) {
                 disk_segment_cache.RemoveAll();
@@ -184,26 +184,23 @@ namespace Bend
             this.unmapSegment(tx, segment.record_key, null);
         }
 
+        private void removeSegmentCacheEntry(RecordKey key) {
+            lock (disk_segment_cache) {
+                try {
+                    disk_segment_cache.Remove(key);
+                } catch (KeyNotFoundException) {
+                    // not being in ths cache is okay
+                }
+            }
+        }
+
         public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
             SegmentDescriptor sdesc = getSegmentDescriptorFromRecordKey(key);
             System.Console.WriteLine("unmapSegment: " + sdesc);
 
             // TODO: how do we assure that existing read operations flush and reload all segments?          
-            lock (disk_segment_cache) {
-                // clear the entry from the cache
-                // TODO: fix this so it works when setValue is handled as a log apply instead of immediately
-                //       ... technically there is a race condition here because we can clear the cache
-                //       ... and someone can read/re-add the segment before the segment rows is ACTUALLY
-                //       ... deleted. 
-                //       ... However, now that there is a unique stamp in the segment key, perhaps
-                //       ... this doesn't matter. 
-                try {
-                    disk_segment_cache.Remove(key);
-                }
-                catch (KeyNotFoundException) {
-                    // not being in ths cache is okay
-                }
-            }
+            tx.addCompletion(delegate() { this.removeSegmentCacheEntry(key); });
+
             tx.setValue(key, RecordUpdate.DeletionTombstone());
 
             // TODO: assure this happens only if the txn commits            
