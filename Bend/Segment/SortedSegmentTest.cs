@@ -144,7 +144,7 @@ namespace BendTests
                 // make a new index, and add some entries.
                 SortedSegmentIndex index = new SortedSegmentIndex();
                 for (int i = 0; i < block_start_keys.Length; i++) {
-                    index.addBlock(new RecordKey().appendParsedKey(block_start_keys[i]),
+                    index.addMicroBlock(new RecordKey().appendParsedKey(block_start_keys[i]),
                         null, block_start_pos[i], block_end_pos[i]);
                 }
                 index.writeToStream(st);
@@ -156,8 +156,8 @@ namespace BendTests
                 IRegion testregion = new TestRegionRead(streamdata);                
                 SortedSegmentIndex index = new SortedSegmentIndex(streamdata, testregion);
                 int pos = 0;
-                foreach (KeyValuePair<RecordKey,SortedSegmentIndex._SegBlock> kvp in index.blocks) {
-                    SortedSegmentIndex._SegBlock block = kvp.Value;
+                foreach (KeyValuePair<RecordKey,SortedSegmentIndex._SegMicroBlockIndexEntry> kvp in index.microblocks) {
+                    SortedSegmentIndex._SegMicroBlockIndexEntry block = kvp.Value;
                     Assert.AreEqual(new RecordKey().appendParsedKey(block_start_keys[pos]), block.lowest_key);
                     Assert.AreEqual(block_start_pos[pos], block.datastart);
                     Assert.AreEqual(block_end_pos[pos], block.dataend);

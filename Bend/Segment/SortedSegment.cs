@@ -133,7 +133,7 @@ namespace Bend
     
     internal class SortedSegmentIndex: IScannable<RecordKey, RecordUpdate>
     {
-        internal class _SegBlock : IEquatable<_SegBlock>
+        internal class _SegMicroBlockIndexEntry : IEquatable<_SegMicroBlockIndexEntry>
         {
             // TODO: how do ranges fit together? (how do we define inclusive/exclusive for the joint?)
             internal RecordKey lowest_key;    
@@ -143,13 +143,13 @@ namespace Bend
             // TODO: should make a registry mapping shorts to GUIDs of block encoders
             internal short blocktype;    // 00 = special endblock lists the last key (inclusive)
             
-            public _SegBlock( RecordKey start_key_inclusive, short blocktype, long datastartoffset, long dataendoffset) {
+            public _SegMicroBlockIndexEntry( RecordKey start_key_inclusive, short blocktype, long datastartoffset, long dataendoffset) {
                 this.lowest_key = start_key_inclusive;
                 this.datastart = datastartoffset;
                 this.dataend = dataendoffset;
                 this.blocktype = blocktype;
             }
-            public _SegBlock(BinaryReader rr) {
+            public _SegMicroBlockIndexEntry(BinaryReader rr) {
                 Int32 coded_key_length = rr.ReadInt32();
                 lowest_key = new RecordKey(rr.ReadBytes((int)coded_key_length));
                 
@@ -174,28 +174,28 @@ namespace Bend
                 return String.Format("({0}:{1}:{2},{3})",blocktype,lowest_key.ToString(),datastart,dataend);
             }
 
-            public bool Equals(_SegBlock target) {
+            public bool Equals(_SegMicroBlockIndexEntry target) {
                 return false;
             }
 
         } // end _SegBlock inner class 
                 
-        internal IScannableDictionary<RecordKey, _SegBlock> blocks;
+        internal IScannableDictionary<RecordKey, _SegMicroBlockIndexEntry> microblocks;
 
         IRegion segmentRegion;        
 
         public SortedSegmentIndex() {
             // TODO: switch this to use a scannable array when we read back
             //  so we can avoid wasting the space and insertion time of a skiplist...
-            blocks = new BDSkipList<RecordKey,_SegBlock>();
+            microblocks = new BDSkipList<RecordKey,_SegMicroBlockIndexEntry>();
         }
         public SortedSegmentIndex(byte[] index_data,IRegion segmentRegion) : this() {
             this.segmentRegion = segmentRegion;
             readFromBytes(index_data);
         }
 
-        public void addBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
-            blocks.Add(start_key_inclusive,new _SegBlock(start_key_inclusive,(short)0, startpos, endpos));
+        public void addMicroBlock(RecordKey start_key_inclusive, ISegmentBlockEncoder encoder, long startpos, long endpos) {
+            microblocks.Add(start_key_inclusive,new _SegMicroBlockIndexEntry(start_key_inclusive,(short)0, startpos, endpos));
         }
 
         public void writeToStream(Stream writer) {
@@ -206,11 +206,11 @@ namespace Bend
             //    .. it means eliminating the first n bytes of EACH part of the record key, since it's hierarchially sorted
 
             // write the number of segments in this block
-            int numblocks = blocks.Count;            
+            int numblocks = microblocks.Count;            
 
             wr.Write((Int32)numblocks); 
-            foreach (KeyValuePair<RecordKey,_SegBlock> kvp in blocks) {
-                _SegBlock block = kvp.Value;
+            foreach (KeyValuePair<RecordKey,_SegMicroBlockIndexEntry> kvp in microblocks) {
+                _SegMicroBlockIndexEntry block = kvp.Value;
                 block.Write(wr);
             }
         }
@@ -220,14 +220,18 @@ namespace Bend
             // read the number of blocks in the Segment
             int numblocks = rr.ReadInt32();
             for (int i=0;i<numblocks;i++) {
-                _SegBlock block = new _SegBlock(rr);
-                blocks.Add(block.lowest_key,block);
+                _SegMicroBlockIndexEntry block = new _SegMicroBlockIndexEntry(rr);
+                microblocks.Add(block.lowest_key,block);
                 Debug.WriteLine(block, "index reader");
             }            
         }
-        private ISegmentBlockDecoder openBlock(_SegBlock block) {
+        private ISegmentBlockDecoder openMicroBlock(_SegMicroBlockIndexEntry block) {
             // TODO, make this somehow get a threadsafe stream to hand to the basic block
             // decoder!!
+
+            // TODO, make the block-decoder-type and compression-type paramaters of the block
+            // encoding, not hardcoded! 
+
 #if COMPRESSED
             return new SegmentBlockBasicDecoder(SegmentBlockCompressedDecodeStage.decode(
                 segmentRegion.getNewBlockAccessor((int)block.datastart,
@@ -242,9 +246,9 @@ namespace Bend
 
         public IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> sortedWalk() {
 
-            foreach (KeyValuePair<RecordKey,_SegBlock> block_kvp in blocks) {
-                _SegBlock block = block_kvp.Value;
-                ISegmentBlockDecoder decoder = openBlock(block);
+            foreach (KeyValuePair<RecordKey,_SegMicroBlockIndexEntry> block_kvp in microblocks) {
+                _SegMicroBlockIndexEntry block = block_kvp.Value;
+                ISegmentBlockDecoder decoder = openMicroBlock(block);
                     
                 foreach(KeyValuePair<RecordKey,RecordUpdate> decode_kvp in decoder.sortedWalk()) {
                     yield return decode_kvp;
@@ -252,25 +256,25 @@ namespace Bend
             }
         }
         public KeyValuePair<RecordKey, RecordUpdate> FindNext(IComparable<RecordKey> keytest, bool equal_ok) {
-            if (blocks.Count == 0) {
+            if (microblocks.Count == 0) {
                 System.Console.WriteLine("index has no blocks!");
                 throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindNext");
             }
 
-            KeyValuePair<RecordKey, _SegBlock> blockkvp;
+            KeyValuePair<RecordKey, _SegMicroBlockIndexEntry> blockkvp;
             try {
-                blockkvp = blocks.FindPrev(keytest,false);
+                blockkvp = microblocks.FindPrev(keytest,false);
             } catch (KeyNotFoundException) {
                 // keytest is before any blocks, check the first block
                 try {
-                    blockkvp = blocks.FindNext(new ScanRange<RecordKey>.minKey(), true); // get the first block
+                    blockkvp = microblocks.FindNext(new ScanRange<RecordKey>.minKey(), true); // get the first block
                 } catch (KeyNotFoundException ex2) {                   
                     throw new KeyNotFoundException("SortedSegmentIndex: INTERNAL ERROR in FindNext", ex2);
                 }
             }
-            _SegBlock block = blockkvp.Value;
+            _SegMicroBlockIndexEntry block = blockkvp.Value;
             // instantiate the block
-            ISegmentBlockDecoder decoder = openBlock(block);
+            ISegmentBlockDecoder decoder = openMicroBlock(block);
             
             KeyValuePair<RecordKey, RecordUpdate> datakvp;
             try {
@@ -281,9 +285,9 @@ namespace Bend
                 while (true) {
                     // the block above might not have had any records after keytest in it
                     // so give the next block(s) a shot if we have more
-                    blockkvp = blocks.FindNext(blockkvp.Key, false);
+                    blockkvp = microblocks.FindNext(blockkvp.Key, false);
                     block = blockkvp.Value;
-                    decoder = openBlock(block);
+                    decoder = openMicroBlock(block);
                     try {
                         return decoder.FindNext(keytest, equal_ok);
                     }
@@ -293,30 +297,30 @@ namespace Bend
             }
         }
         public KeyValuePair<RecordKey, RecordUpdate> FindPrev(IComparable<RecordKey> keytest, bool equal_ok) {
-            if (blocks.Count == 0) {
+            if (microblocks.Count == 0) {
                 System.Console.WriteLine("index has no blocks!");
                 throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindPrev");
             }
-            KeyValuePair<RecordKey, _SegBlock> kvp;
+            KeyValuePair<RecordKey, _SegMicroBlockIndexEntry> kvp;
             try {
-                kvp = blocks.FindPrev(keytest, equal_ok);
+                kvp = microblocks.FindPrev(keytest, equal_ok);
             } catch (KeyNotFoundException ex1) {
                 // if we don't have a block that starts before (or equal) to this key,
                 // then we don't have a block that can have the key!
                 throw new KeyNotFoundException("SegmentIndex.FindPrev (no block contains key " + keytest + ")", ex1);
             }
 
-            _SegBlock block = kvp.Value;
+            _SegMicroBlockIndexEntry block = kvp.Value;
             // instantiate the block
-            ISegmentBlockDecoder decoder = openBlock(block);
+            ISegmentBlockDecoder decoder = openMicroBlock(block);
 
             return decoder.FindPrev(keytest, equal_ok);
         }
 
         
 
-        private IEnumerable<_SegBlock> _scanForwardRangePointerFor(
-            IScannableDictionary<RecordKey, _SegBlock> _blocks,
+        private IEnumerable<_SegMicroBlockIndexEntry> _scanForwardRangePointerFor(
+            IScannableDictionary<RecordKey, _SegMicroBlockIndexEntry> _microblocks,
             IScanner<RecordKey> scanner) {
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
@@ -325,18 +329,18 @@ namespace Bend
                 highestKeyTest = scanner.genHighestKeyTest();
             }
 
-            KeyValuePair<RecordKey, _SegBlock> cur = new KeyValuePair<RecordKey,_SegBlock>(null,null);
+            KeyValuePair<RecordKey, _SegMicroBlockIndexEntry> cur = new KeyValuePair<RecordKey,_SegMicroBlockIndexEntry>(null,null);
             var keystart = lowestKeyTest;
 
             try {
-                cur = _blocks.FindPrev(keystart, true);                
+                cur = _microblocks.FindPrev(keystart, true);                
             } catch (KeyNotFoundException) {
             }
             if (cur.Key != null) {
                 yield return cur.Value;
             }
 
-            foreach (var idx_entry in _blocks.scanForward(scanner)) {
+            foreach (var idx_entry in _microblocks.scanForward(scanner)) {
                 yield return idx_entry.Value;
             }
         }
@@ -350,13 +354,13 @@ namespace Bend
                 highestKeyTest = scanner.genHighestKeyTest();
             }
 
-            if (blocks.Count == 0) {
+            if (microblocks.Count == 0) {
                 System.Console.WriteLine("index has no blocks!");
                 throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindNext");
             }
 
-            foreach (var block_ptr in _scanForwardRangePointerFor(blocks,scanner)) {
-                ISegmentBlockDecoder decoder = openBlock(block_ptr);
+            foreach (var block_ptr in _scanForwardRangePointerFor(microblocks,scanner)) {
+                ISegmentBlockDecoder decoder = openMicroBlock(block_ptr);
                 foreach (var rec in decoder.scanForward(scanner)) {
                     yield return rec;
                 }
@@ -364,8 +368,8 @@ namespace Bend
         }
 
 
-        private IEnumerable<_SegBlock> _scanBackwardRangePointerFor(
-            IScannableDictionary<RecordKey, _SegBlock> _blocks,
+        private IEnumerable<_SegMicroBlockIndexEntry> _scanBackwardRangePointerFor(
+            IScannableDictionary<RecordKey, _SegMicroBlockIndexEntry> _blocks,
             IScanner<RecordKey> scanner) {
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
@@ -374,7 +378,7 @@ namespace Bend
                 highestKeyTest = scanner.genHighestKeyTest();
             }
 
-            KeyValuePair<RecordKey, _SegBlock> cur = new KeyValuePair<RecordKey, _SegBlock>(null, null);
+            KeyValuePair<RecordKey, _SegMicroBlockIndexEntry> cur = new KeyValuePair<RecordKey, _SegMicroBlockIndexEntry>(null, null);
             var keystart = lowestKeyTest;
 
             
@@ -401,13 +405,13 @@ namespace Bend
                 highestKeyTest = scanner.genHighestKeyTest();
             }
 
-            if (blocks.Count == 0) {
+            if (microblocks.Count == 0) {
                 System.Console.WriteLine("index has no blocks!");
                 throw new KeyNotFoundException("SortedSegmentIndex: has no blocks in FindNext");
             }
 
-            foreach (var block_ptr in _scanBackwardRangePointerFor(blocks, scanner)) {
-                ISegmentBlockDecoder decoder = openBlock(block_ptr);
+            foreach (var block_ptr in _scanBackwardRangePointerFor(microblocks, scanner)) {
+                ISegmentBlockDecoder decoder = openMicroBlock(block_ptr);
                 foreach (var rec in decoder.scanBackward(scanner)) {
                     yield return rec;
                 }
@@ -735,7 +739,7 @@ namespace Bend
                         mb_writer.Position = 0;
                         mb_writer.WriteTo(writer);
                         long endpos = writer.Position;
-                        index.addBlock(mb_writer.block_start_key, mb_writer.encoder, startpos, endpos);
+                        index.addMicroBlock(mb_writer.block_start_key, mb_writer.encoder, startpos, endpos);
                         // accumulate statistics                        
                         stats.num_microblocks_by_segwriter++;
                         stats.num_rows_by_segwriter += mb_writer.num_rows;
