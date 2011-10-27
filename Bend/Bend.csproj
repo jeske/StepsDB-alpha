@@ -125,6 +125,8 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="LayerManager\Records\_RecordTests.cs" />
+    <Compile Include="RegionManager\RegionExposedFiles.cs" />
+    <Compile Include="RegionManager\RegionExposedFiles_Test.cs" />
     <Compile Include="RegionManager\RegionManager.cs" />
     <Compile Include="RowPipe\Pipe.cs">
       <SubType>Code</SubType>
