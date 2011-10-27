@@ -21,7 +21,32 @@ namespace Bend {
     class RegionExposedFiles : IRegionManager {
         String dir_path;
 
-        Dictionary<long, EFRegion> region_cache;
+        LRUCache<long, EFRegion> region_cache;
+
+
+        public class RegionMissingException : Exception {
+            public RegionMissingException(String msg) : base(msg) { }
+        }
+        public RegionExposedFiles(String location) {
+            this.dir_path = location;
+            region_cache = new LRUCache<long, EFRegion>(20);
+        }
+
+        // first time init        
+        public RegionExposedFiles(InitMode mode, String location)
+            : this(location) {
+            if (mode != InitMode.NEW_REGION) {
+                throw new Exception("first time init needs NEW_REGION paramater");
+            }
+            if (!Directory.Exists(dir_path)) {
+                Console.WriteLine("RegionExposedFiles, creating directory: " + dir_path);
+                Directory.CreateDirectory(dir_path);
+            }
+        }
+
+
+        // --------------------------
+
 
         internal class RegionFileStream : FileStream {
             EFRegion region;
@@ -50,7 +75,7 @@ namespace Bend {
             handleRegionSafeToFreeDelegate del = null;
 
             Dictionary<int, WeakReference<Stream>> my_streams;
-            LRUCache<int, byte[]> block_cache;
+            LRUCache<int, byte[]> subblock_cache;
 
 
             // -------------
@@ -61,7 +86,7 @@ namespace Bend {
                 this.mode = mode;
                 this.filepath = filepath;
                 my_streams = new Dictionary<int, WeakReference<Stream>>();
-                block_cache = new LRUCache<int, byte[]>(20);
+                subblock_cache = new LRUCache<int, byte[]>(500);
 
             }
 
@@ -102,7 +127,9 @@ namespace Bend {
                 }
             }
 
+#if false
             // TODO: Is this really safe? 
+            [Obsolete]
             private Stream getThreadStream() {
                 int thread_id = Thread.CurrentThread.ManagedThreadId;
                 lock (my_streams) {
@@ -120,6 +147,7 @@ namespace Bend {
                 }
                 return new_stream;
             }
+#endif
 
             [Obsolete]
             public Stream getBlockAccessStream(int rel_block_start, int block_len) {                
@@ -128,9 +156,9 @@ namespace Bend {
 
             public BlockAccessor getNewBlockAccessor(int rel_block_start, int block_len) {
                 // return it from the block cache if it's there
-                lock (block_cache) {
+                lock (subblock_cache) {
                     try {
-                        byte[] datablock = this.block_cache.Get(rel_block_start);
+                        byte[] datablock = this.subblock_cache.Get(rel_block_start);
                         if (datablock.Length == block_len) {
                             return new BlockAccessor(datablock);
                         }
@@ -139,8 +167,9 @@ namespace Bend {
                     }
                 }
 
-                // System.Console.WriteLine(altdebug_pad + "zz uncached block");
-                Stream mystream = this.getThreadStream();
+                System.Console.WriteLine("**** zz uncached sub-block");
+                // Stream mystream = this.getThreadStream();
+                Stream mystream = this.getNewAccessStream();
 
                 byte[] block = new byte[block_len];
                 mystream.Seek(rel_block_start, SeekOrigin.Begin);
@@ -150,8 +179,8 @@ namespace Bend {
                 }
                 double duration_ms = (DateTime.Now - before_read).TotalMilliseconds;
 
-                lock (block_cache) {
-                    block_cache.Add(rel_block_start, block);
+                lock (subblock_cache) {
+                    subblock_cache.Add(rel_block_start, block);
                 }
 
                 if (duration_ms > 6.0) {
@@ -173,25 +202,6 @@ namespace Bend {
             }
         } // ------------- IRegion END ----------------------------
 
-        public class RegionMissingException : Exception {
-            public RegionMissingException(String msg) : base(msg) { }
-        }
-        public RegionExposedFiles(String location) {
-            this.dir_path = location;
-            region_cache = new Dictionary<long, EFRegion>();
-        }
-
-        // first time init        
-        public RegionExposedFiles(InitMode mode, String location)
-            : this(location) {
-            if (mode != InitMode.NEW_REGION) {
-                throw new Exception("first time init needs NEW_REGION paramater");
-            }
-            if (!Directory.Exists(dir_path)) {
-                Console.WriteLine("RegionExposedFiles, creating directory: " + dir_path);
-                Directory.CreateDirectory(dir_path);
-            }
-        }
 
         public String makeFilepath(long region_addr) {
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();

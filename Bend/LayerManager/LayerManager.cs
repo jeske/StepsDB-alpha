@@ -220,6 +220,8 @@ namespace Bend
             }
         }
 
+        public delegate void handleWriteGroupCompletion();    
+
         public class WriteGroup : IDisposable
         {
             public LayerManager mylayer;
@@ -228,6 +230,8 @@ namespace Bend
 
             List<LogCmd> pending_cmds = new List<LogCmd>();
             public const WriteGroupType DEFAULT_WG_TYPE = WriteGroupType.DISK_INCREMENTAL;
+
+            List<handleWriteGroupCompletion> pending_completions = new List<handleWriteGroupCompletion>();
 
             public enum WriteGroupType {
                 [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log")]
@@ -241,8 +245,6 @@ namespace Bend
 
                 [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish().")]
                 DISK_ATOMIC_NOFLUSH,
-
-
             };
 
             // DISK_INCREMENTAL : changes are immediately added to the pending-log-queue and the working segment.
@@ -271,6 +273,10 @@ namespace Bend
                 this.tsn = System.DateTime.Now.ToBinary();
                 this.type = type;
                 // TODO: store the stack backtrace of who created this if we're in debug mode
+            }
+
+            public void addCompletion(handleWriteGroupCompletion fn) {
+                pending_completions.Add(fn);
             }
 
             public void setValue(RecordKey key, RecordUpdate update) {
@@ -369,6 +375,12 @@ namespace Bend
                 }
 
                 state = WriteGroupState.CLOSED;
+
+                // call each of the pending completions.
+                foreach (handleWriteGroupCompletion completion_fn in pending_completions) {
+                    completion_fn();
+                }
+                pending_completions.Clear();
             }
            
             public void Dispose() {
@@ -717,76 +729,84 @@ namespace Bend
             uint target_generation = int.MaxValue; // will contain "minimum generation of the segments"
             int last_generation = int.MinValue;
 
-            
+
 
             // (1) iterate through the generation pointers, building the merge chain
             IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain = null;
+            {
+                foreach (SegmentDescriptor segment in segs) {
+                    if (segment.generation < last_generation) {
+                        throw new Exception("segment merge generation order invalid: " + String.Join(",", segs));
+                    }
+                    last_generation = (int)segment.generation;
 
-            foreach (SegmentDescriptor segment in segs) {
-                if (segment.generation < last_generation) {
-                    throw new Exception("segment merge generation order invalid: " + String.Join(",", segs));
-                }
-                last_generation = (int)segment.generation;
-
-                count++;
-                target_generation = Math.Min(target_generation, segment.generation);
+                    count++;
+                    target_generation = Math.Min(target_generation, segment.generation);
                     var seg = segment.getSegment(rangemapmgr);
 
                     var nextchain = SortedAscendingCheck.CheckAscending(seg.sortedWalk(),
                         String.Format("merge-input: {0}", segment));
 
-                if (chain == null) {
-                    chain = nextchain;
-                } else {
-                    chain = SortedMergeExtension.MergeSort(nextchain, chain, true);  // merge sort keeps keys on the left
+                    if (chain == null) {
+                        chain = nextchain;
+                    } else {
+                        chain = SortedMergeExtension.MergeSort(nextchain, chain, true);  // merge sort keeps keys on the left
+                    }
+                }
+
+                if (count == 1) {
+                    System.Console.WriteLine("only one segment, nothing to merge");
+                    return;
+                }
+
+                // add check-ascending to be sure keys appear in order
+                chain = SortedAscendingCheck.CheckAscending(chain, "merge-final");
+
+                // add "remove tombstones" stage if we are at the bottom
+                if (target_generation == 0) {
+                    chain = LayerManager.RemoveTombstones(chain);
                 }
             }
 
-            if (count == 1) {
-                System.Console.WriteLine("only one segment, nothing to merge");
-                return;
-            }
-
-           // (2) now perform the merge!
+            // (2) now perform the merge!
             {
                 WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
+
+
+                // (2a) delete the old segment mappings
 
                 // HACK: we delete the segment mappings first, so if we write the same mapping that we're removing, 
                 // we don't inadvertantly delete the new mapping..
 
-                
-                // remove the old segment mappings
-                // and, free the space from the old segments
                 foreach (SegmentDescriptor segment in segs) {
-                    // TODO: it's not safe to free this space yet!
+                    // remove the old segment mappings
                     rangemapmgr.unmapSegment(tx, segment);
 
-
+                    // ... and free the space from the old segments
                     FreespaceExtent segment_extent = segment.getFreespaceExtent(rangemapmgr);
                     this.freespacemgr.freeSegment(tx, segment_extent);
+
+                    // ... and make a completion to clear the segment from the segment cache
+                    tx.addCompletion(delegate() { rangemapmgr.clearSegmentCacheHack(); });
                 }
 
-                IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> chain_head = SortedAscendingCheck.CheckAscending(chain, "merge-final");
+                // (2b) actually perform the merge, writing out the new segments..
+                //      _writSegment is responsible for adding the new segment mappings
 
-                // remove tombstones if we need to        
-                if (target_generation == 0) {
-                    chain_head = LayerManager.RemoveTombstones(chain_head);
-                }
+                this._writeSegment(tx, chain, (int)target_generation);
 
-                this._writeSegment(tx, chain_head , (int)target_generation);
 
-                
-                
-                // check to see if we can shrink NUMGENERATIONS
-
-                
+                // (2c) finish/commit the transaction                
                 lock (this.segmentlayers) {
                     tx.finish();                             // commit the freespace and rangemap transaction
                     this.checkpointNumber++;
                 }
 
+                // (2d) cleanup
+
+                // check to see if we can shrink NUMGENERATIONS
                 rangemapmgr.setMaxGenCountHack(rangemapmgr.mergeManager.getMaxGeneration() + 1);
-                rangemapmgr.clearSegmentCacheHack();                
+                // rangemapmgr.clearSegmentCacheHack();                
             }
             Console.WriteLine("=====================================[ Merge Segments (End) ]=================================");
         }

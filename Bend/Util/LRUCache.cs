@@ -36,6 +36,14 @@ namespace Bend
             data.Remove(key);
         }
 
+        public void RemoveAll() {
+            data = new Dictionary<K, _PriorityNode<K, V>>();
+            head = tail = null;
+        }
+        public bool ContainsKey(K key) {
+            return data.ContainsKey(key);
+        }
+
         public V Get(K key) {
             _PriorityNode<K, V> node = data[key];
 

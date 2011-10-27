@@ -53,7 +53,7 @@ namespace Bend
 
         public RangemapManager(LayerManager store) {
             this.store = store;            
-            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
+            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(2);
 
             // get the current number of generations
             RecordUpdate update;
@@ -171,7 +171,8 @@ namespace Bend
 
         public void clearSegmentCacheHack() {            
             lock (disk_segment_cache) {
-                disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
+                disk_segment_cache.RemoveAll();
+                // disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
                 GC.Collect();
             }
             System.Console.WriteLine("*** clearSegmentCacheHack() ***");
