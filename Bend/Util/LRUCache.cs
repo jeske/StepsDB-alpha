@@ -19,9 +19,21 @@ namespace Bend
         _PriorityNode<K, V> tail;
         int maxEntries;
 
+
         public LRUCache(int maxEntries) {
             this.maxEntries = maxEntries;
             data = new Dictionary<K, _PriorityNode<K, V>>();
+        }
+
+        public V this[K key] {
+            get { return this.Get(key); }
+            set { this.Add(key, value); }
+        }
+
+        public void Remove(K key) {
+            _PriorityNode<K, V> node = data[key];
+            _unlinkNode(node);
+            data.Remove(key);
         }
 
         public V Get(K key) {

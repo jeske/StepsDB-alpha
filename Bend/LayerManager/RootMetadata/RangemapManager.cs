@@ -49,11 +49,11 @@ namespace Bend
         // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
         //   use a single FileStream. If you have multiple threads calling them, 
         //   chaos will ensue because of the shared seek pointer. 
-        Dictionary<RecordKey, SegmentReader> disk_segment_cache; 
+        LRUCache<RecordKey, SegmentReader> disk_segment_cache; 
 
         public RangemapManager(LayerManager store) {
             this.store = store;            
-            disk_segment_cache = new Dictionary<RecordKey, SegmentReader>();
+            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
 
             // get the current number of generations
             RecordUpdate update;
@@ -171,7 +171,7 @@ namespace Bend
 
         public void clearSegmentCacheHack() {            
             lock (disk_segment_cache) {
-                disk_segment_cache = new Dictionary<RecordKey, SegmentReader>();
+                disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
                 GC.Collect();
             }
             System.Console.WriteLine("*** clearSegmentCacheHack() ***");

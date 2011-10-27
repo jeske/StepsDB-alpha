@@ -29,6 +29,7 @@ namespace BendTests {
             internal WriteThreadsTest(int num_values=10, int checkpoint_interval_rowcount=50, bool withMerge=false) {
                 System.GC.Collect();
                 db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\11");
+                // db.startMaintThread();
                 this.checkpoint_interval = checkpoint_interval_rowcount;
                 this.withMerge = withMerge;
 

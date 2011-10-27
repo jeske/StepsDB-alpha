@@ -18,12 +18,16 @@ namespace Bend
     // Once they are closed, they may be read any number of times, but they are disposed of 
     // before being written again. The log does not follow this pattern. 
 
+    public delegate void handleRegionSafeToFreeDelegate(long start_addr);
+
     public interface IRegionManager
     {
         IRegion readRegionAddr(long region_addr);
         IRegion readRegionAddrNonExcl(long region_addr);
         IRegion writeFreshRegionAddr(long region_addr,long length);
         IRegion writeExistingRegionAddr(long region_addr);
+
+        void notifyRegionSafeToFree(long region_addr, handleRegionSafeToFreeDelegate del);
         void disposeRegionAddr(long region_addr);
     }
 

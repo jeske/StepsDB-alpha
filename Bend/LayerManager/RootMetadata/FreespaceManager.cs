@@ -204,19 +204,31 @@ namespace Bend
 
         public void freeSegment(LayerManager.WriteGroup tx, FreespaceExtent segment_extent) {
             
+            // (1) add the segment to the pending list (pending free)
+
             if (tx.type != LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH) {
                 throw new Exception("freeSegment() requires DISK_ATOMIC write group");
-            }            
+            }
 
-            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS")
+            // NOTE: DISK_ATOMIC writes are not seen in the memory segment until the atomic write group applies
+            //       so these changes will not be seen until then
+
+            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING")
                 .appendKeyPart(new RecordKeyType_Long(segment_extent.end_addr));
 
             RecordUpdate payload = RecordUpdate.WithPayload(segment_extent.pack());
             tx.setValue(key, payload);
             
-            // NOTE: DISK_ATOMIC writes are not seen in the memory segment until the atomic write group applies
-            //       so these changes will not be seen until then
-            
+            // (2) add a handler to get notified when the block is no longer referenced, so it can
+            //     be moved from pending to actually free.
+
+            tx.mylayer.regionmgr.notifyRegionSafeToFree(segment_extent.start_addr,
+                this._handleRegionSafeToFree);
+           
+        }
+
+        private void _handleRegionSafeToFree(long start_addr) {
+            System.Console.WriteLine("*\n*\n*\n* _handleRegionSafeToFree {0} \n*\n*\n*", start_addr); 
         }
 
         public void debugDumbCurrentFreespace() {
