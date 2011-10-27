@@ -29,7 +29,7 @@ namespace Bend
     // ---------------[ LayerManager ]---------------------------------------------------------
 
 
-    public class LayerManager : IDisposable, IStepsKVDB
+    public class LayerManager : IStepsKVDB, IDisposable
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
@@ -41,7 +41,7 @@ namespace Bend
 
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
-        internal List<WeakReference<WriteGroup>> pending_txns;
+        internal BDSkipList<long,WeakReference<WriteGroup>> pending_txns;
         public RangemapManager rangemapmgr;
         public FreespaceManager freespacemgr;
 
@@ -53,7 +53,7 @@ namespace Bend
         // constructors ....
 
         public LayerManager() {
-            pending_txns = new List<WeakReference<WriteGroup>>();
+            pending_txns = new BDSkipList<long,WeakReference<WriteGroup>>();
 
             segmentlayers = new List<SegmentMemoryBuilder>();   // a list of segment layers, newest to oldest
             workingSegment = new SegmentMemoryBuilder();
@@ -220,18 +220,19 @@ namespace Bend
             }
         }
 
-        public delegate void handleWriteGroupCompletion();    
+        public delegate void handleWriteGroupCompletion();
+        protected FastUniqueIds tsnidgen = new FastUniqueIds();
 
         public class WriteGroup : IDisposable
         {
             public LayerManager mylayer;
-            long tsn; // transaction sequence number
+            public readonly long tsn; // transaction sequence number
             long last_logwaitnumber = 0; // log-sequence-number from our most recent addCommand
 
             List<LogCmd> pending_cmds = new List<LogCmd>();
-            public const WriteGroupType DEFAULT_WG_TYPE = WriteGroupType.DISK_INCREMENTAL;
-
             List<handleWriteGroupCompletion> pending_completions = new List<handleWriteGroupCompletion>();
+
+            public const WriteGroupType DEFAULT_WG_TYPE = WriteGroupType.DISK_INCREMENTAL;
 
             public enum WriteGroupType {
                 [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log")]
@@ -268,11 +269,20 @@ namespace Bend
             }
             WriteGroupState state = WriteGroupState.PENDING;
 
+            
+
             public WriteGroup(LayerManager _layer, WriteGroupType type = DEFAULT_WG_TYPE) {
                 this.mylayer = _layer;
-                this.tsn = System.DateTime.Now.ToBinary();
+                this.tsn = _layer.tsnidgen.nextTimestamp();
                 this.type = type;
+
+                mylayer.pending_txns.Add(tsn, new WeakReference<WriteGroup>(this));  // track pending transactions without preventing collection
+
                 // TODO: store the stack backtrace of who created this if we're in debug mode
+            }
+
+            ~WriteGroup() {
+                this.Dispose();
             }
 
             public void addCompletion(handleWriteGroupCompletion fn) {
@@ -326,7 +336,10 @@ namespace Bend
                     throw new Exception("unknown write group type in addCommand() " + type.ToString());
                 }
             }
-            
+
+            public void cancel() {
+                this.state = WriteGroupState.CLOSED;
+            }
 
             public void finish() {
                 // TODO: make a higher level TX commit that finalizes pending writes into final writes
@@ -339,7 +352,12 @@ namespace Bend
                 // an MVCC on top of this
 
                 if (this.state == WriteGroupState.CLOSED) {
-                    throw new Exception("flush called on closed WriteGroup"); // TODO: add LSN/info
+                    System.Console.WriteLine("finish() called on closed WriteGroup"); // TODO: add LSN/info
+                    return;
+                }
+                if (mylayer == null || mylayer.logwriter == null) {
+                    System.Console.WriteLine("finish() called on torn-down LayerManager"); // TODO: add LSN/info
+                    return;
                 }
                 switch (type) {
                     case WriteGroupType.DISK_INCREMENTAL:
@@ -357,7 +375,6 @@ namespace Bend
                         mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
                         break;
                     case WriteGroupType.DISK_ATOMIC_NOFLUSH:
-
                         // send the group of commands to the log and clear the pending list
                         mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
                         this.pending_cmds.Clear();
@@ -375,6 +392,7 @@ namespace Bend
                 }
 
                 state = WriteGroupState.CLOSED;
+                mylayer.pending_txns.Remove(this.tsn);                
 
                 // call each of the pending completions.
                 foreach (handleWriteGroupCompletion completion_fn in pending_completions) {
@@ -385,7 +403,8 @@ namespace Bend
            
             public void Dispose() {
                 if (state == WriteGroupState.PENDING) {
-                    throw new Exception("disposed Txn still pending " + this.tsn);
+                    System.Console.WriteLine("disposed transaction still pending " + this.tsn);
+                    // throw new Exception("disposed Txn still pending " + this.tsn);
                 }
             }
         }
@@ -393,9 +412,7 @@ namespace Bend
         // impl ....
 
         public WriteGroup newWriteGroup(WriteGroup.WriteGroupType type=WriteGroup.DEFAULT_WG_TYPE) {
-
-            WriteGroup newtx = new WriteGroup(this, type: type);
-            pending_txns.Add(new WeakReference<WriteGroup>(newtx));  // make sure we don't prevent collection
+            WriteGroup newtx = new WriteGroup(this, type: type);                        
             return newtx;
         }
         
@@ -1074,6 +1091,30 @@ namespace Bend
         }
 
         public void Dispose() {
+
+            System.Console.WriteLine("*\n*\n*\n* Layermanger: Dispose \n*\n*\n*\n****************");
+
+            // TODO: fix the race with flipping pending freelist entries to freelist after db.Dispose
+
+            GC.Collect();
+            DateTime start = DateTime.Now;
+
+            while (pending_txns.Count() > 0 && ((DateTime.Now - start).TotalSeconds < 3)) {
+                System.Console.WriteLine("waiting for pending transactions to close {0}", pending_txns.Count());
+                Thread.Sleep(1000);
+                GC.Collect();
+
+                foreach (var pending_txn in pending_txns) {
+                    System.Console.WriteLine("{0} : {1}", pending_txn.Key, pending_txn.Value);
+                }
+            }
+            foreach (var pending_txn in pending_txns) {
+                WriteGroup wg = pending_txn.Value.Target;
+                if (wg != null) {
+                    wg.cancel();
+                }
+            }
+
             if (logwriter != null) {
                 logwriter.Dispose(); logwriter = null;
             }

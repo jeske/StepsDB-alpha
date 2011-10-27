@@ -112,7 +112,6 @@ namespace Bend
             // use one big nasty lock to prevent race conditions
             lock (this) {   
 
-#if false
                 // try to find an extent with enough space to carve off a chunk
                 foreach (var rec in store.scanForward(new ScanRange<RecordKey>(freelist_prefix,
                                 RecordKey.AfterPrefix(freelist_prefix), null))) {
@@ -140,20 +139,25 @@ namespace Bend
                         makepending_wg.finish();
                         return new NewUnusedSegment(store, extent);
                     } else if (extent.length() > length) {
-                        // carve a piece off the extent and return the pending piece
+                        
+                        
+                        // TODO: carve a piece off the extent and return the pending piece
 
                     }
                 }
 
-
-#endif
-
                 // if we can't find a free segment, grow the heap
                 return growHeap(tx, length);
 
-                // then carve a segment out of the new grown heap
+                // TODO: then carve a segment out of the new grown heap
 
             }
+        }
+
+        private RecordKey pendingKeyForAddr(long start_addr) {
+            RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
+            key.appendKeyPart(new RecordKeyType_Long(start_addr));
+            return key;
         }
 
         // grow the top "top of heap" 
@@ -181,12 +185,8 @@ namespace Bend
                 newblock_info.end_addr = new_addr + length;
 
                 // add the pending chunk
-                {
-                    RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
-                    key.appendKeyPart(new RecordKeyType_Long(new_addr));
-                    
-                    carveoff_wg.setValue(key, RecordUpdate.WithPayload(newblock_info.pack()));
-                }
+                carveoff_wg.setValue(this.pendingKeyForAddr(new_addr),
+                                     RecordUpdate.WithPayload(newblock_info.pack()));
 
                 Console.WriteLine("allocateNewSegment - next address: " + new_addr);
                 // add our new top of heap pointer
@@ -222,13 +222,26 @@ namespace Bend
             // (2) add a handler to get notified when the block is no longer referenced, so it can
             //     be moved from pending to actually free.
 
+            LayerManager.WriteGroup fwg = this.store.newWriteGroup(LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
+
             tx.mylayer.regionmgr.notifyRegionSafeToFree(segment_extent.start_addr,
-                this._handleRegionSafeToFree);
-           
+                delegate(long addr) { this.handleRegionSafeToFree(addr,segment_extent, fwg); });
+                    
         }
 
-        private void _handleRegionSafeToFree(long start_addr) {
-            System.Console.WriteLine("*\n*\n*\n* _handleRegionSafeToFree {0} \n*\n*\n*", start_addr); 
+        // move the pending address into the freelist
+        private void handleRegionSafeToFree(long start_addr, FreespaceExtent extent, LayerManager.WriteGroup wg) {
+            System.Console.WriteLine("*\n*\n*\n* handleRegionSafeToFree {0} \n*\n*\n*", start_addr);
+            // (1) remove pending entry
+            wg.setValue(pendingKeyForAddr(start_addr), RecordUpdate.DeletionTombstone());
+
+            // (2) write real freelist entry (TODO: merge with neighboring entries)
+            {
+                RecordKey key = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS");
+                key.appendKeyPart(new RecordKeyType_Long(extent.end_addr));
+                wg.setValue(key, RecordUpdate.WithPayload(extent.pack()));
+            }
+            wg.finish();
         }
 
         public void debugDumbCurrentFreespace() {

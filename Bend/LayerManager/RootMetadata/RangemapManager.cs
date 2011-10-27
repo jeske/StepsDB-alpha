@@ -53,7 +53,7 @@ namespace Bend
 
         public RangemapManager(LayerManager store) {
             this.store = store;            
-            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(2);
+            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
 
             // get the current number of generations
             RecordUpdate update;
