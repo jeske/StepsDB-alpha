@@ -3,22 +3,12 @@
 ****[ High Level TODO ]***
 
 - freelist management	
-          
   
-  - assure merge-apply/flush is atomic WRT cursor setup
-
-  - ** allocation should try to select new pending blocks from freelist instead of top-of-heap **  
-
-  - address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
-     - why does this happen? 
-	   1) scanner is currently reading the block.
-	   2) cache is holding the block.
-	   3) cache block was re-populated after the cache block was removed, but before the block was invalidated,
-	      because the cache block is removed when the writegroup command is written, not when it applies.
-     - delete/rename disk-files when handle discarded    
-
+  - figure out why we collide with a still open block eventually 
   - add LENGTH to all regionmanager calls, remove the file-length hack
-
+            
+  - assure merge-apply/flush is atomic WRT cursor setup
+ 
   - write some freelist tests...
 
   - assure atomic write groups are "really" atomic...
@@ -36,7 +26,9 @@
 	  (done) add mechanism to encapsulate converting the "pending block" into a segment pointer
               (so it can be deferred until the block has been finalized) 
       (done) add freelistDebug to print the current freelist info
-
+	  (done) allocation should try to select new pending blocks from freelist instead of top-of-heap **  
+      (done) address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
+  
 
 - paxos experimentation
 - distributed DB
