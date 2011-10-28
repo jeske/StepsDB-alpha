@@ -256,12 +256,15 @@ namespace BendTests
 
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\5");
 
+            db.debugDump();
+
             LayerManager.WriteGroup txn = db.newWriteGroup();
             for (int i = 0; i < keys.Length; i++) {
                 txn.setValueParsed(keys[i], values[i]);
             }
             txn.finish();
             db.flushWorkingSegment();
+            db.debugDump();
 
             // assure that we checkpointed down to a single working segment
             Assert.AreEqual(1, db.segmentlayers.Count, "segment layer count");
@@ -272,12 +275,12 @@ namespace BendTests
                 RecordData data;
                 RecordKey key = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
                 Assert.AreEqual(GetStatus.PRESENT,db.getRecord(key, out data),"missing numgenerations record");
-                Assert.AreEqual("1", data.ReadDataAsString(),"generation count");
+                Assert.AreEqual("1", data.ReadDataAsString(),"generation count 1");
 
                 RecordUpdate update;
                 Assert.AreEqual(GetStatus.PRESENT,
                     db.workingSegment.getRecordUpdate(key, out update), "missing workingsegment numgenerations record");
-                    Assert.AreEqual("1", enc.GetString(update.data), "generation count");  
+                    Assert.AreEqual("1", enc.GetString(update.data), "generation count 2");  
             }
 
 

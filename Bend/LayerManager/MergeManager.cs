@@ -76,6 +76,15 @@ namespace Bend {
             return 0;
         }
 
+        public int getNumGenerations() {
+            try {
+                return (int)(segmentInfo.FindPrev(new ScanRange<SegmentDescriptor>.maxKey(), true).Key.generation) + 1;
+            } catch (KeyNotFoundException) {
+                return 0;
+            }            
+        }
+
+        // TODO: fix this function.. it currently returns 0 even if there are no generations, which is sort of a lie
         public int getMaxGeneration() {            
             try {
                 return (int)segmentInfo.FindPrev(new ScanRange<SegmentDescriptor>.maxKey(), true).Key.generation;

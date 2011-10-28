@@ -49,7 +49,15 @@ namespace Bend
         // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
         //   use a single FileStream. If you have multiple threads calling them, 
         //   chaos will ensue because of the shared seek pointer. 
-        LRUCache<RecordKey, SegmentReader> disk_segment_cache; 
+        LRUCache<RecordKey, SegmentReader> disk_segment_cache;
+
+        // ---- Constructors -----------
+
+        public static void Init(LayerManager store) {
+            // setup "zero" initial generations
+            store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
+                RecordUpdate.WithPayload(0.ToString())); // TODO: this should be a var-enc number
+        }
 
         public RangemapManager(LayerManager store) {
             this.store = store;            
@@ -68,6 +76,8 @@ namespace Bend
             mergeManager = new MergeManager_Incremental(this);            
         }
 
+        // ---------------------------------
+
         public void primeMergeManager() {         
             // because we depend on the merge manager for all kinds of things now, we really
             // MUST do this, or new segments will be allocated in the wrong generations! 
@@ -81,15 +91,10 @@ namespace Bend
                 seg_count++;
             }            
             Console.WriteLine("primeMergeManager(): finished. Loaded {0} segments.", seg_count);
-            this.setMaxGenCountHack(mergeManager.getMaxGeneration() + 1);
+            this.setMaxGenCountHack(mergeManager.getNumGenerations());
             
         }
 
-        public static void Init(LayerManager store) {
-            // setup "zero" initial generations
-            store.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
-                RecordUpdate.WithPayload(0.ToString())); // TODO: this should be a var-enc number
-        }
 
 
         internal SegmentReader segmentReaderFromRow(KeyValuePair<RecordKey, RecordUpdate> segmentrow) {

@@ -121,7 +121,7 @@ namespace Bend
                         }
                     }
                 } else if (cmd == (byte)LogCommands.CHECKPOINT_START) {
-                    // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
+                    // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right dataF
                     checkpointSegment = mylayer.workingSegment;
                     SegmentMemoryBuilder newsegment = new SegmentMemoryBuilder();
                     lock (mylayer.segmentlayers) {
@@ -147,7 +147,7 @@ namespace Bend
         {
             UPDATE = 0,
             CHECKPOINT_START = 1,
-            CHECKPOINT_DROP = 2
+            CHECKPOINT_DROP = 2   // says it's okay to drop everything up to the previous CHECKPOINT_START
         }
 
         public class LayerMaintenanceThread {
@@ -310,6 +310,13 @@ namespace Bend
                 RecordUpdate update = RecordUpdate.WithPayload(svalue);
 
                 this.setValue(key, update);
+            }
+
+            public void checkpointStart() {
+                // atomically add the checkpoint start marker
+                byte[] emptydata = new byte[0];
+                long logWaitNumber = 0;
+                mylayer.logwriter.addCommand((byte)LogCommands.CHECKPOINT_START, emptydata, ref logWaitNumber);                
             }
 
             public void checkpointDrop() {
@@ -486,12 +493,16 @@ namespace Bend
 
         Object flushLock = new Object();
         public void flushWorkingSegment() {
+            if (workingSegment.RowCount == 0) {
+                System.Console.WriteLine("flushWorkingSegment(): nothing to flush()");
+                return;
+            }
+
+            WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
+
             lock (flushLock) {
-
-                // TODO: make this work concurrently in the background
-
-
                 Console.WriteLine("=====================================[ Flush Working Segment (Begin) ]=================================");
+
                 // (1) create a new working segment            
                 SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
                 SegmentMemoryBuilder checkpointSegment;
@@ -501,28 +512,27 @@ namespace Bend
                 System.Console.WriteLine("CHKPT: create new working segment");
 #endif
 
+
                 // (2) grab the current working segment and move it aside (now the checkpoint segment)
 
                 lock (this.segmentlayers) {
                     this.checkpointNumber++;
+                                        
+                    // get a handle to the current working segment
                     checkpointSegment = workingSegment;
                     checkpoint_segment_size = checkpointSegment.RowCount;
-                    workingSegment = newlayer;
-                    segmentlayers.Insert(0, workingSegment);
 
-                    { // atomically add the checkpoint start marker
-                        byte[] emptydata = new byte[0];
-                        long logWaitNumber = 0;
-                        this.logwriter.addCommand((byte)LogCommands.CHECKPOINT_START, emptydata, ref logWaitNumber);
-                    }
+                    // mark the place in the log that contains the previous data, and allocate a new working segment
+                    tx.checkpointStart();
 
+                    // TODO: make sure it's not possible to lose a write in between here
+                    //       maybe the log writer should be locked during this..
                 }
-
 
 
                 {
                     // (3) write the checkpoint segment to disk, accumulating the rangemap entries into tx
-                    WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
+                    
 
 #if DEBUG_CHECKPOINT
                     System.Console.WriteLine("CHKPT: write old working segment to disk segments");
@@ -531,34 +541,34 @@ namespace Bend
                     // allocate a new generation number
                     uint new_generation_number = (uint)rangemapmgr.allocNewGeneration(tx);
 
+                    // -----------------------------
+                    // _writeSegment() does the heavy lifting, reading from the merge-sort chain and building
+                    // the new output segments...
+
                     this._writeSegment(tx, SortedAscendingCheck.CheckAscending(checkpointSegment.sortedWalk(), "checkpoint segment"));
 
+                    // ------------------------------
 
-                    tx.checkpointDrop(); // schedule a log drop
+                    tx.checkpointDrop(); // drop the memory-checkpoint segment and let go of the log-space
                     
-                    
-
-
-
                     // (4) commit the new segment rangemap entries into the dataset, unlink the old memorybuilder copy of the checkpoint segment
                     lock (this.segmentlayers) {
 #if DEBUG_CHECKPOINT
                         System.Console.WriteLine("CHKPT: commit new checkpoint");
 #endif
-
-                        tx.finish();   // commit the new rangemap entries (and eventually the freespace modifications)
+                        // commit the new rangemap entries (and eventually the freespace modifications)
+                        tx.finish();   
                         rangemapmgr.recordMaxGeneration(tx, rangemapmgr.mergeManager.getMaxGeneration() + 1); // this must come after the finish
 
                         if (checkpointSegment.RowCount != checkpoint_segment_size) {
                             System.Console.WriteLine("********* checkpointSegment was added to while checkpointing!! lost {0} rows",
                                 checkpointSegment.RowCount - checkpoint_segment_size);
                         }
-                        // checkpointSegment.Clear(); // is this okay !?!?!??!?!? 
+                        
                         // drop the old memory segment out of the segment layers now that's it's checkpointed
 #if DEBUG_CHECKPOINT
                         System.Console.WriteLine("CHKPT: drop old working segment from layers");
 #endif
-
                         segmentlayers.Remove(checkpointSegment);
                     }
                 }
