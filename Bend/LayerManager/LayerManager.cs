@@ -405,7 +405,9 @@ namespace Bend
                 if (state == WriteGroupState.PENDING) {
                     System.Console.WriteLine("disposed transaction still pending " + this.tsn);
                     // throw new Exception("disposed Txn still pending " + this.tsn);
+                    
                 }
+                mylayer.pending_txns.Remove(this.tsn);
             }
         }
 
@@ -533,8 +535,8 @@ namespace Bend
 
 
                     tx.checkpointDrop(); // schedule a log drop
-
-                    rangemapmgr.recordMaxGeneration(tx, rangemapmgr.mergeManager.getMaxGeneration() + 1);
+                    
+                    
 
 
 
@@ -545,6 +547,7 @@ namespace Bend
 #endif
 
                         tx.finish();   // commit the new rangemap entries (and eventually the freespace modifications)
+                        rangemapmgr.recordMaxGeneration(tx, rangemapmgr.mergeManager.getMaxGeneration() + 1); // this must come after the finish
 
                         if (checkpointSegment.RowCount != checkpoint_segment_size) {
                             System.Console.WriteLine("********* checkpointSegment was added to while checkpointing!! lost {0} rows",
@@ -789,7 +792,6 @@ namespace Bend
             {
                 WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
 
-
                 // (2a) delete the old segment mappings
 
                 // HACK: we delete the segment mappings first, so if we write the same mapping that we're removing, 
@@ -801,8 +803,9 @@ namespace Bend
 
                     // ... and free the space from the old segments
                     FreespaceExtent segment_extent = segment.getFreespaceExtent(rangemapmgr);
-                    this.freespacemgr.freeSegment(tx, segment_extent);                    
+                    this.freespacemgr.freeSegment(tx, segment_extent);
                 }
+
 
                 // (2b) actually perform the merge, writing out the new segments..
                 //      _writSegment is responsible for adding the new segment mappings

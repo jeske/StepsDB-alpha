@@ -122,7 +122,11 @@ namespace Bend
 
         public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
-            // TODO: consider putting the address or a GUID into the key so two descriptors can't be mixed up
+
+            if (!(tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH || 
+                tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH)) {
+                    throw new Exception("mapGenerationToRegion needs an ATOMIC write group");
+            }
 
             // use SegmentDescriptor to generate a record key for the segment descriptor
             SegmentDescriptor sdesc = new SegmentDescriptor((uint)gen_number, start_key, end_key);
@@ -155,7 +159,7 @@ namespace Bend
 #endif
             
             // TODO: make this occur only when the txn commits!
-            mergeManager.notify_addSegment(sdesc);
+            tx.addCompletion(delegate() { mergeManager.notify_addSegment(sdesc); });
         }
 
         private long unpackRegionAddr(byte[] data) {
@@ -203,8 +207,8 @@ namespace Bend
 
             tx.setValue(key, RecordUpdate.DeletionTombstone());
 
-            // TODO: assure this happens only if the txn commits            
-            mergeManager.notify_removeSegment(sdesc);
+            // TODO: how to make all of the changes for this txn atomic?
+            tx.addCompletion(delegate() { mergeManager.notify_removeSegment(sdesc); });
 
             // we can't really do this because the file is still open
             // store.regionmgr.disposeRegionAddr(unpackRegionAddr(data.data)); 

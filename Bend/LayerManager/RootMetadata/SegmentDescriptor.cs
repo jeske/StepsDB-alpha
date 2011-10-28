@@ -41,8 +41,8 @@ namespace Bend {
             {
                 var testkey = new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS");
                 if (start_key.Equals(testkey)) {
-                    System.Console.WriteLine("%%%%%% GEN started with numgenerations ..." + this);
-                    System.Console.WriteLine(WhoCalls.StackTrace());
+                    System.Console.WriteLine("%%%%%% Error: SegmentDescriptor started with numgenerations ..." + this);
+                    System.Console.WriteLine("%%%%%% " + WhoCalls.StackTrace());
                 }
             }
 
@@ -82,7 +82,7 @@ namespace Bend {
         }
         #endregion
 
-        public int CompareTo(SegmentDescriptor target) {
+        public int CompareTo_OLD(SegmentDescriptor target) {
             int cmpvalue = this.generation.CompareTo(target.generation);
             if (cmpvalue != 0) { 
                 return cmpvalue; 
@@ -94,6 +94,10 @@ namespace Bend {
                     return this.end_key.CompareTo(target.end_key);
                 }
             }
+        }
+
+        public int CompareTo(SegmentDescriptor target) {
+            return this.record_key.CompareTo(target.record_key);
         }
 
         public bool keyrangeOverlapsWith(SegmentDescriptor target) {
