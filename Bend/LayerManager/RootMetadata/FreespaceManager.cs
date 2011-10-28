@@ -223,9 +223,12 @@ namespace Bend
             //     be moved from pending to actually free.
 
             LayerManager.WriteGroup fwg = this.store.newWriteGroup(LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
-
-            tx.mylayer.regionmgr.notifyRegionSafeToFree(segment_extent.start_addr,
-                delegate(long addr) { this.handleRegionSafeToFree(addr,segment_extent, fwg); });
+            
+            // we don't want to ask for the notification until the write-group freeing this segment is finished
+            tx.addCompletion(delegate() {
+                tx.mylayer.regionmgr.notifyRegionSafeToFree(segment_extent.start_addr,
+                    delegate(long addr) { this.handleRegionSafeToFree(addr, segment_extent, fwg); });
+            });
                     
         }
 
