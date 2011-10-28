@@ -11,5 +11,8 @@ Misc/*/*/obj/*
 Misc/*/*/bin/*
 Misc/*/*/*/obj/*
 Misc/*/*/*/bin/*
+# ignore visual studio files
+*VisualState.xml
 *.suo
 *.user
+TestResult.xml
