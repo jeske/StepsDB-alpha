@@ -2,9 +2,10 @@
 
 ****[ High Level TODO ]***
 
+- add log recirculation scheme!! 
+
 - freelist management	
-  
-  - figure out why we collide with a still open block eventually 
+
   - add LENGTH to all regionmanager calls, remove the file-length hack
             
   - assure merge-apply/flush is atomic WRT cursor setup
