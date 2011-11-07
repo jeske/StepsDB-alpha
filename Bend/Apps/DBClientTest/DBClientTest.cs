@@ -13,13 +13,18 @@ namespace Bend.DBClientTest {
         
         static void Main(string[] args) {
 
-            // document_db_test();
+            document_db_test();
+
+            System.GC.Collect();
 
             snapshot_test();
         }
 
 
         static void document_db_test() {
+
+            Console.WriteLine("======================= Document DB Test ==============================");
+
             LayerManager raw_db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\main");
             StepsDatabase db_broker = new StepsDatabase(raw_db);
 
@@ -75,6 +80,8 @@ namespace Bend.DBClientTest {
         }
 
         static void snapshot_test() {
+            Console.WriteLine("======================= Snapshot DB Test ==============================");
+
             LayerManager raw_db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\main");
             StepsDatabase db_broker = new StepsDatabase(raw_db);
 

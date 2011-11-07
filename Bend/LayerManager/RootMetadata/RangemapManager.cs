@@ -22,7 +22,6 @@ using System.Diagnostics;
 using System.Reflection; // for SegmentWalkStats reflective printing
 
 
-
 namespace Bend
 {
 
@@ -44,6 +43,8 @@ namespace Bend
         int num_generations_persisted;
         public static int GEN_LSD_PAD = 3;
 
+        public static int RANGEMAP_SEGMENT_CACHE_SIZE=10;
+
         public static String altdebug_pad = "                                          --";
 
         // TODO: FIXME: this is a hacky cache... the segmentreaders sitting inside
@@ -61,7 +62,7 @@ namespace Bend
 
         public RangemapManager(LayerManager store) {
             this.store = store;            
-            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(20);
+            disk_segment_cache = new LRUCache<RecordKey, SegmentReader>(RANGEMAP_SEGMENT_CACHE_SIZE);
 
             // get the current number of generations
             RecordUpdate update;

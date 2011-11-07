@@ -23,12 +23,14 @@ namespace Bend {
 
         LRUCache<long, WeakReference<EFRegion>> region_cache;
 
+        public static int REGION_CACHE_SIZE = 20;
+
         public class RegionMissingException : Exception {
             public RegionMissingException(String msg) : base(msg) { }
         }
         public RegionExposedFiles(String location) {
             this.dir_path = location;
-            region_cache = new LRUCache<long, WeakReference<EFRegion>>(20);
+            region_cache = new LRUCache<long, WeakReference<EFRegion>>(REGION_CACHE_SIZE);
         }
 
         // first time init        
@@ -76,6 +78,8 @@ namespace Bend {
             Dictionary<int, WeakReference<Stream>> my_streams;
             LRUCache<int, byte[]> subblock_cache;
 
+            public static int EFREGION_SUBBLOCK_CACHE_SIZE = 10; // sub-blocks **per region** to cache, TODO: should this even exist?
+
 
             // -------------
 
@@ -85,7 +89,7 @@ namespace Bend {
                 this.mode = mode;
                 this.filepath = filepath;
                 my_streams = new Dictionary<int, WeakReference<Stream>>();
-                subblock_cache = new LRUCache<int, byte[]>(20);
+                subblock_cache = new LRUCache<int, byte[]>(EFREGION_SUBBLOCK_CACHE_SIZE);
 
             }
 
