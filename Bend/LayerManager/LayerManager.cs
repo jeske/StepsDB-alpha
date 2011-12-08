@@ -150,6 +150,12 @@ namespace Bend
             CHECKPOINT_DROP = 2   // says it's okay to drop everything up to the previous CHECKPOINT_START
         }
 
+
+        public long workingSegmentSize() {
+            return this.segmentlayers[0].approx_size;
+
+        }
+
         public class LayerMaintenanceThread {
             WeakReference<LayerManager> db_wr;    // we use a weakref so the db can still be collected while the thread is active 
             bool keepRunning = true;
@@ -183,7 +189,7 @@ namespace Bend
                         // (1) check the working segment size vs threshold, flush if necessary         
                         lock (db.segmentlayers) {
                             // TODO: this currently does not account for compression, which could make it off by orders of magnitude
-                            if (db.segmentlayers[0].approx_size > db.SEGMENT_BLOCKSIZE * 15) {
+                            if (db.workingSegmentSize() > db.SEGMENT_BLOCKSIZE * 15) {
                                 needFlush = true;
                             }
                         }

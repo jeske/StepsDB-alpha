@@ -31,6 +31,11 @@
       (done) address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
   
 
+
+- xml config file handling
+  - DTD validation - http://support.microsoft.com/kb/307379
+  - "example config" generation
+
 - paxos experimentation
 - distributed DB
 
