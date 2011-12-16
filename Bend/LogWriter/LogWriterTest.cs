@@ -18,11 +18,12 @@ namespace BendTests
     {
         [Test]
         public void T00_LogInit() {
-
+            int system_reserved_space;
 
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\1");  // TODO, create random directory
             {
-                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr, null);
+                
+                LogWriter lr = LogWriter.LogWriter_NewRegion(rmgr, null, out system_reserved_space);                    
                 lr.Dispose();
             }
 
@@ -57,28 +58,22 @@ namespace BendTests
         class TestForceCheckpointException : Exception { } 
         class TestReceiver : ILogReceiver
         {            
-            public List<cmdstruct> cmds;
+            public List<LogCmd> cmds;
 
             public TestReceiver() {
-                cmds = new List<cmdstruct>();
-            }
-
-            public struct cmdstruct
-            {
-                public byte cmd;
-                public byte[] cmdbytes;
-            }
+                cmds = new List<LogCmd>();
+            }            
             
-            public void handleCommand(byte cmd, byte[] cmdbytes) {
-                cmdstruct newcmd = new cmdstruct();
+            public void handleCommand(LogCommands cmd, byte[] cmdbytes) {
+                LogCmd newcmd = new LogCmd();
                 newcmd.cmd = cmd;
-                newcmd.cmdbytes = cmdbytes;
+                newcmd.cmddata = cmdbytes;
                 
                 // accumulate the command
                 this.cmds.Add(newcmd);
             }
 
-            public void forceCheckpoint() {
+            public void requestLogExtension() {
                 throw new TestForceCheckpointException();
             }
 
@@ -91,17 +86,17 @@ namespace BendTests
         public void T00_ResumeEmpty() {
             T00_LogInit();
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\1");
-            TestReceiver receiver = new TestReceiver();
-            LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
+            TestReceiver receiver = new TestReceiver();            
+            LogWriter lr = LogWriter.LogWriter_Resume(rmgr, receiver);
                         
             Assert.AreEqual(receiver.cmds.Count, 0, "there should be no log records");
         }
 
         public class DummyLogReceiver : ILogReceiver {
-            public void handleCommand(byte cmd, byte[] cmddata) {
+            public void handleCommand(LogCommands cmd, byte[] cmddata) {
                 // do nothing! 
             }
-            public void forceCheckpoint() {
+            public void requestLogExtension() {
                 // do nothing! 
             }
             public void logStatusChange(long logUsedBytes, long logFreeBytes) {
@@ -113,15 +108,14 @@ namespace BendTests
         [Test]
         public void T00_ResumeWithRecords() {
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\2");
-
-            byte cmd = 0x01;
+            
             byte[] cmddata = { 0x81, 0x82, 0x83 };
             const int NUM_COMMANDS = 3;
 
             // make a new empty log
             {
-
-                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr, new DummyLogReceiver());
+                int system_reserved_space;
+                LogWriter lr = LogWriter.LogWriter_NewRegion(rmgr, new DummyLogReceiver(), out system_reserved_space);
                 lr.log_handler.setDebugLogSegments();
 
                 Assert.AreEqual(1, lr.log_handler.activeLogSegments, "one active log segment");
@@ -129,73 +123,167 @@ namespace BendTests
                 // add NUM_COMMANDS records to the log
                 long logWaitNumber;
                 for (int i=0;i<NUM_COMMANDS;i++) {
-                    lr.addCommand(cmd, cmddata, out logWaitNumber);
+                    lr.addCommand(LogCommands.UPDATE, cmddata, out logWaitNumber);
                     lr.flushPendingCommands();
+
+                    printLogStatus(lr, String.Format("addCommand iteration {0}", i));
                 }                
                 lr.Dispose();
             }
             // reinit and resume from the log
             {
-                TestReceiver receiver = new TestReceiver();
-                LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
+                TestReceiver receiver = new TestReceiver();                
+                LogWriter lr = LogWriter.LogWriter_Resume(rmgr, receiver);
 
-                Assert.AreEqual(lr.log_handler.activeLogSegments, NUM_COMMANDS, "should be NUM_COMMANDS log segments");
-                Assert.AreEqual(receiver.cmds.Count, NUM_COMMANDS, "number of log records incorrect");
-                Assert.AreEqual(receiver.cmds[0].cmd, cmd, "cmdbyte should match");
-                Assert.AreEqual(receiver.cmds[0].cmdbytes, cmddata, "cmddata should match");
+                Assert.AreEqual(NUM_COMMANDS, lr.log_handler.activeLogSegments, "should be NUM_COMMANDS log segments");
+                Assert.AreEqual(NUM_COMMANDS, receiver.cmds.Count, "number of log records incorrect");
+                Assert.AreEqual(LogCommands.UPDATE, receiver.cmds[0].cmd, "cmdbyte should match");
+                Assert.AreEqual(cmddata, receiver.cmds[0].cmddata, "cmddata should match");
                 lr.Dispose();
             }
             // assert the log had the records
         }
 
 
+        private void printLogStatus(LogWriter lw, string status) {
+            LogSegmentsHandler lsh = lw.log_handler;
+            Console.WriteLine("---- Log Segments {0} used, {1} free --- [{2}]", 
+                lsh.activeLogSegments, lsh.emptyLogSegments, status);
+        }
 
         [Test]
         public void T01_LogCheckpoint() {
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\2");
-
-            byte cmd = 0x01;
+            
             byte[] cmddata = { 0x81, 0x82, 0x83 };
+            long logWaitNumber; 
 
             {
                 // make a new empty log
-                TestReceiver receiver = new TestReceiver();
-                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr, receiver);
+                TestReceiver receiver = new TestReceiver();     
+                int system_reserved_space;
+                LogWriter lr = LogWriter.LogWriter_NewRegion(rmgr, receiver, out system_reserved_space);
                 lr.log_handler.setDebugLogSegments(); // force one command per log segment
 
                 // find out how many empty segments there are...
                 int emptySegments = lr.log_handler.emptyLogSegments;
 
                 // add a command to fill up the log segments..
-                long logWaitNumber = 0;
+                
                 for (int i = 0; i < emptySegments; i++) {
-                    lr.addCommand(cmd, cmddata, out logWaitNumber);
-                    lr.flushPendingCommands();
+                    lr.addCommand(LogCommands.UPDATE, cmddata, out logWaitNumber);
+                    lr.flushPendingCommandsThrough(logWaitNumber);
+                    printLogStatus(lr, String.Format("filling empty segments {0}",i));
                 }
                 Assert.AreEqual(1, lr.log_handler.emptyLogSegments, "should be no empty log segments");
 
+                printLogStatus(lr, "log almost full");
+
                 // now checkpoint the log
-
-
-
+                lr.checkpointStart();
+                                    
+                lr.checkpointDrop(out logWaitNumber);
+                lr.flushPendingCommandsThrough(logWaitNumber);
+                                
+                Assert.LessOrEqual(2, lr.log_handler.activeLogSegments, "should have only <= 2 active log segments");
+                printLogStatus(lr, "log checkpoint complete");
 
                 lr.Dispose();
             }
         }
-    
+
+        [Test]
+
+        public void T02_LogCheckpointResumeOrder() {
+            IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\2");
+
+            byte[] cmddata = { 0x00 };
+            int timestamp = 5;
+            long logWaitNumber;
+
+            {
+                // make a new empty log
+                TestReceiver receiver = new TestReceiver();
+                int system_reserved_space;
+                LogWriter lr = LogWriter.LogWriter_NewRegion(rmgr, receiver, out system_reserved_space);
+                lr.log_handler.setDebugLogSegments(); // force one command per log segment
+
+                // find out how many empty segments there are...
+                
+
+                // (1) add commands to fill up the log segments..
+                {
+                    int emptySegments = lr.log_handler.emptyLogSegments;
+                    for (int i = 0; i < emptySegments; i++) {
+                        cmddata[0] = (byte)timestamp;
+                        timestamp++;
+                        lr.addCommand(LogCommands.UPDATE, cmddata, out logWaitNumber);
+                        lr.flushPendingCommandsThrough(logWaitNumber);
+                        printLogStatus(lr, String.Format("filling empty segments {0}", i));
+                    }
+                    Assert.AreEqual(1, lr.log_handler.emptyLogSegments, "should be no empty log segments 1");
+
+                    printLogStatus(lr, "log almost full");
+                }
+
+                // (2) checkpoint the log
+                {
+                    lr.checkpointStart();
+
+                    lr.checkpointDrop(out logWaitNumber);
+                    lr.flushPendingCommandsThrough(logWaitNumber);
+
+                    Assert.LessOrEqual(1, lr.log_handler.activeLogSegments, "should have only <= 2 active log segments");
+                    printLogStatus(lr, "log checkpoint complete");
+                }
+
+                // (3) add commands to fill newly free log segments 
+                {
+                    int emptySegments = lr.log_handler.emptyLogSegments;
+                    for (int i = 0; i < emptySegments; i++) {
+                        cmddata[0] = (byte)timestamp;
+                        timestamp++;
+                        lr.addCommand(LogCommands.UPDATE, cmddata, out logWaitNumber);
+                        lr.flushPendingCommandsThrough(logWaitNumber);
+                        printLogStatus(lr, String.Format("filling empty segments {0}", i));
+                    }
+                    Assert.LessOrEqual(lr.log_handler.emptyLogSegments, 1, "should be no empty log segments 2");
+                    printLogStatus(lr, "log almost full 2");
+                }
+
+                // (4) shutdown
+                lr.Dispose();
+            }
+
+
+            // (5) now resume, make sure we resume in order
+            {
+                TestReceiver receiver = new TestReceiver();
+                LogWriter lr = LogWriter.LogWriter_Resume(rmgr, receiver);
+
+                int cur = 0;
+                foreach (var cmd in receiver.cmds) {
+                    Console.WriteLine("Resume Record : {0}", cmd.cmddata[0]);
+                    Assert.Greater(cmd.cmddata[0], cur, "order should be increasing");
+                    cur = cmd.cmddata[0];
+                }
+            }
+
+
+        }
 
 
         [Test]
-        public void T02_OverflowLog() {
+        public void T01_OverflowLog() {
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\2");
-
-            byte cmd = 0x01;
-            byte[] cmddata = { 0x81, 0x82, 0x83 };
+            
+            byte[] cmddata = { 0x00 };
                         
             {
                 // make a new empty log
                 TestReceiver receiver = new TestReceiver();
-                LogWriter lr = new LogWriter(InitMode.NEW_REGION, rmgr, receiver);
+                int system_reserved_space;
+                LogWriter lr = LogWriter.LogWriter_NewRegion(rmgr, receiver, out system_reserved_space);
                 lr.log_handler.setDebugLogSegments(); // force one command per log segment
 
                 // find out how many empty segments there are...
@@ -204,21 +292,19 @@ namespace BendTests
                 // add a command to fill up the log segments..
                 long logWaitNumber = 0;
                 for (int i = 0; i <= emptySegments; i++) {
-                    lr.addCommand(cmd, cmddata, out logWaitNumber);
+                    lr.addCommand(LogCommands.UPDATE, cmddata, out logWaitNumber);
                     lr.flushPendingCommands();
                 }
                 Assert.AreEqual(0, lr.log_handler.emptyLogSegments, "should be no empty log segments");
 
+                // now add another command.. which should overflow the log segments and send us the log-extend request
 
-                // now add another command.. which should overflow the log segments
-                bool caught_expected_exception = false;
-                try {
-                    lr.addCommand(cmd, cmddata, out logWaitNumber);
-                    lr.flushPendingCommands();
-                } catch (TestForceCheckpointException) {
-                    caught_expected_exception = true;
-                }
-                Assert.AreEqual(true, caught_expected_exception, "logwriter overflow didn't force a checkpoint");
+                // make sure a write attempt blocks (or fails)
+
+                // make sure a log-extend still succeeds.
+
+
+                Assert.Fail("test not finished");
 
                 lr.Dispose();
             }            

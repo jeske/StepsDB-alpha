@@ -24,9 +24,9 @@ namespace BendTests
         public void T000_EmptyLayerInitAndResume() {
             LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\3");
 
-            Assert.AreEqual(1, db.segmentlayers.Count);
-            Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
-            Assert.AreEqual(1, db.workingSegment.RowCount); // expecting only the boostrap NUMGENERATIONS record
+            Assert.AreEqual(1, db.segmentlayers.Count, "should be one memory segment layer");
+            Assert.AreEqual(db.segmentlayers[0], db.workingSegment, "the working segment should be the same as the memory segment layer");
+            Assert.AreEqual(2, db.workingSegment.RowCount, "should be one row"); // expecting only the boostrap NUMGENERATIONS and FREELIST/HEAD records
 
             // TEST: log is empty
             // TEST: freespace record established!
@@ -200,13 +200,13 @@ namespace BendTests
                 // TODO: assure the freespace hasn't been affected
 
                 // assure we have not committed any segments
-                Assert.AreEqual(1, db.segmentlayers.Count);
-                Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
+                Assert.AreEqual(1, db.segmentlayers.Count, "shold be one memory segment");
+                Assert.AreEqual(db.segmentlayers[0], db.workingSegment, "memory segment should be the working segment");
 
                 // assure the working segment contains the right data
-                // 3 test records, and the NUMGENERATIONS record 
+                // 3 test records,  the NUMGENERATIONS record, and FREELIST/HEAD
                 // TODO: make a more robust way to do this test (i.e. count non .ROOT records)
-                Assert.AreEqual(4, db.workingSegment.RowCount);
+                Assert.AreEqual(5, db.workingSegment.RowCount, "record count match 1");
                 db.Dispose();
             }
 
@@ -215,11 +215,11 @@ namespace BendTests
                 System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
                 // assure we still have not committed any segments
-                Assert.AreEqual(1, db.segmentlayers.Count);
-                Assert.AreEqual(db.segmentlayers[0], db.workingSegment);
+                Assert.AreEqual(1, db.segmentlayers.Count, "after resume: one memory segment");
+                Assert.AreEqual(db.segmentlayers[0], db.workingSegment, "after resume: working segment setup");
 
                 // assure the working segment contains the right data
-                Assert.AreEqual(4, db.workingSegment.RowCount);
+                Assert.AreEqual(5, db.workingSegment.RowCount, "after resume: record count == 5");
                 for (int i = 0; i < keys.Length; i++) {
                     RecordKey key = new RecordKey();
                     key.appendKeyPart(new RecordKeyType_String(keys[i]));

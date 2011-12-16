@@ -105,10 +105,11 @@ namespace Bend {
         }
 
         internal void checkpointDrop() {
-            mylayer.logwriter.checkpointDrop(0);
+            long logWaitNumber;
+            mylayer.logwriter.checkpointDrop(out logWaitNumber);
         }
 
-        private void addCommand(byte cmd, byte[] cmddata) {
+        private void addCommand(LogCommands cmd, byte[] cmddata) {
             if (this.type == WriteGroupType.DISK_INCREMENTAL) {
                 // if we are allowed to add each write to the disk log, then do it now
                 mylayer.logwriter.addCommand(cmd, cmddata, out this.last_logwaitnumber);

@@ -12,13 +12,6 @@ using System.Threading;
 
 namespace Bend
 {
-    public interface ILogReceiver
-    {
-        void handleCommand(byte cmd, byte[] cmddata);
-        void forceCheckpoint();
-        void logStatusChange(long usedLogBytes, long freeLogBytes);
-    }
-
     // ---------------------------------------------------------
     // The on-disk layout is initialized as:
     // 
@@ -79,9 +72,9 @@ namespace Bend
 
     
     public struct LogCmd {
-        public byte cmd;
+        public LogCommands cmd;
         public byte[] cmddata;
-        public LogCmd(byte cmd, byte[] cmddata) {
+        public LogCmd(LogCommands cmd, byte[] cmddata) {
             this.cmd = cmd;
             this.cmddata = cmddata;
         }
@@ -105,14 +98,14 @@ namespace Bend
 
         public LogSegmentsHandler log_handler; 
         
-        BinaryWriter nextChunkBuffer;
+        
         public ILogReceiver receiver;
+        IRegionManager regionmgr;
 
         AutoResetEvent groupCommitWorkerHndl;
         ManualResetEvent groupCommitRequestorsHndl;
         Thread commitThread;
-        bool commitThread_should_die = false;
-        long logWaitSequenceNumber = 1; // this must never be zero
+        bool commitThread_should_die = false;        
         long finishedLWSN = 0; 
         DateTime firstWaiter, lastWaiter;
         int numWaiters = 0;
@@ -123,9 +116,8 @@ namespace Bend
         public static uint DEFAULT_LOG_SEGMENTS = 5;  // 2MB * 5 => 10MB
 
 
-        public LogWriter() {                   
-            nextChunkBuffer = new BinaryWriter(new MemoryStream());
-
+        public LogWriter(IRegionManager regionmgr) {
+            this.regionmgr = regionmgr;     
             groupCommitWorkerHndl = new AutoResetEvent(false);
             groupCommitRequestorsHndl = new ManualResetEvent(false);
 
@@ -136,30 +128,30 @@ namespace Bend
             }
         }
 
-                // standard open/resume
-        public LogWriter(InitMode mode, IRegionManager regionmgr, ILogReceiver receiver)
-            : this() {
-            this.receiver = receiver;
+        // standard open/resume
+        public static LogWriter LogWriter_Resume(IRegionManager regionmgr, ILogReceiver receiver) {
+            LogWriter lw = new LogWriter(regionmgr);
+            lw.receiver = receiver;
+            lw._InitResume(regionmgr);
 
-            switch (mode) {
-                case InitMode.NEW_REGION:
-                    LogWriter_NewRegion(regionmgr);
-                    LogWriter_Resume(regionmgr);   // need to setup the logsegmenthandler
-                    break;
-                case InitMode.RESUME:
-                    LogWriter_Resume(regionmgr);
-                    break;
-                default:
-                    throw new Exception("unknown init mode: " + mode);                    
-            }
+            lw.log_handler.prepareLog();
+            return lw;
+        }
 
-            log_handler.prepareLog(); // prepare log for accepting writes
+        public static LogWriter LogWriter_NewRegion(IRegionManager regionmgr, ILogReceiver receiver, out int system_reserved_space) {
+            LogWriter lw = new LogWriter(regionmgr);
+            lw.receiver = receiver;
+            lw._InitNewRegion(regionmgr, out system_reserved_space);
+            lw._InitResume(regionmgr);
+
+            lw.log_handler.prepareLog();
+
+            return lw;
         }
 
 
-
         // special "init" of a region
-        private void LogWriter_NewRegion(IRegionManager regionmgr) { 
+        private void _InitNewRegion(IRegionManager regionmgr, out int system_reserved_space) { 
             // test to see if there is already a root record there
             {
                 try {
@@ -181,14 +173,14 @@ namespace Bend
             // (1) initialize the log segments...
             RootBlockLogSegment[] log_segments = new RootBlockLogSegment[LogWriter.DEFAULT_LOG_SEGMENTS];
 
-            uint alloc_address = RootBlockHeader.ROOTBLOCK_SIZE;
+            uint nextFreeAddress = RootBlockHeader.ROOTBLOCK_SIZE;
             for (int i=0;i<log_segments.Length;i++) {
 
                 // calculate the segment start and length
                 log_segments[i].logsegment_size = LogWriter.DEFAULT_LOG_SEGMENT_SIZE;
-                log_segments[i].logsegment_start = alloc_address;
+                log_segments[i].logsegment_start = nextFreeAddress;
 
-                alloc_address += LogWriter.DEFAULT_LOG_SEGMENT_SIZE;
+                nextFreeAddress += LogWriter.DEFAULT_LOG_SEGMENT_SIZE;
 
                 // open the segment 
                 Stream logstream = regionmgr.writeFreshRegionAddr(log_segments[i].logsegment_start, log_segments[i].logsegment_size).getNewAccessStream();
@@ -221,9 +213,11 @@ namespace Bend
             rootblockstream.Write(root_block_data,0,root_block_data.Length);            
             rootblockstream.Flush();
             rootblockstream.Close(); // must close the stream so resume can operate
+
+            system_reserved_space = (int)nextFreeAddress;
         }
 
-        private void LogWriter_Resume(IRegionManager regionmgr) {
+        private void _InitResume(IRegionManager regionmgr) {
             this.rootblockstream = regionmgr.readRegionAddr(0).getNewAccessStream();
             root = Util.readStruct<RootBlockHeader>(rootblockstream);
             if (!root.IsValid()) {
@@ -247,29 +241,25 @@ namespace Bend
         public int checkpointStart() {
             long logWaitNumber=0;
             byte[] emptydata = new byte[0];
-            this.addCommand((byte)LogCommands.CHECKPOINT_START, emptydata, out logWaitNumber);
+            this.addCommand(LogCommands.CHECKPOINT_START, emptydata, out logWaitNumber);
             return 1; // checkpoint ID 
         }
 
-        public void checkpointDrop(int checkpointID) {
-            long logWaitNumber;
+        public void checkpointDrop(out long logWaitNumber) {            
             byte[] emptydata = new byte[0];
-            this.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata, out logWaitNumber);
-        }
+            this.addCommand(LogCommands.CHECKPOINT_DROP, emptydata, out logWaitNumber);
+        }        
 
 
         // --- basic add commands ---
 
-        public void addCommand_NoLog(byte cmdtype, byte[] cmdbytes) {
+        public void addCommand_NoLog(LogCommands cmdtype, byte[] cmdbytes) {
             receiver.handleCommand(cmdtype, cmdbytes);
         }
 
-        public void addCommand(byte cmdtype, byte[] cmdbytes, out long logWaitNumber) {
-            lock (this) {
-                nextChunkBuffer.Write((UInt32)cmdbytes.Length);
-                nextChunkBuffer.Write((byte)cmdtype);
-                nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
-                logWaitNumber = this.logWaitSequenceNumber;
+        public void addCommand(LogCommands cmdtype, byte[] cmdbytes, out long logWaitNumber) {
+            lock (log_handler) {
+                log_handler._addCommand(cmdtype, cmdbytes, out logWaitNumber);
             }
             // we always expect the ILogReceiver to actually apply the command
             receiver.handleCommand(cmdtype, cmdbytes);
@@ -278,19 +268,16 @@ namespace Bend
         public void addCommands(List<LogCmd> cmds, ref long logWaitNumber) {
             // TODO: make this atomically add ALL the log commands at once, not
             //  one by one! 
-            lock (this) {
+            lock (log_handler) {
                 foreach (var log_entry in cmds) {
                     this.addCommand(log_entry.cmd, log_entry.cmddata, out logWaitNumber);
                 }
             }
         }
 
-
         public void flushPendingCommands() {
-            long waitForLWSN;
-            lock (this) {
-                waitForLWSN = this.logWaitSequenceNumber;
-            }
+            long waitForLWSN = log_handler.logWaitSequenceNumber;
+            
             flushPendingCommandsThrough(waitForLWSN);
         }
 
@@ -347,60 +334,38 @@ namespace Bend
         private void _doWritePendingCmds() {
             int groupSize;
             double groupDuration;
-            byte[] cmds;
-            long curLWSN;
-            DateTime curFirstWaiter;
-            BinaryWriter newChunkBuffer = new BinaryWriter(new MemoryStream());
-            ManualResetEvent wakeUpThreads;
+            
+            DateTime curFirstWaiter;            
+            ManualResetEvent wakeUpThreads = null;
 
-            lock (this) {                
-                // grab the current chunkbuffer
-                cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
-                curLWSN = this.logWaitSequenceNumber;
-                groupSize = numWaiters;
-                curFirstWaiter = firstWaiter;
+            groupSize = numWaiters;
+            curFirstWaiter = firstWaiter;
 
+
+            finishedLWSN = log_handler.flushPending(delegate() {
                 // grab the monitor handle
                 wakeUpThreads = this.groupCommitRequestorsHndl;
                 this.groupCommitRequestorsHndl = new ManualResetEvent(false);
 
-                // make a clean chunkbuffer
-                this.logWaitSequenceNumber++; // increment the wait sequence number
-                nextChunkBuffer = newChunkBuffer;
                 numWaiters = 0;
                 firstWaiter = DateTime.MinValue;
-            }
-
-            // construct the raw log packet
-            if (cmds.Length != 0) {
-                UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
-
-                MemoryStream ms = new MemoryStream();
-                BinaryWriter logbr = new BinaryWriter(ms);
-                logbr.Write((UInt32)LOG_MAGIC);
-                logbr.Write((UInt32)cmds.Length);
-                logbr.Write((UInt16)checksum);
-                logbr.Write(cmds);
-                logbr.Flush();
-
-                // hand the log packet to the log segment handler
-                this.log_handler.addLogPacket(ms.ToArray());
-            }
+            });
                 
             // reset the group commit waiting machinery
-            {                
-                finishedLWSN = curLWSN;
+            if (wakeUpThreads != null) {
                 groupDuration = (DateTime.Now - curFirstWaiter).TotalMilliseconds;
                 wakeUpThreads.Set();
-                
+            } else {
+                throw new Exception("flushPending callback failed to execute!");
             }
-        
-            //if (groupSize > 2) {
-            //    System.Console.WriteLine("group commit {0}, longest wait {1} ms", 
-            //        groupSize, groupDuration);
-            //}
 
-        
+#if false        
+            // debug output.... 
+            if (groupSize > 2) {
+                System.Console.WriteLine("group commit {0}, longest wait {1} ms", 
+                    groupSize, groupDuration);
+            }
+#endif
         }
 
 

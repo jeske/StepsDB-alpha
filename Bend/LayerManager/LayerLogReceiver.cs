@@ -13,7 +13,7 @@ namespace Bend {
             this.mylayer = mylayer;
             checkpointSegment = null;
         }
-        public void forceCheckpoint() {
+        public void requestLogExtension() {
             throw new NotImplementedException();
         }
 
@@ -27,8 +27,8 @@ namespace Bend {
             }
         }
 
-        public void handleCommand(byte cmd, byte[] cmddata) {
-            if (cmd == (byte)LogCommands.UPDATE) {
+        public void handleCommand(LogCommands cmd, byte[] cmddata) {
+            if (cmd == LogCommands.UPDATE) {
                 // decode basic block key/value writes
                 BlockAccessor ba = new BlockAccessor(cmddata);
                 ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
@@ -49,7 +49,7 @@ namespace Bend {
                         mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
                     }
                 }
-            } else if (cmd == (byte)LogCommands.CHECKPOINT_START) {
+            } else if (cmd == LogCommands.CHECKPOINT_START) {
                 // here we move aside the checkpoint segment... 
                 //   - if this is during live operation, the checkpoint is running as soon as we return.
                 //   - if this is during recovery, there is no checkpoint running and we'll need to 
@@ -61,7 +61,7 @@ namespace Bend {
                     mylayer.workingSegment = newsegment;
                     mylayer.segmentlayers.Insert(0, mylayer.workingSegment);
                 }
-            } else if (cmd == (byte)LogCommands.CHECKPOINT_DROP) {
+            } else if (cmd == LogCommands.CHECKPOINT_DROP) {
                 // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
                 if (checkpointSegment != null) {
                     lock (mylayer.segmentlayers) {

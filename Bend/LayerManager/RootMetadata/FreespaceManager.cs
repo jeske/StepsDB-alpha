@@ -91,24 +91,33 @@ namespace Bend
         RecordKey pending_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/PENDING");
         RecordKey freelist_prefix = new RecordKey().appendParsedKey(".ROOT/FREELIST/EXTENTS");
 
-        public FreespaceManager(LayerManager store) {
+        public FreespaceManager(LayerManager store, int init_freelist = 0) {
             this.store = store;
-            // read the freelist and "index" into memory for now (TODO: use a real freelist)
-            RecordData data;
-            if (store.getRecord(new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD"), out data) == GetStatus.MISSING) {
-                
-                throw new Exception("no freelist head!");
 
-                // TODO: fix this init hack
-                // next_allocation = (int)(RootBlockHeader.ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
-
-
-                // this was a test to be able to start with big address numbers..
-                // next_allocation = 4294971392;
-                // next_allocation = 4294971392 - 8*1024*1024;
+            if (init_freelist != 0) {                
             } else {
-                next_allocation = Lsd.lsdToNumber(data.data);
+
+                RecordData data;
+                if (store.getRecord(new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD"), out data) == GetStatus.MISSING) {
+
+                    throw new Exception("no freelist head!");
+
+                    // TODO: fix this init hack
+                    // next_allocation = (int)(RootBlockHeader.ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
+
+                } else {
+                    next_allocation = Lsd.lsdToNumber(data.data);
+                }
             }
+        }
+
+        internal static void Init(LayerManager store, int firstAvailableAddress) {            
+            // this was a test to be able to start with big address numbers..
+            // firstAvailableAddress = 4294971392;
+            // firstAvailableAddress = 4294971392 - 8*1024*1024;
+
+            store.setValue(new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD"),
+                RecordUpdate.WithPayload(Lsd.numberToLsd(firstAvailableAddress, 13)));
         }
 
         public NewUnusedSegment allocateNewSegment(LayerWriteGroup tx, int length) {

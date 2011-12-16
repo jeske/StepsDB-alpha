@@ -71,19 +71,27 @@ namespace Bend
             : this() {
             this.dir_path = dir_path;
 
+
             if (mode == InitMode.NEW_REGION) {
                 // right now we only have one region type
                 regionmgr = new RegionExposedFiles(InitMode.NEW_REGION, dir_path);
 
-                // get our log online...
-                logwriter = new LogWriter(InitMode.NEW_REGION, regionmgr, receiver);
+                {
+                    // get our log online...
+                    int system_reserved_space = 0;
+                    logwriter = LogWriter.LogWriter_NewRegion(regionmgr, receiver, out system_reserved_space);
+
+                    // TODO: init the freespace! 
+                    FreespaceManager.Init(this, system_reserved_space);
+                }
+
 
                 // setup the initial numgenerations record
                 RangemapManager.Init(this);
-                // TODO: do something sane with initial freespace setup
+
             } else if (mode == InitMode.RESUME) {
-                regionmgr = new RegionExposedFiles(dir_path);                
-                logwriter = new LogWriter(InitMode.RESUME, regionmgr, receiver);
+                regionmgr = new RegionExposedFiles(dir_path);                                
+                logwriter = LogWriter.LogWriter_Resume(regionmgr, receiver);
             } else {
                 throw new Exception("unknown init mode");
             }
@@ -193,7 +201,7 @@ namespace Bend
                 return;
             }
 
-            LayerWriteGroup tx = new LayerWriteGroup(this, type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
+            
 
             lock (flushLock) {
                 Console.WriteLine("=====================================[ Flush Working Segment (Begin) ]=================================");
@@ -211,22 +219,27 @@ namespace Bend
                 // (2) grab the current working segment and move it aside (now the checkpoint segment)
 
                 lock (this.segmentlayers) {
+                    LayerWriteGroup start_tx = new LayerWriteGroup(this, type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
                     this.checkpointNumber++;
-                                                            
-                    // mark the place in the log that contains the previous data, and allocate a new working segment
-                    // this also sets aside the checkpointSegment
-                    checkpointSegment = tx.checkpointStart();
 
                     // get a handle to the current working segment                    
+                    checkpointSegment = workingSegment;
                     checkpoint_segment_size = checkpointSegment.RowCount;
 
+                    // mark the place in the log that contains the previous data, and allocate a new working segment
+                    // this also sets aside the checkpointSegment
+
+                    start_tx.checkpointStart();
 
                     // TODO: make sure it's not possible to lose a write in between here
                     //       maybe the log writer should be locked during this..
+
+                    start_tx.finish();
                 }
 
 
                 {
+                    LayerWriteGroup tx = new LayerWriteGroup(this, type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
                     // (3) write the checkpoint segment to disk, accumulating the rangemap entries into tx
                     
 

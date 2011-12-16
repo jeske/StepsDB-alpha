@@ -20,19 +20,8 @@ using System.Threading;
 // log-timestamps for the first record in the log, to determine the proper order of the log segments. Once
 // the proper order is established, recovery can process them in the proper order. 
 //
-// ??? A note about FORCED CHECKPOINTS: if the log ever actually runs out of space, it initiates a forcedCheckpoint
-// prototocol through ILogReceiver. This is required because of a tricky ordering problem with log entries.
-// At the time that the log runs out of space, there are pending entries trying to hit the log.
-// It is hard to reason about the validity of operations other than a CHECKPOINT, because they might require
-// log-entries to be committed which are only valid in the context of changes already pending flush to the log.
-// The records which commit a checkpoint are guaranteed to be valid, since they should make permanent any
-// pending changes stuck in the log (and thus pending changes can be thrown away once the forced checkpoint completes)
+// **I
 //
-// ??? Because of the cost of forced-checkpoints, it's really much better if they never happen, which is why the log 
-// notify's ILogReceiver when the amount of logspace is getting low so it can do a non-forced checkpoint 
-// before the log actually runs out of space. It's also important to consider that a checkpoint could be occuring
-// when the log runs out space. 
-
 // * LogSegmentsHandler : encapsulates the details of handling multiple separate log segments, including:
 //
 //   - fitting log command packets into the next suitable log segment
@@ -45,6 +34,7 @@ using System.Threading;
 //   - setup the current "log head" after recovery, to continue writing to the end
 //   - add log-timestamps to each log-packet so we can properly order log segments during recovery
 //   - add a log-checkpoint / rotation protocol 
+//   - FIX: recovery if we crash suring a checkpoint attempt (currently this is busted)
 
 namespace Bend {
 
@@ -52,8 +42,20 @@ namespace Bend {
         IRegionManager regionmgr;
         LogWriter logwriter;
 
+        BinaryWriter nextChunkBuffer;
+        private long _logWaitSequenceNumber = 1; // this must be recovered during recovery...
+
+        public long logWaitSequenceNumber {
+            get { return _logWaitSequenceNumber; }
+        }
+
+        public delegate void handleLogFlushUpkeep();
+
         List<RootBlockLogSegment> empty_log_segments = new List<RootBlockLogSegment>();
         List<RootBlockLogSegment> active_log_segments = new List<RootBlockLogSegment>();
+
+        List<RootBlockLogSegment> checkpoint_log_segments = null;
+        bool checkpointReady = false;
 
         Stream currentLogHeadStream;
         RootBlockLogSegment currentLogSegmentInfo;
@@ -68,6 +70,8 @@ namespace Bend {
         private bool debugLogSegments = false;
 
         public LogSegmentsHandler(LogWriter logwriter, IRegionManager regionmgr, RootBlockLogSegment[] segments) {
+            nextChunkBuffer = new BinaryWriter(new MemoryStream());
+
             this.regionmgr = regionmgr;
             this.logwriter = logwriter;
 
@@ -76,6 +80,48 @@ namespace Bend {
 
         public void setDebugLogSegments() {
             debugLogSegments = true;
+        }
+
+        private void _processCommand(LogCommands cmdtype, byte[] cmdbytes) {
+            if (cmdtype == LogCommands.CHECKPOINT_START) {
+                // (1) make sure there is no pending checkpoint
+                if (checkpoint_log_segments != null) {
+                    throw new Exception("can't process two checkpoints at once!");
+                }
+                // setup for the checkpoint..
+                checkpoint_log_segments = new List<RootBlockLogSegment>();
+                checkpointReady = false;
+
+                // (2) make a record of the "freeable" log segments
+                lock (this) {
+                    foreach (RootBlockLogSegment seg in active_log_segments) {
+                        // skip the currently active segment because we can only drop whole log segments                        
+                        if (!seg.Equals(currentLogSegmentInfo)) {
+                            checkpoint_log_segments.Add(seg);
+                        }
+                    }
+                }
+            }
+            // this happens in the lock to be sure the flag and the drop end up in the same packet
+            if (cmdtype == LogCommands.CHECKPOINT_DROP) {
+                // (1) match the checkpoint number against our current pending checkpoint info...
+                // (2) "drop" the old log segments by moving them to the pending-free-list
+                checkpointReady = true; // the actual flush will take care of the drop
+            }   
+
+
+        }
+
+        internal void _addCommand(LogCommands cmdtype, byte[] cmdbytes, out long logWaitNumber) {
+
+
+            lock (this) {
+                this._processCommand(cmdtype, cmdbytes);
+                nextChunkBuffer.Write((UInt32)cmdbytes.Length);
+                nextChunkBuffer.Write((byte)cmdtype);
+                nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
+                logWaitNumber = this._logWaitSequenceNumber;
+            }
         }
 
         private void _organizeLogSegments(RootBlockLogSegment[] segments) {
@@ -130,26 +176,27 @@ namespace Bend {
             // advance to the next empty log stream...
             if (empty_log_segments.Count == 0) {
                 // no more empty log segments!                 
-                this.logwriter.receiver.forceCheckpoint();
+                this.logwriter.receiver.requestLogExtension();
 
                 if (empty_log_segments.Count == 0) {
                     throw new Exception("forceCheckpoint() failed to free log segments");
                 }
             }
 
-            this.notifyLogStatus();            
+            this.notifyLogStatus();
 
             lock (this) {
                 currentLogSegmentInfo = empty_log_segments[0];
                 empty_log_segments.RemoveAt(0);
-                active_log_segments.Add(currentLogSegmentInfo);                
+                active_log_segments.Add(currentLogSegmentInfo);
             }
 
             // open the current log stream...
             currentLogHeadStream = regionmgr.writeExistingRegionAddr(currentLogSegmentInfo.logsegment_start).getNewAccessStream();
-
-            
-        }
+            if (currentLogHeadStream.Position != 0) {
+                throw new Exception(String.Format("advanced to non-start of segment! pos = {0}", currentLogHeadStream.Position));
+            }
+        }   
 
         private void notifyLogStatus() {
             long logUsedBytes = 0;
@@ -213,7 +260,7 @@ namespace Bend {
                         }
 
                         // construct the LogCmd yield result...
-                        yield return ( new LogCmd(cmdtype, cmdbytes) );      
+                        yield return ( new LogCmd((LogCommands)cmdtype, cmdbytes) );      
                   
                     }
                 } // ... while there are still log records
@@ -243,7 +290,7 @@ namespace Bend {
             _doLogEnd(new BinaryWriter(log));
         }
 
-        public void addLogPacket(byte[] logpacket) {
+        private void addLogPacket(byte[] logpacket) {
             if (currentLogHeadStream == null) {
                 throw new Exception("log is not ready for writes, call prepareLog() ! ");
             }
@@ -251,17 +298,16 @@ namespace Bend {
             // (1) if there is not room on the current log segment, skip to the next segment
             {
                 long pos = currentLogHeadStream.Position;
-                if ((pos + logpacket.Length + LOG_SEGMENT_RESERVE) > currentLogSegmentInfo.logsegment_size) {
-                    // too big to fit!  Advance the curreng log segment;
-                    this.advanceActiveLogSegment();
-                }
-
                 if (debugLogSegments) {
                     // this helps us debug log segments by only allowing a single log packet per segment
-                    
                     // TODO: change the tests to actually "fill" log segments, and remove this.
-                    
                     if (pos != 0) {
+                        this.advanceActiveLogSegment();
+                    }
+                } else {
+                    
+                    if ((pos + logpacket.Length + LOG_SEGMENT_RESERVE) > currentLogSegmentInfo.logsegment_size) {
+                        // too big to fit!  Advance the curreng log segment;
                         this.advanceActiveLogSegment();
                     }
                 }
@@ -270,9 +316,7 @@ namespace Bend {
             // (2) check to make sure it will fit in this segment
             {
                 long pos = currentLogHeadStream.Position;
-                if (pos != 0) {
-                    throw new Exception(String.Format("advanced to non-start of segment! pos = {0}", pos));
-                }
+             
                 if ((pos + logpacket.Length + LOG_END_MARKER_SIZE) > currentLogSegmentInfo.logsegment_size) {
                     // too big to fit in an empty segment! 
                     throw new Exception("log packet too big to fit in log segment!");
@@ -284,7 +328,57 @@ namespace Bend {
             BinaryWriter bw = new BinaryWriter(currentLogHeadStream);
             bw.Write(logpacket);
 
-            _doLogEnd(bw);
+            _doLogEnd(bw);            
+        }
+
+        internal long flushPending(handleLogFlushUpkeep locked_cleanup) {
+            byte[] cmds;
+            long curLWSN;
+            BinaryWriter newChunkBuffer = new BinaryWriter(new MemoryStream());
+            bool shouldCleanupCheckpoint;
+            
+            lock (this) {
+                shouldCleanupCheckpoint = checkpointReady;
+
+                // grab the current chunkbuffer
+                cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
+                curLWSN = _logWaitSequenceNumber;
+
+                // make a clean chunkbuffer
+                this._logWaitSequenceNumber++; // increment the wait sequence number
+                nextChunkBuffer = newChunkBuffer;
+
+                locked_cleanup();
+            }
+
+            // construct the raw log packet
+            if (cmds.Length != 0) {
+                UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
+
+                MemoryStream ms = new MemoryStream();
+                BinaryWriter logbr = new BinaryWriter(ms);
+                logbr.Write((UInt32)LogWriter.LOG_MAGIC);
+                logbr.Write((UInt32)cmds.Length);
+                logbr.Write((UInt16)checksum);
+                logbr.Write(cmds);
+                logbr.Flush();
+
+                // hand the log packet to the log segment handler
+                addLogPacket(ms.ToArray());
+            }
+
+            if (shouldCleanupCheckpoint) {
+                lock (this) {
+                    foreach (RootBlockLogSegment seg in checkpoint_log_segments) {
+                        active_log_segments.Remove(seg);
+                        empty_log_segments.Add(seg);
+                    }
+                    checkpointReady = false;
+                    checkpoint_log_segments = null;
+                }
+            }
+
+            return curLWSN;
         }
 
         public void Dispose() {
