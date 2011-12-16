@@ -12,9 +12,11 @@ using System.Threading;
 
 namespace Bend
 {
-    interface ILogReceiver
+    public interface ILogReceiver
     {
         void handleCommand(byte cmd, byte[] cmddata);
+        void forceCheckpoint();
+        void recommendCheckpoint();
     }
 
     // ---------------------------------------------------------
@@ -86,17 +88,25 @@ namespace Bend
     };
 
 
-    class LogWriter : IDisposable
+    // TODO: the log needs to understand CHECKPOINT_START and CHECKPOINT_DROP but it doesn't need to understand
+    //        other command types. How do we better encapsulate this?  
+    public enum LogCommands {
+        UPDATE = 0,
+        CHECKPOINT_START = 1,
+        CHECKPOINT_DROP = 2   // says it's okay to drop everything up to the previous CHECKPOINT_START
+    }
+
+    public class LogWriter : IDisposable
     {
         bool USE_GROUP_COMMIT_THREAD = false;
 
         RootBlockHeader root;
         Stream rootblockstream;
 
-        LogSegmentsHandler log_handler; 
+        public LogSegmentsHandler log_handler; 
         
         BinaryWriter nextChunkBuffer;
-        ILogReceiver receiver;
+        public ILogReceiver receiver;
 
         AutoResetEvent groupCommitWorkerHndl;
         ManualResetEvent groupCommitRequestorsHndl;
@@ -113,7 +123,7 @@ namespace Bend
         public static uint DEFAULT_LOG_SEGMENTS = 5;  // 2MB * 5 => 10MB
 
 
-        private LogWriter() {                   
+        public LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
 
             groupCommitWorkerHndl = new AutoResetEvent(false);
@@ -225,7 +235,7 @@ namespace Bend
             }
 
             // setup the log segment handler
-            this.log_handler = new LogSegmentsHandler(regionmgr, log_segments);
+            this.log_handler = new LogSegmentsHandler(this,regionmgr, log_segments);
 
             foreach (LogCmd cmd in log_handler.recoverLogCmds()) {
                  receiver.handleCommand(cmd.cmd, cmd.cmddata);     

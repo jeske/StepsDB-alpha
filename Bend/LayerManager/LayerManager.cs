@@ -46,6 +46,9 @@ namespace Bend
         public FreespaceManager freespacemgr;
 
         private LayerMaintenanceThread maint_worker;
+        
+        
+        private bool needCheckpointNow = false;
 
         LogWriter logwriter;
         Receiver receiver;
@@ -99,6 +102,14 @@ namespace Bend
                 this.mylayer = mylayer;
                 checkpointSegment = null;
             }
+            public void forceCheckpoint() {
+                throw new NotImplementedException();
+            }
+
+            public void recommendCheckpoint() {
+                mylayer.needCheckpointNow = true;
+            }
+
             public void handleCommand(byte cmd, byte[] cmddata) {
                 if (cmd == (byte)LogCommands.UPDATE) {
                     // decode basic block key/value writes
@@ -143,13 +154,6 @@ namespace Bend
             }
         }
 
-        enum LogCommands
-        {
-            UPDATE = 0,
-            CHECKPOINT_START = 1,
-            CHECKPOINT_DROP = 2   // says it's okay to drop everything up to the previous CHECKPOINT_START
-        }
-
 
         public long workingSegmentSize() {
             return this.segmentlayers[0].approx_size;
@@ -185,19 +189,24 @@ namespace Bend
                         return;
                     }
                     try {
-
-                        // (1) check the working segment size vs threshold, flush if necessary         
-                        lock (db.segmentlayers) {
-                            // TODO: this currently does not account for compression, which could make it off by orders of magnitude
-                            if (db.workingSegmentSize() > db.SEGMENT_BLOCKSIZE * 15) {
-                                needFlush = true;
+                        
+                        // (1) check if the log is running out of space...
+                        if (db.needCheckpointNow) {
+                            needFlush = true;
+                        } else {
+                            // (2) check the working segment size vs threshold, flush if necessary             
+                            lock (db.segmentlayers) {
+                                // TODO: this currently does not account for compression, which could make it off by orders of magnitude
+                                if (db.workingSegmentSize() > db.SEGMENT_BLOCKSIZE * 15) {
+                                    needFlush = true;
+                                }
                             }
                         }
                         if (needFlush) {
                             System.Console.WriteLine("************************ LayerMaintenanceThread did FLUSH");
                             db.flushWorkingSegment();
                         }
-                        // (2) check for merge
+                        // (3) check for merge
                         didMerge = db.mergeIfNeeded();
                         if (didMerge) {
                             System.Console.WriteLine("************************ LayerMaintenanceThread did MERGE");
