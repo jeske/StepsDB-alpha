@@ -57,11 +57,11 @@ namespace Bend
             return store.regionmgr.writeFreshRegionAddr(location.start_addr, location.length());
         }
 
-        public void mapSegment(LayerManager.WriteGroup tx, int use_gen, 
+        public void mapSegment(LayerWriteGroup tx, int use_gen, 
             RecordKey start_key, RecordKey end_key, IRegion reader) {
 
-            if (! (tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH ||
-                   tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH)) {
+            if (! (tx.type == LayerWriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH ||
+                   tx.type == LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH)) {
                        throw new Exception("NewUnusedSegment.mapSegment() must be provided an ATOMIC write group");
             } 
 
@@ -111,7 +111,7 @@ namespace Bend
             }
         }
 
-        public NewUnusedSegment allocateNewSegment(LayerManager.WriteGroup tx, int length) {
+        public NewUnusedSegment allocateNewSegment(LayerWriteGroup tx, int length) {
 
             // use one big nasty lock to prevent race conditions
             lock (this) {   
@@ -123,8 +123,8 @@ namespace Bend
 
                     if (extent.length() == length) {
                         // the extent is exactly the right size... make it pending
-                        LayerManager.WriteGroup makepending_wg =
-                            tx.mylayer.newWriteGroup(type: LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
+                        LayerWriteGroup makepending_wg =
+                            tx.mylayer.newWriteGroup(type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
 
                         // add a pending entry for this block
                         {
@@ -166,13 +166,13 @@ namespace Bend
 
         // grow the top "top of heap" 
         // .ROOT/FREELIST/HEAD -> "top of heap"
-        private NewUnusedSegment growHeap(LayerManager.WriteGroup tx, int length) {
+        private NewUnusedSegment growHeap(LayerWriteGroup tx, int length) {
             long new_addr;
             FreespaceExtent newblock_info;
 
             // make an atomic write-group to "carve off" a pending chunk
-            LayerManager.WriteGroup carveoff_wg =
-                tx.mylayer.newWriteGroup(type: LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
+            LayerWriteGroup carveoff_wg =
+                tx.mylayer.newWriteGroup(type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
 
             // lock to make sure two threads don't carve off at the same time...
             lock (this) {
@@ -206,11 +206,11 @@ namespace Bend
             return new NewUnusedSegment(store,newblock_info);            
         }
 
-        public void freeSegment(LayerManager.WriteGroup tx, FreespaceExtent segment_extent) {
+        public void freeSegment(LayerWriteGroup tx, FreespaceExtent segment_extent) {
             
             // (1) add the segment to the pending list (pending free)
 
-            if (tx.type != LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH) {
+            if (tx.type != LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH) {
                 throw new Exception("freeSegment() requires DISK_ATOMIC write group");
             }
 
@@ -226,7 +226,7 @@ namespace Bend
             // (2) add a handler to get notified when the block is no longer referenced, so it can
             //     be moved from pending to actually free.
 
-            LayerManager.WriteGroup fwg = this.store.newWriteGroup(LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
+            LayerWriteGroup fwg = this.store.newWriteGroup(LayerWriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH);
             
             // we don't want to ask for the notification until the write-group freeing this segment is finished
             tx.addCompletion(delegate() {
@@ -237,7 +237,7 @@ namespace Bend
         }
 
         // move the pending address into the freelist
-        private void handleRegionSafeToFree(long start_addr, FreespaceExtent extent, LayerManager.WriteGroup wg) {
+        private void handleRegionSafeToFree(long start_addr, FreespaceExtent extent, LayerWriteGroup wg) {
             System.Console.WriteLine("*\n*\n*\n* handleRegionSafeToFree {0} \n*\n*\n*", start_addr);
             // (1) remove pending entry
             wg.setValue(pendingKeyForAddr(start_addr), RecordUpdate.DeletionTombstone());

@@ -191,7 +191,7 @@ namespace BendTests
             {
                 LayerManager db = new LayerManager(InitMode.NEW_REGION, "c:\\BENDtst\\4");
 
-                LayerManager.WriteGroup txn = db.newWriteGroup();
+                LayerWriteGroup txn = db.newWriteGroup();
                 for (int i=0;i<keys.Length;i++) {
                     txn.setValueParsed(keys[i],values[i]);
                 }
@@ -258,7 +258,7 @@ namespace BendTests
 
             db.debugDump();
 
-            LayerManager.WriteGroup txn = db.newWriteGroup();
+            LayerWriteGroup txn = db.newWriteGroup();
             for (int i = 0; i < keys.Length; i++) {
                 txn.setValueParsed(keys[i], values[i]);
             }
@@ -336,7 +336,7 @@ namespace BendTests
                 String[] keys = { "test-1", "test-2", "test-3" };
                 String[] values = { "a-first", "b-first", "c-first" };
 
-                LayerManager.WriteGroup txn = db.newWriteGroup();
+                LayerWriteGroup txn = db.newWriteGroup();
                 for (int i = 0; i < keys.Length; i++) {
                     txn.setValueParsed(keys[i], values[i]);
                 }
@@ -372,7 +372,7 @@ namespace BendTests
                 String[] values = { "a-second", "b-second", "c-second" };
                 System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
 
-                LayerManager.WriteGroup txn = db.newWriteGroup();
+                LayerWriteGroup txn = db.newWriteGroup();
                 for (int i = 0; i < keys.Length; i++) {
                     txn.setValueParsed(keys[i], values[i]);
                 }
@@ -478,7 +478,7 @@ namespace BendTests
 
                     // put each new record in its OWN segment
                     for (int i = 0; i < secondkeys.Length; i++) {
-                        LayerManager.WriteGroup txn = db.newWriteGroup();
+                        LayerWriteGroup txn = db.newWriteGroup();
                         txn.setValueParsed(secondkeys[i], secondvalues[i]);
                         txn.finish();
                         db.flushWorkingSegment();
@@ -744,7 +744,7 @@ namespace BendTests
                 // fill the db with some data.
                 int pos = 0;
                 foreach (KeyValuePair<RecordKey,RecordUpdate> kvp in testrows) {
-                    LayerManager.WriteGroup txn = db.newWriteGroup();
+                    LayerWriteGroup txn = db.newWriteGroup();
                     txn.setValue(kvp.Key, kvp.Value);
                     txn.finish();
                     pos++;

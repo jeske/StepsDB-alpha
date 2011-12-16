@@ -118,7 +118,7 @@ namespace Bend.EmailIndexerTest {
             return "";
         }
 
-        public void parse_msg(LayerManager.WriteGroup txwg, string docid, string msgtxt, out int numwords) {
+        public void parse_msg(LayerWriteGroup txwg, string docid, string msgtxt, out int numwords) {
             if (msgtxt.Length > 4 * 1024) {
                 msgtxt = msgtxt.Substring(0, 4 * 1024 - 1);
             }
@@ -166,7 +166,7 @@ namespace Bend.EmailIndexerTest {
                 // http://msdn.microsoft.com/en-us/library/system.io.streamreader.readline.aspx
 
                 List<string> lines = new List<string>();
-                LayerManager.WriteGroup txwg = new LayerManager.WriteGroup(db,type:LayerManager.WriteGroup.WriteGroupType.MEMORY_ONLY);                
+                LayerWriteGroup txwg = new LayerWriteGroup(db,type:LayerWriteGroup.WriteGroupType.MEMORY_ONLY);                
 
 
                 while (reader.Position < reader.Length - 1) {

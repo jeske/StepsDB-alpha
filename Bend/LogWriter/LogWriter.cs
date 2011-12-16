@@ -16,7 +16,7 @@ namespace Bend
     {
         void handleCommand(byte cmd, byte[] cmddata);
         void forceCheckpoint();
-        void recommendCheckpoint();
+        void logStatusChange(long usedLogBytes, long freeLogBytes);
     }
 
     // ---------------------------------------------------------
@@ -242,18 +242,36 @@ namespace Bend
             }
         }
 
+        // --- checkpoint protocol ---
+
+        public int checkpointStart() {
+            long logWaitNumber=0;
+            byte[] emptydata = new byte[0];
+            this.addCommand((byte)LogCommands.CHECKPOINT_START, emptydata, out logWaitNumber);
+            return 1; // checkpoint ID 
+        }
+
+        public void checkpointDrop(int checkpointID) {
+            long logWaitNumber;
+            byte[] emptydata = new byte[0];
+            this.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata, out logWaitNumber);
+        }
+
+
+        // --- basic add commands ---
+
         public void addCommand_NoLog(byte cmdtype, byte[] cmdbytes) {
             receiver.handleCommand(cmdtype, cmdbytes);
         }
 
-        public void addCommand(byte cmdtype, byte[] cmdbytes, ref long logWaitNumber) {
+        public void addCommand(byte cmdtype, byte[] cmdbytes, out long logWaitNumber) {
             lock (this) {
                 nextChunkBuffer.Write((UInt32)cmdbytes.Length);
                 nextChunkBuffer.Write((byte)cmdtype);
                 nextChunkBuffer.Write(cmdbytes, 0, cmdbytes.Length);
                 logWaitNumber = this.logWaitSequenceNumber;
             }
-            // we always expect the ILogReceiver to actuall apply the command
+            // we always expect the ILogReceiver to actually apply the command
             receiver.handleCommand(cmdtype, cmdbytes);
         }
 
@@ -262,7 +280,7 @@ namespace Bend
             //  one by one! 
             lock (this) {
                 foreach (var log_entry in cmds) {
-                    this.addCommand(log_entry.cmd, log_entry.cmddata, ref logWaitNumber);
+                    this.addCommand(log_entry.cmd, log_entry.cmddata, out logWaitNumber);
                 }
             }
         }
@@ -277,11 +295,14 @@ namespace Bend
         }
 
         public void flushPendingCommandsThrough(long waitForLWSN) {
+            // if we're already done writing this LWSN, just return
+            if (finishedLWSN >= waitForLWSN) {
+                return;
+            }
+
+            // otherwise, we need to force flush...
             if (USE_GROUP_COMMIT_THREAD) {
-                DateTime started_waiting_at = DateTime.Now;
-                if (finishedLWSN >= waitForLWSN) {
-                    return;
-                }
+                DateTime started_waiting_at = DateTime.Now;                
                 lock (this) {
                     lastWaiter = started_waiting_at;
                     if (firstWaiter < started_waiting_at) {
@@ -313,7 +334,6 @@ namespace Bend
         }
 
         private void _flushThread() {
-
             while (true) {                
                 Thread.Sleep(1);
                 groupCommitWorkerHndl.WaitOne();
@@ -323,6 +343,7 @@ namespace Bend
                 _doWritePendingCmds();
             }
         }
+
         private void _doWritePendingCmds() {
             int groupSize;
             double groupDuration;

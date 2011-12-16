@@ -126,11 +126,11 @@ namespace Bend
         }
         
 
-        public void mapGenerationToRegion(LayerManager.WriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
+        public void mapGenerationToRegion(LayerWriteGroup tx, int gen_number, RecordKey start_key, RecordKey end_key, IRegion region) {
 
 
-            if (!(tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH || 
-                tx.type == LayerManager.WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH)) {
+            if (!(tx.type == LayerWriteGroup.WriteGroupType.DISK_ATOMIC_NOFLUSH || 
+                tx.type == LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH)) {
                     throw new Exception("mapGenerationToRegion needs an ATOMIC write group");
             }
 
@@ -190,7 +190,7 @@ namespace Bend
             //  .. touches a rangemap row automagically causes an invalidation of the segment cache            
         }
 
-        public void unmapSegment(LayerManager.WriteGroup tx, SegmentDescriptor segment) {
+        public void unmapSegment(LayerWriteGroup tx, SegmentDescriptor segment) {
             this.unmapSegment(tx, segment.record_key, null);
         }
 
@@ -204,7 +204,7 @@ namespace Bend
             }
         }
 
-        public void unmapSegment(LayerManager.WriteGroup tx, RecordKey key, RecordData data) {
+        public void unmapSegment(LayerWriteGroup tx, RecordKey key, RecordData data) {
             SegmentDescriptor sdesc = getSegmentDescriptorFromRecordKey(key);
             System.Console.WriteLine("unmapSegment: " + sdesc);
 
@@ -239,7 +239,7 @@ namespace Bend
             }
         }
        
-        public int allocNewGeneration(LayerManager.WriteGroup tx) {
+        public int allocNewGeneration(LayerWriteGroup tx) {
             // allocate a new generation number
             int newgen = num_generations_persisted;
             num_generations_persisted++;
@@ -252,7 +252,7 @@ namespace Bend
             return newgen;
         }
 
-        public void recordMaxGeneration(LayerManager.WriteGroup tx,int num_generations) {
+        public void recordMaxGeneration(LayerWriteGroup tx,int num_generations) {
             tx.setValue(new RecordKey().appendParsedKey(".ROOT/VARS/NUMGENERATIONS"),
                 RecordUpdate.WithPayload(num_generations.ToString()));
 

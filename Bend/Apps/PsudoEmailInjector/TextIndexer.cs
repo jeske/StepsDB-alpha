@@ -29,7 +29,7 @@ namespace Bend.Indexer {
         }
 
 
-        public void index_document(LayerManager.WriteGroup txwg, string docid, List<String> wordlist) {
+        public void index_document(LayerWriteGroup txwg, string docid, List<String> wordlist) {
             //System.Console.WriteLine(msg.Body);
             int wordpos = 0;
             IDictionary<string, int> word_count = new BDSkipList<string, int>();            

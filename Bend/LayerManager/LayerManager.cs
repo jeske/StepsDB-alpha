@@ -33,7 +33,7 @@ namespace Bend
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
-        private int SEGMENT_BLOCKSIZE = 512 * 1024; // 512k
+        internal int SEGMENT_BLOCKSIZE = 512 * 1024; // 512k
 
         internal List<SegmentMemoryBuilder> segmentlayers;  // newest to oldest list of the in-memory segments
         internal SegmentMemoryBuilder workingSegment;
@@ -41,28 +41,30 @@ namespace Bend
 
         internal String dir_path;   // should change this to not assume directories/files
         public  IRegionManager regionmgr;
-        internal BDSkipList<long,WeakReference<WriteGroup>> pending_txns;
+        internal BDSkipList<long,WeakReference<LayerWriteGroup>> pending_txns;
         public RangemapManager rangemapmgr;
         public FreespaceManager freespacemgr;
 
         private LayerMaintenanceThread maint_worker;
         
         
-        private bool needCheckpointNow = false;
+        internal bool needCheckpointNow = false;
 
-        LogWriter logwriter;
-        Receiver receiver;
+        internal LogWriter logwriter;
+        internal LayerLogReceiver receiver;
+
+        internal FastUniqueIds tsnidgen = new FastUniqueIds();
 
         // constructors ....
 
         public LayerManager() {
-            pending_txns = new BDSkipList<long,WeakReference<WriteGroup>>();
+            pending_txns = new BDSkipList<long,WeakReference<LayerWriteGroup>>();
 
             segmentlayers = new List<SegmentMemoryBuilder>();   // a list of segment layers, newest to oldest
             workingSegment = new SegmentMemoryBuilder();
             
             segmentlayers.Add(workingSegment);
-            receiver = new Receiver(this);
+            receiver = new LayerLogReceiver(this);
         }
 
         public LayerManager(InitMode mode, String dir_path)
@@ -93,139 +95,13 @@ namespace Bend
             rangemapmgr.primeMergeManager();
         }
 
-        // inner classes ...
-        public struct Receiver : ILogReceiver
-        {
-            LayerManager mylayer;
-            SegmentMemoryBuilder checkpointSegment;
-            public Receiver(LayerManager mylayer) {
-                this.mylayer = mylayer;
-                checkpointSegment = null;
-            }
-            public void forceCheckpoint() {
-                throw new NotImplementedException();
-            }
-
-            public void recommendCheckpoint() {
-                mylayer.needCheckpointNow = true;
-            }
-
-            public void handleCommand(byte cmd, byte[] cmddata) {
-                if (cmd == (byte)LogCommands.UPDATE) {
-                    // decode basic block key/value writes
-                    BlockAccessor ba = new BlockAccessor(cmddata);
-                    ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
-                    foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in decoder.sortedWalk()) {
-                        // populate our working segment
-                        lock (mylayer.segmentlayers) {
-#if false
-                            if (RangemapManager.RangeKey.isRangeKey(kvp.Key)) {
-                                System.Console.WriteLine("LayerManager.handleCommand : setValue() {0} => {1}",
-                                    kvp.Key.ToString(), kvp.Value.ToString());
-                                if (kvp.Value.type != RecordUpdateTypes.DELETION_TOMBSTONE && kvp.Value.data.Length != 16) {
-                                    throw new Exception("!!! corrupted rangekey appeared in handleCommand");
-                                }
-                            }
-#endif
-                            
-                            mylayer.workingSegment.setRecord(kvp.Key, kvp.Value);
-                        }
-                    }
-                } else if (cmd == (byte)LogCommands.CHECKPOINT_START) {
-                    // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right dataF
-                    checkpointSegment = mylayer.workingSegment;
-                    SegmentMemoryBuilder newsegment = new SegmentMemoryBuilder();
-                    lock (mylayer.segmentlayers) {
-                        mylayer.workingSegment = newsegment;
-                        mylayer.segmentlayers.Insert(0, mylayer.workingSegment);
-                    }
-                } else if (cmd == (byte)LogCommands.CHECKPOINT_DROP) {
-                    // TODO: we need some kind of key/checksum to be sure that we CHECKPOINT and DROP the right data
-                    if (checkpointSegment != null) {
-                        lock (mylayer.segmentlayers) {
-                            mylayer.segmentlayers.Remove(checkpointSegment);
-                        }
-                    } else {
-                        throw new Exception("can't drop, no segment to drop");
-                    }
-                } else {
-                    throw new Exception("unimplemented command");
-                }
-            }
-        }
-
 
         public long workingSegmentSize() {
             return this.segmentlayers[0].approx_size;
 
         }
 
-        public class LayerMaintenanceThread {
-            WeakReference<LayerManager> db_wr;    // we use a weakref so the db can still be collected while the thread is active 
-            bool keepRunning = true;
-            public static LayerMaintenanceThread startMaintThread(LayerManager db) {
-                LayerMaintenanceThread worker = new LayerMaintenanceThread(db);
-                Thread workerThread = new Thread(worker.doWork);
-                workerThread.Name = "LayerMaintenanceThread";
-                workerThread.Start();
-                return worker;
-            }
-            private LayerMaintenanceThread(LayerManager db) {
-                this.db_wr = new WeakReference<LayerManager>(db);
-            }
-
-            private void doWork() {
-                bool didMerge;
-                bool needFlush;
-                LayerManager db;
-                while (keepRunning) {
-                    didMerge = false;
-                    needFlush = false;
-                    // deref the weak reference
-                    try {
-                         db = this.db_wr.Target;
-                    } catch (InvalidOperationException) {
-                        keepRunning = false;
-                        return;
-                    }
-                    try {
-                        
-                        // (1) check if the log is running out of space...
-                        if (db.needCheckpointNow) {
-                            needFlush = true;
-                        } else {
-                            // (2) check the working segment size vs threshold, flush if necessary             
-                            lock (db.segmentlayers) {
-                                // TODO: this currently does not account for compression, which could make it off by orders of magnitude
-                                if (db.workingSegmentSize() > db.SEGMENT_BLOCKSIZE * 15) {
-                                    needFlush = true;
-                                }
-                            }
-                        }
-                        if (needFlush) {
-                            System.Console.WriteLine("************************ LayerMaintenanceThread did FLUSH");
-                            db.flushWorkingSegment();
-                        }
-                        // (3) check for merge
-                        didMerge = db.mergeIfNeeded();
-                        if (didMerge) {
-                            System.Console.WriteLine("************************ LayerMaintenanceThread did MERGE");
-                        }
-                    } catch (Exception e) {
-                        System.Console.WriteLine("LayerMaintenanceThread Exception\n" + e.ToString());
-                        db = null;
-                        Thread.Sleep(100);
-                    }
-                    db = null;
-
-                    Thread.Sleep(didMerge ? 10 : 2000);
-                }
-            }
-            public void end() {
-                keepRunning = false;
-                Thread.Sleep(5);
-            }
-        }
+       
 
         public void startMaintThread() {
             lock (this) {
@@ -235,213 +111,17 @@ namespace Bend
             }
         }
 
-        public delegate void handleWriteGroupCompletion();
-        protected FastUniqueIds tsnidgen = new FastUniqueIds();
 
-        public class WriteGroup : IDisposable
-        {
-            public LayerManager mylayer;
-            public readonly long tsn; // transaction sequence number
-            long last_logwaitnumber = 0; // log-sequence-number from our most recent addCommand
-
-            List<LogCmd> pending_cmds = new List<LogCmd>();
-            List<handleWriteGroupCompletion> pending_completions = new List<handleWriteGroupCompletion>();
-
-            public const WriteGroupType DEFAULT_WG_TYPE = WriteGroupType.DISK_INCREMENTAL;
-
-            public enum WriteGroupType {
-                [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log")]
-                DISK_INCREMENTAL,    
-
-                [Description("Changes are immediately added only to the working-segment. They will only survive if a checkpoint occurs before shutdown.")]
-                MEMORY_ONLY,          
-
-                [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish(). In addition, .finish() will only return once they are flushed to the log")]
-                DISK_ATOMIC_FLUSH,
-
-                [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish().")]
-                DISK_ATOMIC_NOFLUSH,
-            };
-
-            // DISK_INCREMENTAL : changes are immediately added to the pending-log-queue and the working segment.
-            //                    The log is written to disk optimistically, so individual changes may be written to the 
-            //                    log separately. In the case of a crash, some may survive while others are not logged. 
-            // MEMORY_ONLY : changes are only added to the working segment. They will disappear if the system 
-            //               crashes before a checkpoint. However, this avoids double-writing them to the log.
-            // DISK_ATOMIC_FLUSH : Changes are buffered and not applied to the working segment until the writegroup is 
-            //               flushed. The changes will be written as a single atomic log packet which will either apply
-            //               or not. Likewise they will all either appear in the working segment or not, though
-            //               they do not appear when originally issued.
-
-
-            public readonly WriteGroupType type;
-
-            enum WriteGroupState
-            {
-                PENDING,
-                PREPARED,
-                CLOSED,                
-            }
-            WriteGroupState state = WriteGroupState.PENDING;
-
-            
-
-            public WriteGroup(LayerManager _layer, WriteGroupType type = DEFAULT_WG_TYPE) {
-                this.mylayer = _layer;
-                this.tsn = _layer.tsnidgen.nextTimestamp();
-                this.type = type;
-
-                mylayer.pending_txns.Add(tsn, new WeakReference<WriteGroup>(this));  // track pending transactions without preventing collection
-
-                // TODO: store the stack backtrace of who created this if we're in debug mode
-            }
-
-            ~WriteGroup() {
-                this.Dispose();
-            }
-
-            public void addCompletion(handleWriteGroupCompletion fn) {
-                pending_completions.Add(fn);
-            }
-
-            public void setValue(RecordKey key, RecordUpdate update) {
-                // build a byte[] for the updates using the basic block encoder
-                MemoryStream writer = new MemoryStream();
-                // TODO: this seems like a really inefficient way to write out a key
-                ISegmentBlockEncoder encoder = new SegmentBlockBasicEncoder();
-                encoder.setStream(writer);
-                encoder.add(key, update);
-                encoder.flush();
-                writer.Flush();
-                this.addCommand((byte)LogCommands.UPDATE, writer.ToArray());
-
-                // Writes are actually applied to the workingSegment when the LgoWriter pushes them to the ILogReceiver.
-                // This assures, for example, that DISK_ATOMIC writes to not apply to the segments until the writegroup is flushed.
-            }
-
-            public void setValueParsed(String skey, String svalue) {
-                RecordKey key = new RecordKey();
-                key.appendParsedKey(skey);
-                RecordUpdate update = RecordUpdate.WithPayload(svalue);
-
-                this.setValue(key, update);
-            }
-
-            public void checkpointStart() {
-                // atomically add the checkpoint start marker
-                byte[] emptydata = new byte[0];
-                long logWaitNumber = 0;
-                mylayer.logwriter.addCommand((byte)LogCommands.CHECKPOINT_START, emptydata, ref logWaitNumber);                
-            }
-
-            public void checkpointDrop() {
-                byte[] emptydata = new byte[0];
-                this.addCommand((byte)LogCommands.CHECKPOINT_DROP, emptydata);
-
-            }
-
-            private void addCommand(byte cmd, byte[] cmddata) {                
-                if (this.type == WriteGroupType.DISK_INCREMENTAL) {
-                    // if we are allowed to add each write to the disk log, then do it now
-                    mylayer.logwriter.addCommand(cmd, cmddata, ref this.last_logwaitnumber);
-                } else if (this.type == WriteGroupType.DISK_ATOMIC_FLUSH) {
-                    // add it to our pending list of commands to flush at the end...
-                    pending_cmds.Add(new LogCmd(cmd, cmddata));
-                } else if (this.type == WriteGroupType.MEMORY_ONLY) {
-                    // we don't need to add to the log at all, but it still needs to be pushed
-                    // through the LogWriter so it can be applied to the working segment
-                    mylayer.logwriter.addCommand_NoLog(cmd, cmddata);
-                } else if (this.type == WriteGroupType.DISK_ATOMIC_NOFLUSH) {
-                    // add it to our pending list of commands to flush at the end...
-                    pending_cmds.Add(new LogCmd(cmd, cmddata));
-                } else {
-                    throw new Exception("unknown write group type in addCommand() " + type.ToString());
-                }
-            }
-
-            public void cancel() {
-                this.state = WriteGroupState.CLOSED;
-            }
-
-            public void finish() {
-                // TODO: make a higher level TX commit that finalizes pending writes into final writes
-                //     and cleans up locks and state
-
-                // TODO: this is a flush not a commmit. When other
-                // writers are concurrent, some of their stuff is also written to the
-                // log when we flush. Therefore, as soon as you write, your write is
-                // "likely to occur" whether you commit or not. We need to layer 
-                // an MVCC on top of this
-
-                if (this.state == WriteGroupState.CLOSED) {
-                    System.Console.WriteLine("finish() called on closed WriteGroup"); // TODO: add LSN/info
-                    return;
-                }
-                if (mylayer == null || mylayer.logwriter == null) {
-                    System.Console.WriteLine("finish() called on torn-down LayerManager"); // TODO: add LSN/info
-                    return;
-                }
-                switch (type) {
-                    case WriteGroupType.DISK_INCREMENTAL:
-                        // we've been incrementally writing commands, so ask them to flush
-                        if (this.last_logwaitnumber != 0) {
-                            mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
-                        }
-                        break;
-                    case WriteGroupType.DISK_ATOMIC_FLUSH:
-                        // send the group of commands to the log and clear the pending list
-                        mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
-                        this.pending_cmds.Clear();
-
-                        // wait until the atomic log packet is flushed
-                        mylayer.logwriter.flushPendingCommandsThrough(last_logwaitnumber);
-                        break;
-                    case WriteGroupType.DISK_ATOMIC_NOFLUSH:
-                        // send the group of commands to the log and clear the pending list
-                        mylayer.logwriter.addCommands(this.pending_cmds, ref this.last_logwaitnumber);
-                        this.pending_cmds.Clear();
-                        break;
-                    case  WriteGroupType.MEMORY_ONLY:
-                        // we turned off logging, so the only way to commit is to checkpoint!
-                        // TODO: force checkpoint ?? 
-                        break;
-                    default:                
-                        throw new Exception("unknown write group type in .finish(): " + type.ToString());
-                }
-
-                if (this.pending_cmds.Count != 0) {
-                    throw new Exception("pending commands left after finish!!");
-                }
-
-                state = WriteGroupState.CLOSED;
-                mylayer.pending_txns.Remove(this.tsn);                
-
-                // call each of the pending completions.
-                foreach (handleWriteGroupCompletion completion_fn in pending_completions) {
-                    completion_fn();
-                }
-                pending_completions.Clear();
-            }
-           
-            public void Dispose() {
-                if (state == WriteGroupState.PENDING) {
-                    System.Console.WriteLine("disposed transaction still pending " + this.tsn);
-                    // throw new Exception("disposed Txn still pending " + this.tsn);
-                    
-                }
-                mylayer.pending_txns.Remove(this.tsn);
-            }
-        }
-
+        
         // impl ....
 
-        public WriteGroup newWriteGroup(WriteGroup.WriteGroupType type=WriteGroup.DEFAULT_WG_TYPE) {
-            WriteGroup newtx = new WriteGroup(this, type: type);                        
+        public LayerWriteGroup newWriteGroup(LayerWriteGroup.WriteGroupType type=LayerWriteGroup.DEFAULT_WG_TYPE) {
+            LayerWriteGroup newtx = new LayerWriteGroup(this, type: type);                        
             return newtx;
         }
         
 
-        private void _writeSegment(WriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records,int target_generation=-1) {
+        private void _writeSegment(LayerWriteGroup tx, IEnumerable<KeyValuePair<RecordKey, RecordUpdate>> records,int target_generation=-1) {
             // write the checkpoint segment and flush
             // TODO: make this happen in the background!!
             SegmentWriter segmentWriter = new SegmentWriter(records);
@@ -513,7 +193,7 @@ namespace Bend
                 return;
             }
 
-            WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
+            LayerWriteGroup tx = new LayerWriteGroup(this, type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
 
             lock (flushLock) {
                 Console.WriteLine("=====================================[ Flush Working Segment (Begin) ]=================================");
@@ -532,13 +212,14 @@ namespace Bend
 
                 lock (this.segmentlayers) {
                     this.checkpointNumber++;
-                                        
-                    // get a handle to the current working segment
-                    checkpointSegment = workingSegment;
+                                                            
+                    // mark the place in the log that contains the previous data, and allocate a new working segment
+                    // this also sets aside the checkpointSegment
+                    checkpointSegment = tx.checkpointStart();
+
+                    // get a handle to the current working segment                    
                     checkpoint_segment_size = checkpointSegment.RowCount;
 
-                    // mark the place in the log that contains the previous data, and allocate a new working segment
-                    tx.checkpointStart();
 
                     // TODO: make sure it's not possible to lose a write in between here
                     //       maybe the log writer should be locked during this..
@@ -815,7 +496,7 @@ namespace Bend
 
             // (2) now perform the merge!
             {
-                WriteGroup tx = new WriteGroup(this, type: WriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
+                LayerWriteGroup tx = new LayerWriteGroup(this, type: LayerWriteGroup.WriteGroupType.DISK_ATOMIC_FLUSH);
 
                 // (2a) delete the old segment mappings
 
@@ -1107,13 +788,13 @@ namespace Bend
 
         public void setValueParsed(String skey, String svalue)
         {
-            WriteGroup implicit_txn = this.newWriteGroup();
+            LayerWriteGroup implicit_txn = this.newWriteGroup();
             implicit_txn.setValueParsed(skey, svalue);
             implicit_txn.finish();            
         }
 
         public void setValue(RecordKey key, RecordUpdate value) {
-            WriteGroup implicit_txn = this.newWriteGroup();
+            LayerWriteGroup implicit_txn = this.newWriteGroup();
             implicit_txn.setValue(key, value);
             implicit_txn.finish();            
         }
@@ -1137,7 +818,7 @@ namespace Bend
                 }
             }
             foreach (var pending_txn in pending_txns) {
-                WriteGroup wg = pending_txn.Value.Target;
+                LayerWriteGroup wg = pending_txn.Value.Target;
                 if (wg != null) {
                     wg.cancel();
                 }

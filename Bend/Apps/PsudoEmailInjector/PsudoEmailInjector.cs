@@ -102,7 +102,7 @@ namespace Bend.PsudoEmailInjector {
         // generate a bunch of data and insert it
         public void parse_email_messages() {
 
-            LayerManager.WriteGroup txwg = new LayerManager.WriteGroup(db, type: LayerManager.WriteGroup.WriteGroupType.MEMORY_ONLY);                
+            LayerWriteGroup txwg = new LayerWriteGroup(db, type: LayerWriteGroup.WriteGroupType.MEMORY_ONLY);                
 
             List<string> word_list = new List<String>();
             

@@ -8,9 +8,9 @@ using System.Threading;
 // 
 // The log is organized as a set of separate log segments. Initially this is 5 segments, each 2MBs in length. 
 // A log packet (which contains multiple log commands) is written contigiously to a single log segment. 
-// If there is no room in the current log segment, the packet is written into the next available log segment. 
+// If there is not enough room in the current log segment, the packet is written into the next available log segment. 
 // 
-// A log packet should be notable smaller than a single log segment, otherwise much space will be wasted at
+// A log packet should be notably smaller than a single log segment, otherwise much space will be wasted at
 // the end of each log-segment. If a log-packet is bigger than a log-segment, it can not be written.
 // 
 // The rootblock records a list of log segments, however, the list should not be assumed to be in proper order.
@@ -20,7 +20,7 @@ using System.Threading;
 // log-timestamps for the first record in the log, to determine the proper order of the log segments. Once
 // the proper order is established, recovery can process them in the proper order. 
 //
-// A note about FORCED CHECKPOINTS: if the log every actually runs out of space, it initiates a forcedCheckpoint
+// ??? A note about FORCED CHECKPOINTS: if the log ever actually runs out of space, it initiates a forcedCheckpoint
 // prototocol through ILogReceiver. This is required because of a tricky ordering problem with log entries.
 // At the time that the log runs out of space, there are pending entries trying to hit the log.
 // It is hard to reason about the validity of operations other than a CHECKPOINT, because they might require
@@ -28,9 +28,10 @@ using System.Threading;
 // The records which commit a checkpoint are guaranteed to be valid, since they should make permanent any
 // pending changes stuck in the log (and thus pending changes can be thrown away once the forced checkpoint completes)
 //
-// Because of the cost of forced-checkpoints, it's really much better if they never happen, which is why the log 
+// ??? Because of the cost of forced-checkpoints, it's really much better if they never happen, which is why the log 
 // notify's ILogReceiver when the amount of logspace is getting low so it can do a non-forced checkpoint 
-// before the log actually runs out of space. 
+// before the log actually runs out of space. It's also important to consider that a checkpoint could be occuring
+// when the log runs out space. 
 
 // * LogSegmentsHandler : encapsulates the details of handling multiple separate log segments, including:
 //
@@ -136,6 +137,8 @@ namespace Bend {
                 }
             }
 
+            this.notifyLogStatus();            
+
             lock (this) {
                 currentLogSegmentInfo = empty_log_segments[0];
                 empty_log_segments.RemoveAt(0);
@@ -145,9 +148,22 @@ namespace Bend {
             // open the current log stream...
             currentLogHeadStream = regionmgr.writeExistingRegionAddr(currentLogSegmentInfo.logsegment_start).getNewAccessStream();
 
-            if (empty_log_segments.Count <= 1) {
-                logwriter.receiver.recommendCheckpoint();
+            
+        }
+
+        private void notifyLogStatus() {
+            long logUsedBytes = 0;
+            long logFreeBytes = 0;
+
+            lock (this) {
+                foreach (RootBlockLogSegment seg in active_log_segments) {
+                    logUsedBytes += seg.logsegment_size;
+                }
+                foreach (RootBlockLogSegment seg in empty_log_segments) {
+                    logFreeBytes += seg.logsegment_size;
+                }
             }
+            logwriter.receiver.logStatusChange(logUsedBytes, logFreeBytes);
         }
        
         public IEnumerable<LogCmd> recoverLogCmds() {
