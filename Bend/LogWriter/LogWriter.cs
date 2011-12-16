@@ -7,7 +7,6 @@ using System.Collections.Generic;
 
 using System.Threading;
 
-// TODO: handle circular log
 // TODO: reserve enough space for a log truncation record, prevent us from "filling" the log without a
 //       special flag saying we are allowed to take up the reserved space
 
@@ -21,25 +20,45 @@ namespace Bend
     // ---------------------------------------------------------
     // The on-disk layout is initialized as:
     // 
-    // 0 -> MAX_ROOTBLOCK_SIZE : root block
-    // MAX_ROOTBLOCK_SIZE -> (MAX_ROOTBLOCK_SIZE+logsize) : log
+    // 0 -> ROOTBLOCK_SIZE : root block
+    // 5 x 2MB LogSegments  (10MB of logspace)
     // (remainder) : freespace
+    //
+    // Within the rootblock, there is a header, and then a list of RootBlockLogSegments
+    //
+    // 0->sizeof(RootBlockHeader) : RootBlockHeader
+    // Array[RootBlockHeader.num_logsegments] of RootBlockLogSegment
+    // 
+    // Log segments are not kept in order of activity, so the recovery process checks the first
+    // log entry in each logsegment to figure out the proper order to process them.
 
 
     // [StructLayout(LayoutKind.Sequential,Pack=1)]
-    struct RootBlock
+    struct RootBlockHeader 
     {
+        // static values don't consume space
+        public static uint ROOTBLOCK_SIZE = 4096;
+        public static uint MAGIC = 0xFE82a292;
+
+        // data....
+
         public uint magic;
-        // public uint mysize;
-        public uint logstart;   // absolute pointer to the start of the log on the region/volume
-        public uint logsize;    // size of the current log segment in bytes
-        public uint loghead;    // relative pointer to the head of the log
         public uint root_checksum;
 
-        // static values don't consume space
-        public static uint MAGIC = 0xFE82a292;
-        public static uint MAX_ROOTBLOCK_SIZE = 4096;
+        public uint num_logsegments; // the number of log segments following the header
 
+        // utility...
+
+        public byte[] constructRootBlock(RootBlockLogSegment[] segments) {
+            this.num_logsegments = (uint)segments.Length;
+            MemoryStream ms = new MemoryStream();
+            Util.writeStruct(this, ms);
+            foreach (RootBlockLogSegment seg in segments) {
+                Util.writeStruct(seg, ms);
+            }
+            return ms.ToArray();
+        }
+        
         public bool IsValid() {
             if (magic != MAGIC) {
                 return false;
@@ -48,6 +67,12 @@ namespace Bend
             // check root_checksum
             return true;
         }
+    }
+
+    public struct RootBlockLogSegment 
+    {
+        public uint logsegment_start;   // absolute pointer to the start of the log on the region/volume
+        public uint logsegment_size;    // size of the log segment in bytes        
     }
 
     
@@ -60,13 +85,16 @@ namespace Bend
         }
     };
 
+
     class LogWriter : IDisposable
     {
         bool USE_GROUP_COMMIT_THREAD = false;
 
-        RootBlock root;
+        RootBlockHeader root;
         Stream rootblockstream;
-        Stream logstream;
+
+        LogSegmentsHandler log_handler; 
+        
         BinaryWriter nextChunkBuffer;
         ILogReceiver receiver;
 
@@ -79,8 +107,11 @@ namespace Bend
         DateTime firstWaiter, lastWaiter;
         int numWaiters = 0;
 
-        static UInt32 LOG_MAGIC = 0x44332211;
-        public static int DEFAULT_LOG_SIZE = 12 * 1024 * 1024;
+        public static UInt32 LOG_MAGIC = 0x44332211;
+        
+        public static uint DEFAULT_LOG_SEGMENT_SIZE = 2 * 1024 * 1024; // 2MB
+        public static uint DEFAULT_LOG_SEGMENTS = 5;  // 2MB * 5 => 10MB
+
 
         private LogWriter() {                   
             nextChunkBuffer = new BinaryWriter(new MemoryStream());
@@ -103,6 +134,7 @@ namespace Bend
             switch (mode) {
                 case InitMode.NEW_REGION:
                     LogWriter_NewRegion(regionmgr);
+                    LogWriter_Resume(regionmgr);   // need to setup the logsegmenthandler
                     break;
                 case InitMode.RESUME:
                     LogWriter_Resume(regionmgr);
@@ -110,6 +142,8 @@ namespace Bend
                 default:
                     throw new Exception("unknown init mode: " + mode);                    
             }
+
+            log_handler.prepareLog(); // prepare log for accepting writes
         }
 
 
@@ -121,95 +155,80 @@ namespace Bend
                 try {
                     Stream testrootblockstream = regionmgr.readRegionAddr(0).getNewAccessStream();
 
-                    RootBlock nroot = Util.readStruct<RootBlock>(testrootblockstream);
+                    RootBlockHeader nroot = Util.readStruct<RootBlockHeader>(testrootblockstream);
                     long rtblksz = testrootblockstream.Position;
                     if (nroot.IsValid()) {
-                        // we should be careful not to override this...
+                        // TODO: we should be careful not to overwrite an existing root record...
+                        
+                        // throw new Exception("existing root record present! Can't re-init.");
                     }
                     testrootblockstream.Close();
-
                 } catch (RegionExposedFiles.RegionMissingException) {
                     
                 }
             }
 
-            // create the log and root record
-            root.magic = RootBlock.MAGIC;
-            root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
-            root.logsize = (uint)LogWriter.DEFAULT_LOG_SIZE;
-            root.loghead = 0;
+            // (1) initialize the log segments...
+            RootBlockLogSegment[] log_segments = new RootBlockLogSegment[LogWriter.DEFAULT_LOG_SEGMENTS];
+
+            uint alloc_address = RootBlockHeader.ROOTBLOCK_SIZE;
+            for (int i=0;i<log_segments.Length;i++) {
+
+                // calculate the segment start and length
+                log_segments[i].logsegment_size = LogWriter.DEFAULT_LOG_SEGMENT_SIZE;
+                log_segments[i].logsegment_start = alloc_address;
+
+                alloc_address += LogWriter.DEFAULT_LOG_SEGMENT_SIZE;
+
+                // open the segment 
+                Stream logstream = regionmgr.writeFreshRegionAddr(log_segments[i].logsegment_start, log_segments[i].logsegment_size).getNewAccessStream();
+               
+                // write to the end of the log to be sure the file/stream has enough space
+                logstream.Seek(log_segments[i].logsegment_size - 1, SeekOrigin.Begin);
+                logstream.WriteByte(0x00);
+                logstream.Flush();
+                logstream.Seek(0, SeekOrigin.Begin);
+
+                LogSegmentsHandler.InitLogSegmentStream(logstream);
+                // write the initial "log-end" record at the beginning of the segment
+                
+                logstream.Close();
+            }
+
+            
+            root.magic = RootBlockHeader.MAGIC;            
             root.root_checksum = 0;
-            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0, (long)RootBlock.MAX_ROOTBLOCK_SIZE).getNewAccessStream();
-            Stream logwritestream = regionmgr.writeFreshRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE, LogWriter.DEFAULT_LOG_SIZE).getNewAccessStream();
+            byte[] root_block_data = root.constructRootBlock(log_segments);
 
-            this.logstream = logwritestream;
+            // open the streams...
+            Stream rootblockwritestream = regionmgr.writeFreshRegionAddr(0, (long)RootBlockHeader.ROOTBLOCK_SIZE).getNewAccessStream();           
+
+            // this.logstream = logwritestream;
             this.rootblockstream = rootblockwritestream;
-
-            // fill the log empty 
-            logstream.Seek(root.logsize - 1, SeekOrigin.Begin);
-            logstream.WriteByte(0x00);
-            logstream.Flush();
-
-            // write the initial "log-end" record
-            logstream.Seek(0, SeekOrigin.Begin);
-            _doLogEnd(new BinaryWriter(logstream));  // force log end flush            
 
             // now write the root record
             rootblockstream.Seek(0, SeekOrigin.Begin);
-            Util.writeStruct(root, rootblockstream);
+            rootblockstream.Write(root_block_data,0,root_block_data.Length);            
             rootblockstream.Flush();
+            rootblockstream.Close(); // must close the stream so resume can operate
         }
 
         private void LogWriter_Resume(IRegionManager regionmgr) {
             this.rootblockstream = regionmgr.readRegionAddr(0).getNewAccessStream();
-            root = Util.readStruct<RootBlock>(rootblockstream);
+            root = Util.readStruct<RootBlockHeader>(rootblockstream);
             if (!root.IsValid()) {
                 throw new Exception("invalid root block");
             }
-            this.logstream = regionmgr.writeExistingRegionAddr(root.logstart).getNewAccessStream();
-            recoverLog();
-        }
+            RootBlockLogSegment[] log_segments = new RootBlockLogSegment[root.num_logsegments];
+            for (int i=0;i<root.num_logsegments;i++) {
+                log_segments[i] = Util.readStruct<RootBlockLogSegment>(rootblockstream);
+            }
 
-        void recoverLog() {
-            logstream.Seek(root.loghead, SeekOrigin.Begin);
-            BinaryReader br = new BinaryReader(logstream);
+            // setup the log segment handler
+            this.log_handler = new LogSegmentsHandler(regionmgr, log_segments);
 
-            while (true) {
-                UInt32 magic = br.ReadUInt32();
-                if (magic != LOG_MAGIC) {
-                    abortCorrupt("invalid magic: " + magic );
-                }
-                UInt32 chunksize = br.ReadUInt32();
-                UInt16 checksum = br.ReadUInt16();
-
-                if (chunksize == 0 && checksum == 0) {
-                    // we reached the end-of-chunks marker, seek back
-                    br.BaseStream.Seek(- (4 + 4 + 2), SeekOrigin.Current);
-                    break;
-                }
-
-                byte[] logchunk = new byte[chunksize];
-                if (br.Read(logchunk, 0, (int)chunksize) != chunksize) {
-                    abortCorrupt("chunksize bytes not available");
-                }
-                // CRC the chunk and verify against checksum
-                UInt16 nchecksum = Util.Crc16.Instance.ComputeChecksum(logchunk);
-                if (nchecksum != checksum) {
-                    abortCorrupt("computed checksum: " + nchecksum + " didn't match: " + checksum);
-                }
-                // decode and apply the records
-                BinaryReader mbr = new BinaryReader(new MemoryStream(logchunk));
-
-                while (mbr.BaseStream.Position != mbr.BaseStream.Length) {
-                    UInt32 cmdsize = mbr.ReadUInt32();
-                    byte cmdtype = mbr.ReadByte();
-                    byte[] cmdbytes = new byte[cmdsize];
-                    if (mbr.Read(cmdbytes, 0, (int)cmdsize) != cmdsize) {
-                        abortCorrupt("error reading command bytes");
-                    }
-                    receiver.handleCommand(cmdtype, cmdbytes);
-                }
-                // log resume complete...
+            foreach (LogCmd cmd in log_handler.recoverLogCmds()) {
+                 receiver.handleCommand(cmd.cmd, cmd.cmddata);     
             }
         }
 
@@ -294,17 +313,6 @@ namespace Bend
                 _doWritePendingCmds();
             }
         }
-        private void _doLogEnd(BinaryWriter logbr) {
-            // write "end of log" marker  (magic, size=0, checksum=0);
-            logbr.Write((UInt32)LOG_MAGIC);
-            logbr.Write((UInt32)0); // size
-            logbr.Write((UInt16)0); // checksum
-            logbr.Flush();
-
-            // ..then, seek back so it will be overwritten when the next log entry is written
-            logbr.BaseStream.Seek(-(4 + 4 + 2), SeekOrigin.Current);
-
-        }
         private void _doWritePendingCmds() {
             int groupSize;
             double groupDuration;
@@ -332,18 +340,20 @@ namespace Bend
                 firstWaiter = DateTime.MinValue;
             }
 
-            BinaryWriter logbr = new BinaryWriter(logstream);
-
+            // construct the raw log packet
             if (cmds.Length != 0) {
                 UInt16 checksum = Util.Crc16.Instance.ComputeChecksum(cmds);
 
+                MemoryStream ms = new MemoryStream();
+                BinaryWriter logbr = new BinaryWriter(ms);
                 logbr.Write((UInt32)LOG_MAGIC);
                 logbr.Write((UInt32)cmds.Length);
                 logbr.Write((UInt16)checksum);
                 logbr.Write(cmds);
+                logbr.Flush();
 
-                _doLogEnd(logbr);
-                // System.Console.WriteLine("-flush finished for LWSN {0}", curLWSN);            
+                // hand the log packet to the log segment handler
+                this.log_handler.addLogPacket(ms.ToArray());
             }
                 
             // reset the group commit waiting machinery
@@ -362,13 +372,9 @@ namespace Bend
         
         }
 
-        void abortCorrupt(String reason) {
-            throw new Exception(String.Format("aborting from corrupt log near {0}, reason: {1}",
-                logstream.Position, reason));
-        }
 
         public void Dispose() {
-            System.Console.WriteLine("commitThread Dispose");
+            System.Console.WriteLine("LogWriter Dispose");
 
             if (this.commitThread != null) {
                 commitThread_should_die = true;
@@ -382,7 +388,7 @@ namespace Bend
             } else {
                 System.Console.WriteLine("no committhread to dispose of");
             }
-            if (this.logstream != null) { this.logstream.Close(); this.logstream = null; }
+            if (this.log_handler != null) { this.log_handler.Dispose(); this.log_handler = null; }            
             if (this.rootblockstream != null) { this.rootblockstream.Close(); this.rootblockstream = null; }
             
         }

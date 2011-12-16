@@ -96,8 +96,12 @@ namespace Bend
             // read the freelist and "index" into memory for now (TODO: use a real freelist)
             RecordData data;
             if (store.getRecord(new RecordKey().appendParsedKey(".ROOT/FREELIST/HEAD"), out data) == GetStatus.MISSING) {
+                
+                throw new Exception("no freelist head!");
+
                 // TODO: fix this init hack
-                next_allocation = (int)(RootBlock.MAX_ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
+                // next_allocation = (int)(RootBlockHeader.ROOTBLOCK_SIZE + LogWriter.DEFAULT_LOG_SIZE);
+
 
                 // this was a test to be able to start with big address numbers..
                 // next_allocation = 4294971392;

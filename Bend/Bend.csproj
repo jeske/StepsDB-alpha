@@ -116,6 +116,7 @@
     <Compile Include="LayerManager\RootMetadata\RangemapManagerTest.cs" />
     <Compile Include="LayerManager\RootMetadata\RangeMapmanager_OLD.cs" />
     <Compile Include="LayerManager\RootMetadata\SegmentDescriptor.cs" />
+    <Compile Include="LogWriter\LogSegmentsHandler.cs" />
     <Compile Include="LogWriter\LogWriter.cs" />
     <Compile Include="LogWriter\LogWriterTest.cs" />
     <Compile Include="Properties\Resources.Designer.cs">

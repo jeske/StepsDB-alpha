@@ -26,42 +26,54 @@ namespace BendTests
                 lr.Dispose();
             }
 
+            // open the rootblock stream...
             Stream rootblockstream = rmgr.readRegionAddr(0).getNewAccessStream();
-            Stream logstream = rmgr.readRegionAddr(RootBlock.MAX_ROOTBLOCK_SIZE).getNewAccessStream();
-
-            // check rootblock
-            RootBlock root = new RootBlock();
-            root.magic = RootBlock.MAGIC;
-            root.logstart = RootBlock.MAX_ROOTBLOCK_SIZE;
-            root.logsize = (uint)LogWriter.DEFAULT_LOG_SIZE;
-            root.loghead = 0;
+                
+            // read rootblock header
             rootblockstream.Seek(0, SeekOrigin.Begin);
-            RootBlock root2 = Bend.Util.readStruct<RootBlock>(rootblockstream);
-            Assert.AreEqual(root, root2, "root block written correctly");
+            RootBlockHeader rootblockdata = Bend.Util.readStruct<RootBlockHeader>(rootblockstream);
 
-            // check that log contains magic and final log record
-            logstream.Seek(0, SeekOrigin.Begin);
+            // check rootblock data
+            {
+                Assert.AreEqual(rootblockdata.magic, RootBlockHeader.MAGIC, "root block magic");
+                Assert.AreEqual(rootblockdata.num_logsegments, LogWriter.DEFAULT_LOG_SEGMENTS);
+                // TODO: check checksum
+            }
+
+            // read / check each log segment
+            for (int i = 0; i < rootblockdata.num_logsegments; i++) {
+                RootBlockLogSegment seg = Bend.Util.readStruct<RootBlockLogSegment>(rootblockstream);
+                
+                Stream logstream = rmgr.readRegionAddr(seg.logsegment_start).getNewAccessStream();
+                logstream.Seek(0, SeekOrigin.Begin);
+
+                // check that each log segment contains a valid closed log record
+                logstream.Close();
+            }
 
             rootblockstream.Close();
-            logstream.Close();
         }
 
         class TestReceiver : ILogReceiver
-        {
+        {            
+            public List<cmdstruct> cmds;
+
+            public TestReceiver() {
+                cmds = new List<cmdstruct>();
+            }
+
             public struct cmdstruct
             {
                 public byte cmd;
                 public byte[] cmdbytes;
             }
-            public List<cmdstruct> cmds;
-            public TestReceiver() {
-                cmds = new List<cmdstruct>();
-            }
+            
             public void handleCommand(byte cmd, byte[] cmdbytes) {
                 cmdstruct newcmd = new cmdstruct();
                 newcmd.cmd = cmd;
                 newcmd.cmdbytes = cmdbytes;
-
+                
+                // accumulate the command
                 this.cmds.Add(newcmd);
             }
         }
@@ -72,7 +84,7 @@ namespace BendTests
             IRegionManager rmgr = new RegionExposedFiles(InitMode.NEW_REGION, "c:\\BENDtst\\1");
             TestReceiver receiver = new TestReceiver();
             LogWriter lr = new LogWriter(InitMode.RESUME, rmgr, receiver);
-            // TODO: add a log handler that asserts there were no log events
+                        
             Assert.AreEqual(receiver.cmds.Count, 0, "there should be no log records");
         }
 

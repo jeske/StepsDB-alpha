@@ -48,7 +48,7 @@ namespace StepsDBServer {
 
             // (4) start the REST api handler (listening for client connections)
 
-            StepsRestAPIServer myServer = new StepsRestAPIServer(5985);
+            StepsRestAPIServer myServer = new StepsRestAPIServer(5985, doc_db);
             myServer.listen(); // (main runloop)
 
             // !! SHUTDOWN !!
