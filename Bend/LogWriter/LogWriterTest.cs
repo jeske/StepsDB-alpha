@@ -36,7 +36,7 @@ namespace BendTests
 
             // check rootblock data
             {
-                Assert.AreEqual(rootblockdata.magic, RootBlockHeader.MAGIC, "root block magic");
+                Assert.AreEqual(rootblockdata.magic, RootBlockHeader.ROOTMAGIC, "root block magic");
                 Assert.AreEqual(rootblockdata.num_logsegments, LogWriter.DEFAULT_LOG_SEGMENTS);
                 // TODO: check checksum
             }
@@ -263,13 +263,16 @@ namespace BendTests
 
                 int cur = 0;
                 foreach (var cmd in receiver.cmds) {
-                    Console.WriteLine("Resume Record : {0}", cmd.cmddata[0]);
-                    Assert.Greater(cmd.cmddata[0], cur, "order should be increasing");
-                    cur = cmd.cmddata[0];
+                    if (cmd.cmd == LogCommands.UPDATE) {
+                        Console.WriteLine("Resume Record : {0} {1}", cmd.cmd.ToString(), cmd.cmddata[0]);
+                        Assert.Greater(cmd.cmddata[0], cur, "order should be increasing");
+
+                        cur = cmd.cmddata[0];
+                    } else {
+                        Console.WriteLine("empty command : {0}", cmd.cmd.ToString());
+                    }
                 }
             }
-
-
         }
 
 

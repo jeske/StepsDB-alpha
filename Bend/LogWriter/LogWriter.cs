@@ -33,7 +33,7 @@ namespace Bend
     {
         // static values don't consume space
         public static uint ROOTBLOCK_SIZE = 4096;
-        public static uint MAGIC = 0xFE82a292;
+        public static uint ROOTMAGIC = 0xFE82a292;
 
         // data....
 
@@ -55,7 +55,7 @@ namespace Bend
         }
         
         public bool IsValid() {
-            if (magic != MAGIC) {
+            if (magic != ROOTMAGIC) {
                 return false;
             }
             // check size
@@ -92,6 +92,11 @@ namespace Bend
     public class LogWriter : IDisposable
     {
         bool USE_GROUP_COMMIT_THREAD = false;
+        public static uint DEFAULT_LOG_SEGMENT_SIZE = 2 * 1024 * 1024; // 2MB
+        public static uint DEFAULT_LOG_SEGMENTS = 5;  // 2MB * 5 => 10MB
+
+
+
 
         RootBlockHeader root;
         Stream rootblockstream;
@@ -109,11 +114,6 @@ namespace Bend
         long finishedLWSN = 0; 
         DateTime firstWaiter, lastWaiter;
         int numWaiters = 0;
-
-        public static UInt32 LOG_MAGIC = 0x44332211;
-        
-        public static uint DEFAULT_LOG_SEGMENT_SIZE = 2 * 1024 * 1024; // 2MB
-        public static uint DEFAULT_LOG_SEGMENTS = 5;  // 2MB * 5 => 10MB
 
 
         public LogWriter(IRegionManager regionmgr) {
@@ -198,7 +198,7 @@ namespace Bend
             }
 
             
-            root.magic = RootBlockHeader.MAGIC;            
+            root.magic = RootBlockHeader.ROOTMAGIC;            
             root.root_checksum = 0;
             byte[] root_block_data = root.constructRootBlock(log_segments);
 

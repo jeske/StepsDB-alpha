@@ -139,6 +139,25 @@ namespace BendTests {
             }
         }
 
+        [Test]
+        public void T00_Skiplist_LongOrdering() {
+            BDSkipList<long, string> l = new BDSkipList<long, string>();
+
+            long[] testin = { 6, 7, 8, 4, 5 };
+            long[] testout = { 4, 5, 6, 7, 8 };
+
+            foreach (long val in testin) {
+                l.Add(val, val.ToString());
+            }
+            
+            List<long> output_order = new List<long>();
+            foreach(var kvp in l.scanForward(ScanRange<long>.All())) {
+                output_order.Add(kvp.Key);
+            }
+
+            Assert.AreEqual(testout, output_order.ToArray(), "longs should be sorted");
+            
+        }
 
         [Test]
         public void T00_Skiplist_Remove() {

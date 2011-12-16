@@ -4,6 +4,8 @@ using System.Collections.Generic;
 
 using System.Threading;
 
+using System.Runtime.InteropServices;
+
 // * About the Log
 // 
 // The log is organized as a set of separate log segments. Initially this is 5 segments, each 2MBs in length. 
@@ -35,10 +37,24 @@ using System.Threading;
 //   - add log-timestamps to each log-packet so we can properly order log segments during recovery
 //   - add a log-checkpoint / rotation protocol 
 //   - FIX: recovery if we crash suring a checkpoint attempt (currently this is busted)
+//   - FIX: read/write log packet headers to use structs instead of manual read/write code
 
 namespace Bend {
 
+    [StructLayout(LayoutKind.Sequential,Pack=1)]
+    public struct LogPacketHeader {
+        public static UInt32 LOG_MAGIC = 0x44332211;
+
+        public UInt32 magic;
+        public Int64 curLWSN;
+        public UInt32 cmddata_length;
+        public UInt32 checksum;        
+    }
+
     public class LogSegmentsHandler : IDisposable {
+
+        
+
         IRegionManager regionmgr;
         LogWriter logwriter;
 
@@ -113,8 +129,6 @@ namespace Bend {
         }
 
         internal void _addCommand(LogCommands cmdtype, byte[] cmdbytes, out long logWaitNumber) {
-
-
             lock (this) {
                 this._processCommand(cmdtype, cmdbytes);
                 nextChunkBuffer.Write((UInt32)cmdbytes.Length);
@@ -125,30 +139,39 @@ namespace Bend {
         }
 
         private void _organizeLogSegments(RootBlockLogSegment[] segments) {
+            BDSkipList<long, RootBlockLogSegment> order_segments = new BDSkipList<long, RootBlockLogSegment>();
+
             // (2) scan and organize the log-segments (so they are in proper order)            
             foreach (RootBlockLogSegment seg in segments) {
                 Stream logsegment = regionmgr.readRegionAddr(seg.logsegment_start).getNewAccessStream();
 
                 BinaryReader br = new BinaryReader(logsegment);
-                if (br.ReadUInt32() != LogWriter.LOG_MAGIC) {
-                    abortCorrupt("_organizeLogSegments() found corrupt log segment!");
+                LogPacketHeader hdr = Util.readStruct<LogPacketHeader>(br);                
+                if (hdr.magic != LogPacketHeader.LOG_MAGIC) {
+                    abortCorrupt(String.Format("_organizeLogSegments() found corrupt log segment! magic => {0}", hdr.magic));
                 }
-                UInt32 chunksize = br.ReadUInt32();
-                UInt16 checksum = br.ReadUInt16();
+                
 
-                if (chunksize == 0 && checksum == 0) {                 
+                if (hdr.cmddata_length == 0 && hdr.checksum == 0) {                 
                     empty_log_segments.Add(seg);
                 } else {
-                    active_log_segments.Add(seg);
+                    order_segments.Add(hdr.curLWSN, seg);                    
                 }
+            
                 logsegment.Close();
-            }            
+            }
+
+            // now insert the active segments in proper order..
+            foreach (var kvp in order_segments.scanForward(ScanRange<long>.All())) {
+                Console.WriteLine("active segment: {0}", kvp.Key);
+                active_log_segments.Add(kvp.Value);
+            }
 
         }
 
 
         private void abortCorrupt(String reason) {
-            throw new Exception(String.Format("aborting from corrupt log reason: {0}", reason));
+            throw new Exception(String.Format("aborting from corrupt log, reason: {0}", reason));
         }
 
         public void prepareLog() {            
@@ -226,28 +249,36 @@ namespace Bend {
                 BinaryReader br = new BinaryReader(logstream);
 
                 while (true) {
-                    UInt32 magic = br.ReadUInt32();
-                    if (magic != LogWriter.LOG_MAGIC) {
-                        abortCorrupt("invalid magic: " + magic);
+                    LogPacketHeader hdr = Util.readStruct<LogPacketHeader>(br);
+                    
+                    if (hdr.magic != LogPacketHeader.LOG_MAGIC) {
+                        abortCorrupt("invalid magic: " + hdr.magic);
                     }
-                    UInt32 chunksize = br.ReadUInt32();
-                    UInt16 checksum = br.ReadUInt16();
 
-                    if (chunksize == 0 && checksum == 0) {
+                    if (hdr.cmddata_length == 0 && hdr.checksum == 0) {
                         // we reached the end-of-chunks marker, seek back
-                        br.BaseStream.Seek(-(4 + 4 + 2), SeekOrigin.Current);
+                        Console.WriteLine("Seek back... pos {0}, size {1}", br.BaseStream.Position,
+                            Util.structSize<LogPacketHeader>(ref hdr));
+                        br.BaseStream.Seek(-(Util.structSize<LogPacketHeader>(ref hdr)), SeekOrigin.Current);
                         break;
                     }
 
-                    byte[] logchunk = new byte[chunksize];
-                    if (br.Read(logchunk, 0, (int)chunksize) != chunksize) {
+                    byte[] logchunk = new byte[hdr.cmddata_length];
+                    if (br.Read(logchunk, 0, (int)hdr.cmddata_length) != hdr.cmddata_length) {
                         abortCorrupt("chunksize bytes not available");
                     }
                     // CRC the chunk and verify against checksum
                     UInt16 nchecksum = Util.Crc16.Instance.ComputeChecksum(logchunk);
-                    if (nchecksum != checksum) {
-                        abortCorrupt("computed checksum: " + nchecksum + " didn't match: " + checksum);
+                    if (nchecksum != hdr.checksum) {
+                        abortCorrupt("computed checksum: " + nchecksum + " didn't match: " + hdr.checksum);
                     }
+
+                    // check the LWSN order
+                    if (hdr.curLWSN < _logWaitSequenceNumber) {
+                        abortCorrupt("out of order recovery, packet LWSN: " + hdr.curLWSN + " < " + _logWaitSequenceNumber);
+                    }
+                    _logWaitSequenceNumber = hdr.curLWSN;
+
                     // decode and apply the records
                     BinaryReader mbr = new BinaryReader(new MemoryStream(logchunk));
 
@@ -277,13 +308,19 @@ namespace Bend {
         // this writes a closing log packet and seeks back onto it
         private static void _doLogEnd(BinaryWriter logbr) {
             // write "end of log" marker  (magic, size=0, checksum=0);
-            logbr.Write((UInt32)LogWriter.LOG_MAGIC);
-            logbr.Write((UInt32)0); // size
-            logbr.Write((UInt16)0); // checksum
+            LogPacketHeader hdr;
+            hdr.magic = LogPacketHeader.LOG_MAGIC;
+            hdr.checksum = 0;
+            hdr.curLWSN = 0;
+            hdr.cmddata_length = 0;
+            Util.writeStruct<LogPacketHeader>(hdr, logbr);
             logbr.Flush();
 
             // ..then, seek back so it will be overwritten when the next log entry is written
-            logbr.BaseStream.Seek(-(4 + 4 + 2), SeekOrigin.Current);
+            Console.WriteLine("Seek back... pos {0}, size {1}", logbr.BaseStream.Position,
+                            Util.structSize<LogPacketHeader>(ref hdr));
+
+            logbr.BaseStream.Seek(-(Util.structSize<LogPacketHeader>(ref hdr)),SeekOrigin.Current);            
         }
 
         public static void InitLogSegmentStream(Stream log) {
@@ -357,9 +394,13 @@ namespace Bend {
 
                 MemoryStream ms = new MemoryStream();
                 BinaryWriter logbr = new BinaryWriter(ms);
-                logbr.Write((UInt32)LogWriter.LOG_MAGIC);
-                logbr.Write((UInt32)cmds.Length);
-                logbr.Write((UInt16)checksum);
+
+                LogPacketHeader hdr;
+                hdr.magic = LogPacketHeader.LOG_MAGIC;
+                hdr.curLWSN = curLWSN;
+                hdr.cmddata_length = (uint)cmds.Length;
+                hdr.checksum = checksum;
+                Util.writeStruct<LogPacketHeader>(hdr, logbr);
                 logbr.Write(cmds);
                 logbr.Flush();
 
