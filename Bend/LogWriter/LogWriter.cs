@@ -260,9 +260,10 @@ namespace Bend
         public void addCommand(LogCommands cmdtype, byte[] cmdbytes, out long logWaitNumber) {
             lock (log_handler) {
                 log_handler._addCommand(cmdtype, cmdbytes, out logWaitNumber);
+
+                // we always expect the ILogReceiver to actually apply the command
+                receiver.handleCommand(cmdtype, cmdbytes);
             }
-            // we always expect the ILogReceiver to actually apply the command
-            receiver.handleCommand(cmdtype, cmdbytes);
         }
 
         public void addCommands(List<LogCmd> cmds, ref long logWaitNumber) {
@@ -298,7 +299,7 @@ namespace Bend
                     numWaiters++;
                 }
                 do {
-                    if ((DateTime.Now - started_waiting_at).TotalMilliseconds > 30000) {
+                    if ((DateTime.Now - started_waiting_at).TotalMilliseconds > 10000) {                        
                         throw new Exception("30s flush timeout exceeded");
                     }
 
@@ -307,7 +308,7 @@ namespace Bend
                     // groupCommitWorkerHndl.Set(); // wakeup the worker                
                     // groupCommitRequestorsHndl.WaitOne();
 
-                    WaitHandle.SignalAndWait(groupCommitWorkerHndl, groupCommitRequestorsHndl);
+                    WaitHandle.SignalAndWait(groupCommitWorkerHndl, groupCommitRequestorsHndl,1000,true);
                     //if (this.finishedLWSN < waitForLWSN) {
                     //    System.Console.WriteLine("still waiting... {0} < {1}",
                     //        this.finishedLWSN,waitForLWSN);
@@ -321,13 +322,18 @@ namespace Bend
         }
 
         private void _flushThread() {
-            while (true) {                
-                Thread.Sleep(1);
-                groupCommitWorkerHndl.WaitOne();
-                if (commitThread_should_die) {
-                    return;
+            try {
+                while (true) {
+                    Thread.Sleep(1);
+                    groupCommitWorkerHndl.WaitOne();
+                    if (commitThread_should_die) {
+                        return;
+                    }
+                    _doWritePendingCmds();
                 }
-                _doWritePendingCmds();
+            } catch (Exception e) {
+                Console.WriteLine("*\n*\n*\n*   UNCAUGHT EXCEPTION in LogWriter._flushThread() : {0}\n*\n*\n", e.ToString());
+                Environment.Exit(1);
             }
         }
 
@@ -341,24 +347,25 @@ namespace Bend
             groupSize = numWaiters;
             curFirstWaiter = firstWaiter;
 
-
-            finishedLWSN = log_handler.flushPending(delegate() {
-                // grab the monitor handle
+            
+            finishedLWSN = log_handler.flushPending();
+                            
+            lock (this) {
                 wakeUpThreads = this.groupCommitRequestorsHndl;
                 this.groupCommitRequestorsHndl = new ManualResetEvent(false);
 
                 numWaiters = 0;
                 firstWaiter = DateTime.MinValue;
-            });
-                
-            // reset the group commit waiting machinery
-            if (wakeUpThreads != null) {
-                groupDuration = (DateTime.Now - curFirstWaiter).TotalMilliseconds;
-                wakeUpThreads.Set();
-            } else {
-                throw new Exception("flushPending callback failed to execute!");
-            }
 
+
+                // reset the group commit waiting machinery
+                if (wakeUpThreads != null) {
+                    groupDuration = (DateTime.Now - curFirstWaiter).TotalMilliseconds;
+                    wakeUpThreads.Set();
+                } 
+            }
+            
+              
 #if false        
             // debug output.... 
             if (groupSize > 2) {

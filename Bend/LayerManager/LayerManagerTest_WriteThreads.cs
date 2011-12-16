@@ -159,6 +159,9 @@ namespace BendTests {
                     string key = this.composeKey(thread_num, data);
                     db.setValueParsed(key, data);
                     Interlocked.Increment(ref num_additions);
+                    if (i % 100 == 0) {
+                        Console.WriteLine(" ..thread {0} : {1}", thread_num, i);
+                    }
                 }
 
                 System.Console.WriteLine("endwrites, startread " + thread_num);

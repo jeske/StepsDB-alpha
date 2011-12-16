@@ -32,12 +32,16 @@ using System.Runtime.InteropServices;
 
 
 // TODO:
-//   - check to see if a log entry fits into the current segment, if advance the active segment
 //   - setup the current "log head" after recovery, to continue writing to the end
+//   - FIX: recovery if we crash suring a checkpoint attempt (currently this is busted)
+
+
+// DONE ( ?? ):
+//   - check to see if a log entry fits into the current segment, if advance the active segment
 //   - add log-timestamps to each log-packet so we can properly order log segments during recovery
 //   - add a log-checkpoint / rotation protocol 
-//   - FIX: recovery if we crash suring a checkpoint attempt (currently this is busted)
 //   - FIX: read/write log packet headers to use structs instead of manual read/write code
+
 
 namespace Bend {
 
@@ -63,9 +67,7 @@ namespace Bend {
 
         public long logWaitSequenceNumber {
             get { return _logWaitSequenceNumber; }
-        }
-
-        public delegate void handleLogFlushUpkeep();
+        }        
 
         List<RootBlockLogSegment> empty_log_segments = new List<RootBlockLogSegment>();
         List<RootBlockLogSegment> active_log_segments = new List<RootBlockLogSegment>();
@@ -257,10 +259,10 @@ namespace Bend {
 
                     if (hdr.cmddata_length == 0 && hdr.checksum == 0) {
                         // we reached the end-of-chunks marker, seek back
-                        Console.WriteLine("Seek back... pos {0}, size {1}", br.BaseStream.Position,
-                            Util.structSize<LogPacketHeader>(ref hdr));
+                        // Console.WriteLine("Seek back... pos {0}, size {1}", br.BaseStream.Position,
+                        //     Util.structSize<LogPacketHeader>(ref hdr));
                         br.BaseStream.Seek(-(Util.structSize<LogPacketHeader>(ref hdr)), SeekOrigin.Current);
-                        break;
+                        goto next_log_segment;
                     }
 
                     byte[] logchunk = new byte[hdr.cmddata_length];
@@ -296,6 +298,7 @@ namespace Bend {
                     }
                 } // ... while there are still log records
 
+            next_log_segment:
                 // close this segment to move onto the next one
                 br = null;
                 logstream.Close();
@@ -317,8 +320,8 @@ namespace Bend {
             logbr.Flush();
 
             // ..then, seek back so it will be overwritten when the next log entry is written
-            Console.WriteLine("Seek back... pos {0}, size {1}", logbr.BaseStream.Position,
-                            Util.structSize<LogPacketHeader>(ref hdr));
+            // Console.WriteLine("Seek back... pos {0}, size {1}", logbr.BaseStream.Position,
+            //                 Util.structSize<LogPacketHeader>(ref hdr));
 
             logbr.BaseStream.Seek(-(Util.structSize<LogPacketHeader>(ref hdr)),SeekOrigin.Current);            
         }
@@ -355,6 +358,9 @@ namespace Bend {
                 long pos = currentLogHeadStream.Position;
              
                 if ((pos + logpacket.Length + LOG_END_MARKER_SIZE) > currentLogSegmentInfo.logsegment_size) {
+
+                    Console.WriteLine("*\n*\n*\n*\n*      LOG RAN OUT OF SPACE\n*\n*\n*\n");
+                    Environment.Exit(1);
                     // too big to fit in an empty segment! 
                     throw new Exception("log packet too big to fit in log segment!");
                 }
@@ -368,7 +374,7 @@ namespace Bend {
             _doLogEnd(bw);            
         }
 
-        internal long flushPending(handleLogFlushUpkeep locked_cleanup) {
+        internal long flushPending() {
             byte[] cmds;
             long curLWSN;
             BinaryWriter newChunkBuffer = new BinaryWriter(new MemoryStream());
@@ -376,16 +382,14 @@ namespace Bend {
             
             lock (this) {
                 shouldCleanupCheckpoint = checkpointReady;
-
+                checkpointReady = false;
                 // grab the current chunkbuffer
                 cmds = ((MemoryStream)(nextChunkBuffer.BaseStream)).ToArray();
                 curLWSN = _logWaitSequenceNumber;
 
                 // make a clean chunkbuffer
                 this._logWaitSequenceNumber++; // increment the wait sequence number
-                nextChunkBuffer = newChunkBuffer;
-
-                locked_cleanup();
+                nextChunkBuffer = newChunkBuffer;                
             }
 
             // construct the raw log packet
@@ -413,8 +417,7 @@ namespace Bend {
                     foreach (RootBlockLogSegment seg in checkpoint_log_segments) {
                         active_log_segments.Remove(seg);
                         empty_log_segments.Add(seg);
-                    }
-                    checkpointReady = false;
+                    }                    
                     checkpoint_log_segments = null;
                 }
             }
