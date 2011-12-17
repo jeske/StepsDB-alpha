@@ -95,14 +95,10 @@ namespace Bend
         public static uint DEFAULT_LOG_SEGMENT_SIZE = 2 * 1024 * 1024; // 2MB
         public static uint DEFAULT_LOG_SEGMENTS = 5;  // 2MB * 5 => 10MB
 
-
-
-
         RootBlockHeader root;
         Stream rootblockstream;
 
         public LogSegmentsHandler log_handler; 
-        
         
         public ILogReceiver receiver;
         IRegionManager regionmgr;
@@ -114,7 +110,6 @@ namespace Bend
         long finishedLWSN = 0; 
         DateTime firstWaiter, lastWaiter;
         int numWaiters = 0;
-
 
         public LogWriter(IRegionManager regionmgr) {
             this.regionmgr = regionmgr;     
@@ -259,11 +254,10 @@ namespace Bend
 
         public void addCommand(LogCommands cmdtype, byte[] cmdbytes, out long logWaitNumber) {
             lock (log_handler) {
-                log_handler._addCommand(cmdtype, cmdbytes, out logWaitNumber);
-
-                // we always expect the ILogReceiver to actually apply the command
-                receiver.handleCommand(cmdtype, cmdbytes);
-            }
+                log_handler._addCommand(cmdtype, cmdbytes, out logWaitNumber);                
+            }            
+            // we always expect the ILogReceiver to actually apply the command
+            receiver.handleCommand(cmdtype, cmdbytes);
         }
 
         public void addCommands(List<LogCmd> cmds, ref long logWaitNumber) {
@@ -349,22 +343,18 @@ namespace Bend
 
             
             finishedLWSN = log_handler.flushPending();
-                            
-            lock (this) {
-                wakeUpThreads = this.groupCommitRequestorsHndl;
-                this.groupCommitRequestorsHndl = new ManualResetEvent(false);
-
-                numWaiters = 0;
-                firstWaiter = DateTime.MinValue;
-
-
-                // reset the group commit waiting machinery
-                if (wakeUpThreads != null) {
-                    groupDuration = (DateTime.Now - curFirstWaiter).TotalMilliseconds;
-                    wakeUpThreads.Set();
-                } 
-            }
             
+            wakeUpThreads = this.groupCommitRequestorsHndl;
+            this.groupCommitRequestorsHndl = new ManualResetEvent(false);
+
+            numWaiters = 0;
+            firstWaiter = DateTime.MinValue;
+            
+            // reset the group commit waiting machinery
+            if (wakeUpThreads != null) {
+                groupDuration = (DateTime.Now - curFirstWaiter).TotalMilliseconds;
+                wakeUpThreads.Set();
+            }            
               
 #if false        
             // debug output.... 
