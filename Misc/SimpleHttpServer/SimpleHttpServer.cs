@@ -201,6 +201,11 @@ namespace Bend.Util {
         }
         public override void handleGETRequest(HttpProcessor p) {
             Console.WriteLine("request: {0}", p.http_url);
+
+            EndPoint ep = p.socket.Client.RemoteEndPoint;
+            if (ep.AddressFamily == AddressFamily.InterNetwork) {
+                Console.WriteLine("Address: {0}",ep.ToString());
+            }
             p.writeSuccess();
             p.outputStream.WriteLine("<html><body><h1>test server</h1>");
             p.outputStream.WriteLine("Current Time: " + DateTime.Now.ToString());

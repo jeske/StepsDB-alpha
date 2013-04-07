@@ -94,7 +94,7 @@ namespace Bend {
         }
         private void addMergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs, bool histo_merge=false) {
             // create a merge candidate
-            var mergeCandidate = new MergeCandidate(source_segs, target_segs,histo_merge:histo_merge);
+            var mergeCandidate = new MergeCandidate(source_segs, target_segs,getMaxGeneration(),histo_merge:histo_merge);
             if (prioritizedMergeCandidates.ContainsKey(mergeCandidate)) {
                 // we already know about this one...
                 return;
@@ -392,7 +392,7 @@ namespace Bend {
 
         }
 
-        public MergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs, bool histo_merge=false) {
+        public MergeCandidate(List<SegmentDescriptor> source_segs, List<SegmentDescriptor> target_segs, int max_generations, bool histo_merge=false) {
             this.source_segs = source_segs.ToArray();
             this.target_segs = target_segs.ToArray();
             this.is_histo_merge = histo_merge;
@@ -433,8 +433,8 @@ namespace Bend {
             // the larger the merge, the more we should prefer it.
             this.merge_ratio -= number_of_segments * 0.003f;
 
-            // boost when the contains segment pointers 
-            if (contains_pointers) {                
+            // boost when the contains segment pointers, and is not one of the top-3 levels
+            if (contains_pointers && (max_generations - highest_generation > 2)) {
                 this.merge_ratio -= 0.03f * (float)generation_span;
                 this.merge_ratio -= 0.02f * (float)number_of_segments;
             }
