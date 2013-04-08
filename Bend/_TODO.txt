@@ -2,9 +2,9 @@
 
 ****[ High Level TODO ]***
 
-- add log recirculation scheme!! 
+- (WIP) add log recirculation scheme!! 
 
-- freelist management	
+- (WIP) freelist management	
 
   - add LENGTH to all regionmanager calls, remove the file-length hack
             
