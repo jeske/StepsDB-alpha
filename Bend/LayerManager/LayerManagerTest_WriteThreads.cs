@@ -9,6 +9,8 @@ using NUnit.Framework;
 using Bend;
 using System.Threading;
 
+using Bend.RandomHelperExtension;
+
 namespace BendTests {
 
     public partial class A03_LayerManagerTests {
@@ -33,12 +35,16 @@ namespace BendTests {
                 this.checkpoint_interval = checkpoint_interval_rowcount;
                 this.withMerge = withMerge;
 
-                Random rnd = new Random();
+
+                // init sequential data-values...
                 datavalues = new int[num_values];
                 for (int i = 0; i < num_values; i++) {
-                    datavalues[i] = rnd.Next(0xfffffff);
+                    datavalues[i] = i;
                 }
 
+                // then shuffle them..
+                Random rnd = new Random();
+                rnd.Shuffle(datavalues);                              
             }
 
             public void Dispose() {
