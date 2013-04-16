@@ -140,8 +140,13 @@ namespace Bend {
                     
 
 
-                    // color the inside of the box. pseudorandom color based on a hash of the start/end keys of a block
-                    {
+                    // color the inside of the box. 
+                    if (lastmerge != null && segs_in_merge.Contains(seg.ToString())) {
+                        // if it's currently merging, color it blue
+                        var fill = new SolidBrush(Color.Red);
+                        dc.FillRectangle(fill, cur_x, y_mid_top, BLOCK_WIDTH, segment_height);
+                    } else {
+                        // pseudorandom color based on a hash of the start/end keys of a block
                         var h1 = Math.Abs(seg.start_key.ToString().GetHashCode());
                         var h2 = Math.Abs(seg.end_key.ToString().GetHashCode());
 
@@ -150,17 +155,6 @@ namespace Bend {
                         dc.FillRectangle(fill, cur_x, y_mid_top, BLOCK_WIDTH, segment_height);
                     }
 
-                    if (lastmerge != null) {
-                        if (segs_in_merge.Contains(seg.ToString())) {
-                            Brush merge_brush;
-                            if (lastmerge.is_histo_merge) {
-                                merge_brush = new SolidBrush(Color.HotPink);
-                            } else {
-                                merge_brush = new SolidBrush(Color.Black);
-                            }
-                            dc.FillRectangle(merge_brush, cur_x, y_mid_top, 5, segment_height);
-                        }
-                    }
                     if (seg.keyrangeContainsSegmentPointers()) {                        
                         dc.FillRectangle(new SolidBrush(Color.Black), cur_x+BLOCK_WIDTH-5, y_mid_top, 5, segment_height);
                     }
