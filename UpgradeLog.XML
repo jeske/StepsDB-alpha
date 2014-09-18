@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="Bend">
+</Property><Property Name="Solution File" Value="C:\Users\David\CODING\Bend\Bend.sln">
+</Property><Property Name="User Options File" Value="C:\Users\David\CODING\Bend\Bend.suo">
+</Property><Property Name="Date" Value="Wednesday, November 03, 2010">
+</Property><Property Name="Time" Value="12:32 PM">
+</Property></Properties><Event ErrorLevel="0" Project="" Source="Bend.sln" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend.sln">
+</Event><Event ErrorLevel="0" Project="" Source="Bend.suo" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend.suo">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Bend.csproj" Description="Project file successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Bend.csproj">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Bend.csproj.user" Description="Project user file successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Bend.csproj.user">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\RootMetadata\RangemapManager2.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\RootMetadata\RangemapManager2.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\RowPipe\Pipe.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\RowPipe\Pipe.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\Records\RecordTypesTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\Records\RecordTypesTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\RowPipe\PipeTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\RowPipe\PipeTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\RowPipe\Qualifiers.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\RowPipe\Qualifiers.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\RowPipe\QualifiersTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\RowPipe\QualifiersTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\SegmentBlockCompressed.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\SegmentBlockCompressed.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\SegmentBlockCompressedTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\SegmentBlockCompressedTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\_SegmentBlockTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\_SegmentBlockTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\SortedSegmentTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\SortedSegmentTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LogWriterTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LogWriterTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LogWriter.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LogWriter.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\RegionManager.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\RegionManager.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\RootMetadata\FreespaceManager.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\RootMetadata\FreespaceManager.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\RootMetadata\RangemapManager.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\RootMetadata\RangemapManager.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\SegmentBlockBasicTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\SegmentBlockBasicTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\Checksum.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\Checksum.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\FastScan.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\FastScan.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\BinStruct.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\BinStruct.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\SegmentBlockBasic.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\SegmentBlockBasic.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Segment\SortedSegment.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Segment\SortedSegment.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\Records\RecordTypes.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\Records\RecordTypes.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\LayerManager.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\LayerManager.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\GenericWeakReference.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\GenericWeakReference.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\LayerManager\LayerManagerTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\LayerManager\LayerManagerTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\IScanner.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\IScanner.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\LRUCache.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\LRUCache.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\NumberFormat.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\NumberFormat.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\OffsetStream.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\OffsetStream.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\SimpleEncoder.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\SimpleEncoder.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\BDSkipList.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\BDSkipList.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\SortedMergeExtension.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\SortedMergeExtension.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\ThirdParty\CS-SkipList\SkipList.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\ThirdParty\CS-SkipList\SkipList.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\ThirdParty\LSCollections\SkipList.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\ThirdParty\LSCollections\SkipList.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\_UtilTest.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\_UtilTest.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Util\WhoCalls.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Util\WhoCalls.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\_Main.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\_Main.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Properties\AssemblyInfo.cs" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\Properties\AssemblyInfo.cs">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\_NOTES.txt" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\_NOTES.txt">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\_TODO.txt" Description="File successfully backed up as C:\Users\David\CODING\Bend\Backup\Bend\_TODO.txt">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Bend.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Bend" Source="Bend\Bend.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="Bend.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="Bend.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Bend" Source="Bend\Bend.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event></UpgradeLog>

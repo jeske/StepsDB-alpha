@@ -1,0 +1,244 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{5DB435AE-C387-4600-BC01-0996E28DA344}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Bend</RootNamespace>
+    <AssemblyName>Bend</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <UpgradeBackupLocation />
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="INIFileParser">
+      <HintPath>..\ThirdParty\Lib\INIFileParser.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Driver, Version=0.7.0.3959, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\Program Files (x86)\MongoDB\CSharpDriver 0.7\MongoDB.Driver.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="ICSharpCode.SharpZipLib">
+      <HintPath>..\ThirdParty\Lib\ICSharpCode.SharpZipLib.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Bson">
+      <HintPath>..\ThirdParty\Lib\MongoDB.Bson.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework">
+      <HintPath>..\ThirdParty\NUnit\nunit.framework.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Database\Repl\dbConfig.xml" />
+    <Content Include="_TODO_TESTCASES.txt" />
+    <Content Include="_TODO_tomn.txt" />
+    <Content Include="_CODING_STYLE.txt" />
+    <Content Include="_BUGS.txt" />
+    <Compile Include="Database\Repl\IReplConnection.cs" />
+    <Compile Include="Database\Repl\ReplLogFetcher.cs" />
+    <Compile Include="Database\StepsDatabase.cs" />
+    <Compile Include="Database\StepsDocumentDB.cs" />
+    <Compile Include="Database\Repl\StepsReplDB.cs" />
+    <Compile Include="Database\StepsStageSnapshot.cs" />
+    <Compile Include="Database\StepsStageSubset.cs" />
+    <Compile Include="Database\StepsStageTimestampSnapshot.cs" />
+    <Compile Include="DbgGUI\DbgGUI.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DbgGUI\LayerVisualization.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <Compile Include="RowPipe\Pipe.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RowPipe\PipeTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RowPipe\Qualifiers.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RowPipe\QualifiersTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\BDSkipListTest.cs" />
+    <Compile Include="Util\BsonHelper.cs" />
+    <Compile Include="Util\BsonHelperTests.cs" />
+    <Compile Include="Util\Checksum.cs" />
+    <Compile Include="Util\FastUniqueIds.cs" />
+    <Compile Include="Util\RandomHelper.cs" />
+    <Compile Include="Util\SimpleHttpServer.cs" />
+    <Compile Include="Util\SortedExhaustedCheckExtension.cs" />
+    <Compile Include="Util\SortedAscendingCheckExtension.cs" />
+    <Compile Include="Util\SortedIntersectExtension.cs" />
+    <Compile Include="Util\FastScan.cs" />
+    <Compile Include="Util\BinStruct.cs" />
+    <Compile Include="Util\GenericWeakReference.cs" />
+    <Compile Include="Util\IScanner.cs" />
+    <Compile Include="Util\LRUCache.cs" />
+    <Compile Include="Util\NumberFormat.cs" />
+    <Compile Include="Util\OffsetStream.cs" />
+    <Compile Include="Util\SimpleEncoder.cs" />
+    <Compile Include="Util\BDSkipList.cs" />
+    <Compile Include="Util\SortedMergeExtension.cs" />
+    <Compile Include="Util\_UtilTest.cs" />
+    <Compile Include="Util\WhoCalls.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="MTree\RegionManager\RegionExposedFiles.cs" />
+    <Compile Include="MTree\RegionManager\RegionExposedFiles_Test.cs" />
+    <Compile Include="MTree\RegionManager\RegionManager.cs" />
+    <Compile Include="MTree\LayerManager\LayerLogReceiver.cs" />
+    <Compile Include="MTree\LayerManager\LayerMaintenanceThread.cs" />
+    <Compile Include="MTree\LayerManager\LayerManager.cs" />
+    <Compile Include="MTree\LayerManager\LayerManagerTest.cs" />
+    <Compile Include="MTree\LayerManager\LayerManagerTest_WriteThreads.cs" />
+    <Compile Include="MTree\LayerManager\LayerWriteGroup.cs" />
+    <Compile Include="MTree\LayerManager\MergeManager.cs" />
+    <Compile Include="MTree\LayerManager\MergeManagerTest.cs" />
+    <Compile Include="MTree\LayerManager\Records\_RecordTests.cs" />
+    <Compile Include="MTree\LayerManager\Records\RecordData.cs" />
+    <Compile Include="MTree\LayerManager\Records\RecordKey.cs" />
+    <Compile Include="MTree\LayerManager\Records\RecordKeyType.cs" />
+    <Compile Include="MTree\LayerManager\Records\RecordUpdate.cs" />
+    <Compile Include="MTree\LayerManager\RootMetadata\FreespaceManager.cs" />
+    <Compile Include="MTree\LayerManager\RootMetadata\RangemapManager.cs" />
+    <Compile Include="MTree\LayerManager\RootMetadata\RangeMapmanager_OLD.cs" />
+    <Compile Include="MTree\LayerManager\RootMetadata\RangemapManagerTest.cs" />
+    <Compile Include="MTree\LayerManager\RootMetadata\SegmentDescriptor.cs" />
+    <Compile Include="MTree\LogWriter\ILogReceiver.cs" />
+    <Compile Include="MTree\LogWriter\LogSegmentsHandler.cs" />
+    <Compile Include="MTree\LogWriter\LogWriter.cs" />
+    <Compile Include="MTree\LogWriter\LogWriterTest.cs" />
+    <Compile Include="MTree\Segment\_SegmentBlockTest.cs" />
+    <Compile Include="MTree\Segment\SegmentBlockBasic.cs" />
+    <Compile Include="MTree\Segment\SegmentBlockBasicTest.cs" />
+    <Compile Include="MTree\Segment\SegmentBlockCompressed.cs" />
+    <Compile Include="MTree\Segment\SegmentBlockCompressedTest.cs" />
+    <Compile Include="MTree\Segment\SegmentBlockRecordOffsetList.cs" />
+    <Compile Include="MTree\Segment\SegmentBlockRecordOffsetListTests.cs" />
+    <Compile Include="MTree\Segment\SortedSegment.cs" />
+    <Compile Include="MTree\Segment\SortedSegmentTest.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
+      <Visible>False</Visible>
+      <ProductName>Windows Installer 3.1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="_NOTES.txt" />
+    <Content Include="_TODO.txt" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <EmbeddedResource Include="DbgGUI\DbgGUI.resx">
+      <DependentUpon>DbgGUI.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Database\Repl\dbConfig.ini" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Include="RPC\IStepsKVDB.thrift" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <ItemGroup>
+    <Folder Include="MTree\" />
+  </ItemGroup>
+</Project>

@@ -1,6 +1,0 @@
-﻿<NUnitProject>
-  <Settings activeconfig="Default" />
-  <Config name="Default" binpathtype="Auto">
-    <assembly path="Bend\bin\Release\Bend.dll" />
-  </Config>
-</NUnitProject>

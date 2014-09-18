@@ -1,0 +1,132 @@
+﻿
+--------[ Coding Habits ]---------
+
+-) Avoid non-local implementation dependence. If two codeblocks are co-dependent on eachother's 
+   implementations, they should be declared in the same file or class. For example
+   SegmentBasicBlockDecoder and SegmentBasicBlockEncoder are co-dependent on the details of
+   the fileformat which they read and write. Any other code in the system which is dependent
+   on the file-format should also be colocated with these modules, such as the SegmentBlockBasicTest 
+   module.
+
+-) Avoid multiple maintenance. If the same configuration data is used to perform similar tasks in
+   different ways, then some type of macro/expansion should be used to ASSURE that all instances of
+   that configuration are 100% the same, and that changes are made in a SINGLE place. For example,
+   AVOID at all costs the typical .NET serialization pattern to manutally implement separate 
+   reader/writer methods which must be manually kept in Sync. INSTEAD, use a method to assure
+   that the serialization defintion is specified ONCE and the reader/writer operations automatically
+   share that single configuration definition. For example, Util/BinStruct.cs or 
+
+-) Avoid creating "stub methods" that 90% of the time have no behavior, because the one time someone
+   puts behavior in there, it will be a surprise. For example, a settings system could use
+   methods or Properties to typecheck settings (i.e. getFooSetting() getBarSetting()) this method could
+   later introduce code behavior that's not obvious. Unless there is a reason to introduce code behavior
+   try to use either static strings (static string FooSetting = "FooSetting") or enums. 
+   
+-) Use defensive coding. Engineer for safe future changes. If code is dependent on an invariant
+   being held, and future work on that code must make sure to keep the invariant true, then write code
+   or tests which cause the system to BREAK/FAIL when the invariant is violated. Do NOT expect
+   the future programmer to know your pattern or conventions of use. 
+   
+-) Use of C# "var" keyword. Var is acceptable in the following scenerios. (a) to avoid repitition
+   anytime you are allocating a new type on the right hand side:
+
+       var foo = new List<Foo,Bar>();
+
+   (b) within "apps", or "scripts" or unit tests, it's generally okay to use var just to make things
+   easier to read or a little less fragile to change.
+
+   Var should *NOT* be used within the main code in any situations other than (a). For example, when
+   accepting a return value, the main code should not use "var", because this will potentially trigger
+   copiler warnings on differnt places in the code, which will make errors hard to track down.
+
+--------[ Backward and Forward Encoding Compatibility ]--------   
+   
+-) Unit test for backward and forward compatibility. In most cases we wish to retain 100% 
+   backward and forward compatibility for encoding formats. If modificationsto a class, IDL, 
+   type, or other configuration information may cause a binary-format incompatibility, 
+   a test should be written to FAIL if binary format backward compatibility is broken 
+   by a future coding change. 
+   
+   For example, it is NOT sufficient to test an encoder/decoder pair with a loop test 
+   that puts data into the current encoder and assures it is read by the current decoder 
+   correctly, as this test will pass even if compatibility problems exist vs previous releases. 
+  
+   A simple golden-file test can be created which assures that encoder and decoders produce
+   exactly the same output as in previous releases. In more complicated situations, it
+   may be necessary to use an older compiled assembly to assure that OLD encoder / NEW decoder,
+   and NEW encoder / OLD decoder pairs function correctly. 
+     
+-) When non-compatible binary format changes are required, the new format handlers
+   should be ADDED alongside the old ones, such encoding-format-types, format-versions, or
+   other future proofing. This assures that the new code can read (and write!) the old formats
+   acceptably. Configuration paramaters should allow users to opt-in or out of the new
+   formats as desired. 
+   
+--------[ File and class naming ]--------
+
+-) Name classes and files in increasing detail, to keep similar items sorted together in directories.
+
+   SegmentBlockCompressed, SegmentBlockBasic, not BasicBlockSegment, CompressedBlockSegment
+   
+-) Unit tests should always be in a test namespace. They should either be in the same file with
+   the class under test, OR in a file with the same name and a "Test" suffix.
+
+   SegmentBlockBasic.cs, SegmentBlockBasicTest.cs
+
+   OR, in a file in the same directory, with an _ prefix and Test suffix.
+
+   _RecordTests.cs
+
+-) Files should be placed in directories to indicate their dependence (or lack of dependence) with
+   other components. Ideally files in a "library module" directory should only reference items 
+   WITHIN that directory tree. Files in a "components" directory should only reference items 
+   OUTSIDE the components directory (prevent intra-component dependence). 
+   
+   In order to prevent needless levels of the hierarchy, files which should be 'above' the 
+   other items in the directory may remain in the directory with an underscore(_) prefix. 
+   Other items in that directory should use the same 'library module' or 'component' rules
+   as if that item were in a parent directory. For example, the "_Main.cs" file is in the
+   top level directory, but exists as if it was above all other files, and thus should not
+   be referenced by any 'library modules'.    
+
+-) ThirdParty Module: Code which is used from a third party should remain in ThirdParty with
+   appropriate information about the code license. Public source code with no license restriction
+   may be migrated into Util if rewritten enough that patches to the original code are no longer
+   relevant (i.e. would be bigger than the original code). 
+
+-) Util Module: General code which has no dependence on our design details should be 
+   placed the Util Components directory, and that code should be kept free of depdence on our
+   design. 
+   
+   We should separate out an "OpenUtil" subdivision of Util which contains code that we are
+   comfortable releasing into the public domain. (such as a skiplist or checksum implementation)
+
+--------[ Unit Test Naming Conventions ]--------
+   
+-) A single unit [Test] method should run independently of all other unit tests. There should
+   be no dependence on running multiple tests or tests in a specific order for them to pass. If you
+   want to order a set of operations, put them in a SINGLE test.
+   
+-) Unit test [TestFixture] classes should be named with a prefix to order test results based on 
+   their dependencies within the project. This makes it easier to find the earliest/simplest test
+   the caused a cascade of failures. The prefix contains a "dependency level number", starting
+   with "A00_" for tests which make zero references to other project dependencies. For
+   tests which are dependent on other components, the "dependency level number" is the 
+   maximum dependency level number for the tests of any code you are referencing, PLUS ONE.
+   For example:
+   
+   A00_Util         -> depends on on .NET system libraries, ZERO within project dependencies
+   A01_RecordTypes  -> depends on code in A00_Util
+   A02_LogTest      -> depends on code in A00_Util, and A01_RecordTypes
+   A03_LayerManager -> depends on code in A00_Util, A01_RecordTypes, and A02_LogTest
+   
+   NOTE: If you mock out dependencies defined by another module, you are STILL dependent on that 
+   other module, because if the interface of the other test changes your mock will need to be 
+   rewritten. 
+
+-) [Test] methods within the textfixture should be named with a prefix to indicate
+   how complicated they are. "T00_" being the simplest test, "T01_" being more complex, 
+   and so on.
+
+
+

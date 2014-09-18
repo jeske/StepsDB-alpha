@@ -1,0 +1,449 @@
+**** [ Main WIKI SITE:    http://stepsdb.pbworks.com/    ] ****
+
+****[ High Level TODO ]***
+
+- (WIP) add log recirculation scheme!! 
+
+- (WIP) freelist management	
+
+  - add LENGTH to all regionmanager calls, remove the file-length hack
+            
+  - assure merge-apply/flush is atomic WRT cursor setup
+ 
+  - write some freelist tests...
+
+  - assure atomic write groups are "really" atomic...
+  - reduce the number of "zz uncached sub-block" occurances (cached decompressed blocks in SegmentReader ?)
+
+  - write "fsck" to audit the freelist and the current live segments
+  - ? growing top-of-heap should grow more than a single segment
+  - write threaded group-commit write-throughput test
+
+  (done)
+      (done) provide free blocks back to the freelist manager
+	  (done) FIX the binary data readback bug.... 
+	  (done) 2) change segment pointers to include LENGTH (addr,length)            
+	  (done) add atomic mechanism for carving off a "pending block" (DISK_ATOMIC_NOFLUSH)
+	  (done) add mechanism to encapsulate converting the "pending block" into a segment pointer
+              (so it can be deferred until the block has been finalized) 
+      (done) add freelistDebug to print the current freelist info
+	  (done) allocation should try to select new pending blocks from freelist instead of top-of-heap **  
+      (done) address race condition in freeing-block (assure cached segment handle is discarded before block is reused)
+  
+
+
+- xml config file handling
+  - DTD validation - http://support.microsoft.com/kb/307379
+  - "example config" generation
+
+- paxos experimentation
+- distributed DB
+
+- "perf unit tests"
+  - add a perf test that quickly tests and records performance for basic operations
+  - store the results in a file with the calendar week/day number (for checkin to the repository)
+  - compare the results with most recent previous results, error on big negative changes
+  - write perf, read perf, recovery/replay, scan, etc.
+
+
+****[ Background Flush/Merge Cleanup]***
+
+I fixed this background flush exception... ( Background Flush Data Consistency Problem!! )
+
+!!!!! Exception in ValueCheckerThread test-4, System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Bend.RangemapManager.INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive(IComparable`1 startkeytest, Boolean direction_is_forward, SegmentMemoryBuilder[] startseg_layers, IScannableDictionary`2 handledIndexRecords2, Int32 maxgen, IScannableDictionary`2 segmentsWithRecords, Boolean equal_ok, SegmentWalkStats stats) 
+       ... in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\RangemapManager.cs:line 1001
+   at Bend.RangemapManager.<getRecord_LowLevel_Cursor>d__4.MoveNext() in C:\Users\David\CODING\Bend\Bend\LayerManager\RootMetadata\RangemapManager.cs:line 378
+   at Bend.LayerManager.FindNext(IComparable`1 keytest, Boolean equal_ok) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 897
+   at Bend.LayerManager.getRecord(RecordKey key, RecordData& record) in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManager.cs:line 876
+   at BendTests.A03_LayerManagerTests.ValueCheckerThread.doValidate() in C:\Users\David\CODING\Bend\Bend\LayerManager\LayerManagerTest.cs:line 568
+
+By adding a horrible +1 hack to INTERNAL_segmentWalkCursorSetupForNextKey_NonRecursive, in the 
+allocation of segmentsWithRecords_ByGeneration[highest_possible_generation+1]. When a flush occurs (increasing maxgen) 
+while a cursor is being setup, this prevents an overflow of the _ByGeneration array. However, this is really hacky.
+
+****[ Standalone steps-mtree ]****
+ 
+ - freelist management
+ 
+ - bound the log size
+   - allow separate log file
+   - add recirculation, be sure to update log-ptr before circulating over the start
+   - (default log = 20x chunk size, 512k chunks = 10MB log)	
+   - trigger "flush" if log is running out of space
+   - keep "reserve" log space to 
+
+  - (assert) properly handle a metadata mismatch after a segment change before it is truly applied
+  - ... put the change in a "fake segment", then do a full-walk... make sure they match before applying
+    - ... perform a simple recursive walk and see if the mismatch is still there
+    - ... if it was just a cursor walk problem, dump the discrepancy
+    - ... if the simple recursive walk produced the wrong output also, dump the discrepancy
+
+  - simple code obfuscator
+  - regression test
+
+----[ Concurrency/Background Flush TODO  ]---------
+ 
+  - (done) make metrics based background flush/merge thread
+  - ...update MainTest1 to use it
+  - ...update EmailInjector test to use it
+  - ...rework EmailInjector to separate msg-parse from inject time (and speed up msg parse!)
+  - ...check for problems with updating MergeManager segment list before the atomic-commit applies... if so, fix
+
+  - test performance w/background flush thread (writegroup on/off), (keys/second, bytes/second)
+
+  - ...change gui debug display to update based on a trigger notification from db segment changes...
+
+  - make sure "deleted" segment data lives until pointers to them die (or a restart occurs): attach a weakref that frees the actual segment 
+  
+  - how do we make sure a merge-candidate remains valid until the merge is done... (i.e. that nobody merged something conflicting in the meantime?)
+  - ... require a lock between merge-candidate and doing the merge? (i.e. only the merger asks for the merge candidate)
+  - ... revalidate a merge-candidate at the beginning of a merge?
+     
+----[ TODO  ]---------
+
+  - make a psudorandom indexer perf test (because the email test is gated by email parse speed)
+
+  - TODO fixes:
+    - add a "readonly mode" to segment memory builder, to "freeze" it.
+
+  - MTREE "0.1" requirements:
+    - (done) read/write concurrency, "background checkpoint/merge"
+	  - (done) perform atomic "checkpoint" without stopping writes
+	     a. (done) atomic "segment pointer apply" (partially done)
+		 b. (done) fix/check "write threads test"
+		 c. (done) make 'simultaneous write/checkpoint' test (or is this just write threads test?)
+      - (done) perform merge in the background without stopping writes
+	     a. (done) make "merge apply" atomic
+		 b. (done) make "background merge" consistency test
+		 c. make "background merge agent" thread to do this automatically
+	
+	
+	- add "FileSpacesRegionManager" that puts data in a file or set of files
+	  - allow logs on a separate file (disk)
+	
+  - SearchIndexer:
+    - test indexing performance test with background checkpoint/merge
+	- ... compare to lucene performance
+	- ... make a release!
+
+  - MTREE improvements:
+    - allow the merge to "skip blocks" (when no new key touches an old-block, simply remove it from the merge)
+    - estimate 'dbsize between start/end key', return sets of segment 'split' keys -- for splitting ranges
+    - SortedSegment: prefix/suffix compression
+    - fix the block decoder selection to be dynamic instead of hardcoded
+      - ADD: record block-encoder registry, encoder-type "chain" and 
+	         decode-setup (so it just auto-decodes whatever is there)
+    - improve the merge-manager
+	  - add "minimum merge size" to merge manager
+	- logical "space volumes" (log on a separate disk from data)
+      - separate/multiple log/data files in regionmanager 
+
+  - DBCORE: 
+	 - PROTOTYPE: transaction stage / MVCC stage
+     - write SnapshotStage 'merge resolver' (to avoid proliferating too many versions of a record)
+     - add ACCUMULATORS	     
+         - LayerManager: SortedMerge extension needs to take a duplicate key resolver, 
+	       which will handle things like causing incremental updates to merge. 
+
+  - GUI: repaint heap-memory and GC info on a timer instad of only when called
+  - GUI: setup generic DB event listener concept and notify GUI through it
+  - GUI: number of blocks in each layer (this is probably what we'll show externally)
+
+  - add some test performance counters for perfmon.exe
+    http://madskristensen.net/post/Create-performance-counters-using-NET-and-C.aspx
+	- OR, maybe just use NetMX because windows sucks.
+	  http://netmx.codeplex.com/
+
+  - Replication Network Bringup
+     - turn IReplConnection into a "real" network interface (WCF?)
+	 - connect two separate instances in two separate processes! 
+
+--------[ BASIC CUSTOMER USABILITY ]-------------
+    
+  - task/job/tool tracking
+  - command line interface
+  - html status GUI
+
+--------[ Document DB ]-----------
+
+  - StepsDBControllerStage
+     (1) allow creation of a pipeline, and metadata to recreate that pipeline when restarted
+   
+  - FieldedDocumentStoreStage     
+     - check for duplicate/redundant index during create
+	 - persist/reload/update database-stored index config    
+	 - snapshot/log-replay stage (for online index create)
+	    - online-index-create
+     - code for index create
+     - consistent index create w/snapshot
+     - "safe" index drop (don't drop out from underneath anyone)
+     - more expressive queries (not just equality match)
+     - Find "order by"
+     - index-order control (ascending/descending index parts)
+
+ - Q: can we serve exact-key lookups from an incomplete index being built at the time?
+   - MOTIVE: building an index is expensive. If we can use it to relieve read-pressure while
+       it's being built, we can free up resources to build it.
+   - This can only work *IF* the query hits a single-key, which means it will need to
+     be a lookup on an index with a UNIQUE constraint. 
+   - The index is being built on a snapshot, so in addition to performing the lookup, we
+     need to maintain a bloom of "records touched since the snapshot" so we can quickly
+	 check to see if the data in the index is current. 
+
+--------[ PERF ]-----------
+
+  
+  - FIX: super-slow advisor row size estimation!! 
+	- (we might as well encode the key and use that len, since we have to do it anyhow)
+  - PERF: experiment changing BDSkipList locks into SpinLocks
+
+  - MAKE: scanrange cache, use in segment walk
+
+  - ? make a shortcut for SegmentBlockDecoder to fast-fail if a key scan is outside the block range
+  - implement a new block format!!! 
+
+  - BDSkipList:
+     ? make BDSkipList do a quick check to see if the key is outside the top/bottom range?  
+       - it should already be fast because of the "top" skiplist lane 
+     ? does it really need two skiplists, or can bidirectional searches be efficient with one?
+
+--------[ APPS ]-----------
+
+  - distributed datastore handler
+     - FIX: ReplHandler - make a better atomic always-increasing timestamp for the log
+     - add psudo connection handling
+	 - add full-repl
+	 - parallel-bringup idea (in fresh database, write all keys to all nodes at start, then split and selectively drop)
+
+  - standalone server
+     - standalone db server w/network protocol
+     - test background checkpoint/merge (and make segment changes atomic)
+     - "Key Value DB" and "Indexer" handler/APIs
+     - email-indexer and search test programs
+     - simple database client w/command line   
+
+  - convert willowmail from sqlitedb to stepsdb (document store)
+     - need document interface
+     - need large-record support
+
+  - email indexer
+     - improve performance of email-index-test mbox parser
+     - make a command line text-indexer and test it under mono (index, merge, search)
+	 - PERFORMANCE:	   
+	   - ? recordkey.withPrefix() construction, to avoid long prefix allocations
+	   - better block format than basic block
+	 - add exact phrase match
+	 - add proximity scoring
+	 - add TFxIDF scoring (need numeric accumulators in the database!!) 
+     - write a custom block handler for the index hits and efficient search intersection
+     - compare indexing and query performance with lucene/xapian
+
+  - simulate Toku iibench
+     - insert 1B rows while maintaining three multi-column secondary indicies (i.e. insert 3B rows)
+     - TARGET: 1000 rows per batch, tokudb 30k-15k inserts per sec, mysql 40k-876 inserts per sec
+
+--------[ DBCORE ]-----------
+   - TODO: make segment merge "apply" a truly atomic operation  
+     - make AtomicWriteGroup that is guaranteed to apply atomicically 
+	   (everything in one log packet, lock working segment during apply)
+	 - make flushWorkingSegment an automatic/background part of LayerManager
+
+  - LayerManager: merge should have a slow/safe mode to verify segments db vs 
+       merge-manager after every merge 
+	      (when it fails, record the merge-manager state in a dump-file)
+
+
+  - Q: If we use "minValidGenForBlock(int below_topgen)" to set a merge block output, 
+       can we do a 1-level histo merge? Seems like we can
+
+  - LayerManager, MergeManager: add/remove keyrange merge-barrier (a different way to snapshot)
+
+  
+  - design/build [SimpleAtomicCommit] Attribute, and Attribute system
+     - simply provide an atomic commit for a set of changes. Nobody (including us) should see the
+	   changes until the transaction is committed. 
+  
+  - FIX histogram merges, so they don't create overlapping blocks!
+     - IDEA-1: force a block boundary at the edge of any blocks not involved in the merge
+	   - one way to do this is to force a block boundary at the end of every involved downstream block, though this is more
+	     conservative than necessary
+	   - another way, would be to check each time a block is added to the histogram, and if there were any blocks skipped,
+	     record the need to force a block boundary before the start of that block
+	   - yet another method is to use the histogram information to force a block-split, instead of a merge
+	   - it would be much better if we could figure out how to avoid creating this problem to begin with!
+	  - IDEA-2: let merge manger place the target block. If it overlaps, let it float to the higher gen.
+	    - this doesn't solve anything. The new block will just be a new histo merge, continuing in an endless cycle. 		 
+
+  - DBG-GUI:
+       - visualize block "fullness" and "tomstone to key ratio"
+       - visualize log/workingsegment/checkpoint status
+	   - visualize the disk/block address space
+	   - show number of keys in the database (LayerManager will need to track this)
+	   - figure out how LayerManager can notify listeners, such as DbgGUI (without performance dependence)
+	   - IDEA: debug GUI for IScanner interface
+
+  - MAKE debug-gui "data browser" (so I can fish and figured out what happened in data)
+
+  - MergeManager: build unit testcases for merge-manager merge-score (can we just build the function from test-cases?)
+  - MergeManager: move the "threshold for merge" logic into the merge manager
+  - MergeManager: notify_add should check for overlap within a generation!
+  - MergeManager: extend to consider "peers" to the start-segment so we can do good top-heavy merges
+
+
+--------[ DBCORE Cleanup ]-----------
+
+  - FIX: make sure that entries in the workingsegment are immutable (clone/encode them before inserting)
+  - CLEANUP: unify RangeKey and SegmentDescriptor classes into one
+
+  - Q: how do we assure encoding/decoding is symmetric?!?!?!?!
+     - encode/decode before we put into the value? 
+
+  - SCANNER FIXES
+    - MAKE: a way to do FindNext which implies a prefix, so we don't have to test the prefix after
+    - figure out the best way to fix IScanner so handle all operators  ( < <= > >= ) on all endpoints
+
+  - SEGWALK QUESTION: What happens if we go through an entire block, and it is nothing but deletion tombstones? 
+     Don't we need to continue iterating in the next range of that generation?  How? At least we should fail! 
+    - IDEA: it seems like there is a fancy version of segment setup worklist, where when it descends to
+       the next indirect block, it hands down the current segment, and down below it "merges" the two, in
+	   order to remove tombstones. 
+
+  Q: How do we assure a valid merge? (no generation inversion or overlapping blocks)    
+    - make merge-manager do a 'new block range verify' that makes sure a new block range do not span an 
+      existing block range (does it need to ignore the blocks it's replacing?)
+	- "correctness proof by induction", or some kind of expensive test mode to find and save error cases
+  
+  - on restart/recover, make sure segments are added to merge manager oldest-generation-to-newest
+  - check that we never try to write a row bigger than a microblock (how do we handle big rows?)
+  - use SegmentDescriptor class everywhere, merge with RangeKey
+  - change generation to "int" everywhere (from uint)
+  - make a SegmentPointer class that contains magic/address/length/checksum, to handle segment pointer "data"	
+  - fix "clear segment cache hack"... why does it need to be cleared?
+	
+- TESTING
+  - build synthetic tester... random row addition/deletion, where it turns on expensive
+    "strong checking" of every segment operation, and database contents. Let it run
+	for days to generate "failure data".   
+  - unit tests for segment walk/cursor-setup
+	    - check for deletion tombstone-shadow problem
+  - mergeSegments() unit test
+
+--------[ Bigger TODO items ]-----------
+
+*** "table management"
+  - ? integration of my RowPIPE prototype code, which is a generic type of "table management" to organize how multi-part keys are built
+  - ? change system metadata to use rowpipe
+  - ? bootstrap case of 'metadata to type/explain system metadata'
+
+*** LinearAllocationRegion implementation (so two simultaneous allocators don't interleave)
+  - can MergeManager trigger "defragmentation" of existing blocks? (i.e. schedule a merge of 10 fragmented blocks in the same generation)
+
+*** implement MVCC and locks
+  (a) introduce row-attribute concept (can affect commit, row visibility, etc.)
+  (b) attach MVCC attribute handler to writes, attach txn id to each row
+  (c) txn-id and MVCC attribute can transparently 'fall off' a row if txn commits, 
+
+*** freelist
+  - 'real' freelist handling
+  - cleaner way to handle code and encoding of stored data, such as block pointers, freelist.. (binstruct?)
+
+*** raw-byterange RegionManager
+  - bounds checking on log-write, circular log, log-extension capability
+  - bounds checking on segment size
+  - encode segment length in SegmentInfo
+
+*** Automated Replication
+(a) 'lock' for old generations (i.e. checkpoint),
+(b) copy locked data to replica
+(c) create new 'lock' for newer data, goto (b), until we are up-to-date
+
+*** try using C# sqlite sql implementation to throw SQL on top
+
+- fix update semantics so "setValue" doesn't hack the value directly into the in-memory segment. It should simply commit the change packet and handleCommand() should cause the write to occur, just as it does in recovery. (i.e. recovery is the same as update)
+- SegmentWriter needs buffered output (LogAppendWriter) - there was some problem with just dropping a buffered stream in place of the current streams
+- Singleton keyparts for less allocation + faster comparisons
+- stats tracking (qps, w_qps at 1 second interval)
+
+*** consider enabling a workingSegmentFlush to operate as a merge, so we don't just write the blocks to then force a merge of most of them 
+*** I/O scheduling (so log writes and segment writes don't thrash)
+*** layer-avoidance, bloom filters
+*** distributed shard manager
+  - Cassandra performance tests - http://www.coreyhulen.org/?p=326
+*** xml document database
+    - http://www.ibm.com/developerworks/data/library/techarticle/dm-0606schiefer/
+
+*** Network Interface
+*** Use DotFuscator to make safer output targets
+*** Hookup Hive/Pig for data-analysis
+*** prototype "Palantir" data-slicing GUI
+
+*** Interactive C# Shell mode? (w/intellisense!!) 
+   - http://tirania.org/blog/archive/2008/Sep-08.html
+
+
+*** is there a practical way to incorporate segment-cache-state into computing merge score for a set of segments?
+
+--------------------------------------------------------------------------------------------------------------
+------------[ DONE ]--------------------
+  
+
+12/21 - FIX: SegmentReader now uses an enumerator for scanBackward (big perf win)
+12/21 (1) replication as a db stage on-top of snapshot stage
+         - does replication need to be able to 'set' the timestamp values of records'?
+      (2) replication 'full copy bringup' using snapshots
+      (3) cleanup of replication (switch to 'always pull' log tails, and block on no new entries)
+12/12 - FIX: SegmentReader now uses an enumerator for scanForward (big perf win)
+12/11 - FieldedDocumentStoreStage
+         - BSONDocument insert interface
+	     - primary-key and composite-key index maintenance
+	     - get/find/query execution
+	     - delete	
+		 - update (one or many)
+12/9  - timestamp/snapshot stage (first step, still need merge cleanup)
+12/6  - much bigger index test (try to make a 2GB index)
+12/6  - FIX: runaway max-gen count! 
+12/6  - drop tombstones when writing into generation-0 (oldest)
+12/6  - FIX: cursor-v2 bug  (MainTest, in increasing-order-keys-test, also in random test now)
+          - I think this is caused because the "new segment is lower than the "old" segment, so at
+ 	  the top layer it adds a new segment to the list and stops before it sees the tombstone.  
+	  Two possible fixes (1) don't stop until we see a range record that does not apply to the
+	  record we're looking for , (2) once we have a valid range record for a generation, mark
+	  that generation as handled so we don't keep trying (is this valid? if so it will be faster)
+  
+12/5  - GUI: mark blocks which contain index (.ROOT/GEN) records  
+12/5  - MergeManager: add merge-priority boosts based on block's generation, whether it has rangekeys, etc.
+12/5  - cursor scan based TextIndexer has MUCH better performance!! 
+12/5  - CURSOR-V2!!!!  - implement fast cursors! 
+      - FIX: findEligibleRangeRows should just look for generation keys in decreasing order, not be dependent on knowing maxgen 
+      - (no longer needed) switch handledIndexRecords and assembledRecords to hashtables, then resort assembled records at the end
+      - review and make sure merges are happening in the right precedence order
+      - figure out why the TombstoneRemover caused output differences
+12/3  - put a counter in for every time we do FindNext/FindPrev trying to find a rangerow in findAllEligible..
+12/2  - FIX: only call findAllEligible range-rows for segments that actually could have range rows
+12/2  - FIX: directlyContainsKey should not return TRUE!! 
+12/2  - FIX: the min-key max-key superhack in segment_walk
+12/2  - extend RecordKey to be type-aware , see if we get back the proper number of search hits.
+        (string, int, RecordKey) to start
+12/2  - FIX: gui debugger, so it uses "unique keys count" for segment height not the other junk  
+12/2? - fix 'unmergable' broad-higher generation blocks (i.e. increasing order insertion)
+        - (a) use MergeManager to pick a the 'minGenerationForKeyrange"
+     - or, (b) allow MergeManager to recommend a 'rename' to a lower generation
+11/29 - FIX: text-indexer notify_removeSegment crash
+11/28 - split the build into pieces (bend.dll, bend-test.dll, bend-main.exe, emailtest.exe)
+11/27 - basic text-indexer test with AND conjunction of terms is working
+11/25 - test adjusting the merge threshold ratio based on the current maximum number of layers...
+11/24 - fix runaway max-generation issue....  
+11/24 - FIXED - as the MergeManager is generating merge candidates, when it descends another generation, 
+        it needs to expand the start/end ranges to be inclusive of all the blocks in the previous generations!   
+11/24 - BDSkipList, short circuit a case where an equal_ok key is found to return faster
+11/24 - fixed merge bug that was causing invalid overlapping blocks (jeske)
+11/23 - visualize merges as they occur (w/progress)
+11/23 - color blocks based on has of key range (tomn)
+11/23 - prevent visual 'generation skipping'  (where it skips generation-columns that have no data) (tomn)
+11/23 - draw blocks the same height, with diagonal lines to indiciate key range alignment (tomn)
+11/23 - write scanForward for the database (stand in until we write a real scanForward sorted-walk)
+11/20 - added merge manager 'key histogram' merge-ratio computation as a fallback
+11/20 - first incremental merge manager (+prevent holes from 'blocking' merges)
+11/18 - make a "big test case" that shows off multiple layers of segments merging, with a debug visualization UI!
+11/3 - first incremental block merge works
