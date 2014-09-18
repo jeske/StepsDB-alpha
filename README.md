@@ -12,4 +12,5 @@ such as LevelDB, RocksDB, or ROSE, which all sit atop a directory/btree-ish abst
 The goal here being to reduce write-amplification, efficiently support smaller block sizes,
 avoid rewriting stable old data, among other improvements.
 
+I can be loaded/built in MonoDevelop, Xamarin, or Visual Studio 2010+. Tests are in NUnit.
 
