@@ -1,4 +1,5 @@
 StepsDB-alpha
+David W. Jeske ( davidj  at g.m.a.i.l )
 =============
 
 StepsDB is a research database, experimenting with a write-optimized alternative to btrees
