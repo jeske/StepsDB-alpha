@@ -1,6 +1,7 @@
 StepsDB-alpha
-David W. Jeske ( davidj  at g.m.a.i.l )
 =============
+
+David W. Jeske ( davidj  at g.m.a.i.l )
 
 StepsDB is a research database, experimenting with a write-optimized alternative to btrees
 in the general family of LSM (log structured merge). 
