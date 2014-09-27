@@ -56,10 +56,6 @@
     <Reference Include="INIFileParser">
       <HintPath>..\ThirdParty\Lib\INIFileParser.dll</HintPath>
     </Reference>
-    <Reference Include="MongoDB.Driver, Version=0.7.0.3959, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\Program Files (x86)\MongoDB\CSharpDriver 0.7\MongoDB.Driver.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -96,11 +92,6 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="DbgGUI\LayerVisualization.cs" />
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
@@ -217,10 +208,6 @@
     <EmbeddedResource Include="DbgGUI\DbgGUI.resx">
       <DependentUpon>DbgGUI.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="Database\Repl\dbConfig.ini" />
@@ -238,7 +225,5 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <ItemGroup>
-    <Folder Include="MTree\" />
-  </ItemGroup>
+  <ItemGroup />
 </Project>
