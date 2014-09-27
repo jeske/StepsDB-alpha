@@ -76,6 +76,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Database\Repl\dbConfig.xml" />
+    <Content Include="LICENSE.txt" />
+    <Content Include="MTree\README_MTREE.txt" />
     <Content Include="_TODO_TESTCASES.txt" />
     <Content Include="_TODO_tomn.txt" />
     <Content Include="_CODING_STYLE.txt" />
