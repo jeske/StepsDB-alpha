@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (C) 2008-2011 by David W. Jeske
+// All Rights Reserved.
+
+using System;
 using System.Text.RegularExpressions; // used to split body msg into words
 
 using System.Collections.Generic;
@@ -6,6 +9,10 @@ using Bend;
 
 using System.Security.Cryptography;
 
+// This maps hits into KeyValue rows using the pattern:
+//
+//   .zdata/index/WORD/DOCID  ->  WordFrequency
+// 
 
 namespace Bend.Indexer {
 
