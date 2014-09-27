@@ -36,16 +36,16 @@ namespace Bend {
         public const WriteGroupType DEFAULT_WG_TYPE = WriteGroupType.DISK_INCREMENTAL;
 
         public enum WriteGroupType {
-            [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log")]
-            DISK_INCREMENTAL,
-
             [Description("Changes are immediately added only to the working-segment. They will only survive if a checkpoint occurs before shutdown.")]
             MEMORY_ONLY,
 
-            [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish(). In addition, .finish() will only return once they are flushed to the log")]
+            [Description("Changes are immediately added to the pending-log-queue and working-segment. They will opportunistically reach the log. In addition, .finish() will only return once they are flushed to the log.")]
+            DISK_INCREMENTAL,
+
+            [Description("Changes accumulate in a pending atomic-log-packet. They will *atomically* appear in the working segment and log only after calling .finish(). In addition, .finish() will only return once they are flushed to the log.")]
             DISK_ATOMIC_FLUSH,
 
-            [Description("Changes accumulate in a pending atomic-log-packet. They will appear in the working segment and log only after a .finish().")]
+            [Description("Changes accumulate in a pending atomic-log-packet. They will *atomically* appear in the working segment and log only after calling .finish().")]
             DISK_ATOMIC_NOFLUSH,
         };
 
@@ -68,8 +68,6 @@ namespace Bend {
             CLOSED,
         }
         WriteGroupState state = WriteGroupState.PENDING;
-
-
 
         public LayerWriteGroup(LayerManager _layer, WriteGroupType type = DEFAULT_WG_TYPE) {
             this.mylayer = _layer;

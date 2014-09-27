@@ -29,14 +29,7 @@ using Bend.Repl;
 
 namespace Bend {
 
-    public interface IStepsKVDB {
-         void setValue(RecordKey key, RecordUpdate update);         
-         // public GetStatus getRecord(RecordKey key, out RecordData record);
-         IEnumerable<KeyValuePair<RecordKey, RecordData>> scanForward(IScanner<RecordKey> scanner);
-         IEnumerable<KeyValuePair<RecordKey, RecordData>> scanBackward(IScanner<RecordKey> scanner);
-         KeyValuePair<RecordKey, RecordData> FindNext(IComparable<RecordKey> keytest, bool equal_ok);
-         KeyValuePair<RecordKey, RecordData> FindPrev(IComparable<RecordKey> keytest, bool equal_ok);
-    }
+   
 
     // -----------------------------------
 
