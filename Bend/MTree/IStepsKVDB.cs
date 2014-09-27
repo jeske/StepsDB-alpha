@@ -17,6 +17,8 @@
 using System;
 using System.Collections.Generic;
 
+// TODO: we should expose LayerManager.WriteGroup in this API, to allow efficient atomic flushing.
+
 namespace Bend
 {
     public interface IStepsKVDB
