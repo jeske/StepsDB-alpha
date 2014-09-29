@@ -2,6 +2,9 @@
 
 ****[ High Level TODO ]***
 
+- (BUG) cursor opening needs strong atomicity over atomic-write-groups, so it doesn't see half-written atomic segment changes
+   - HOW? 
+
 - (WIP) add log recirculation scheme!! 
 
 - (WIP) freelist management	

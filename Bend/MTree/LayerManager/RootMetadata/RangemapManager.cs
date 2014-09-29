@@ -397,11 +397,15 @@ namespace Bend
                 // record the current checkpoint number so we know if we have to reload the segments
                 currentCheckpointNumber = this.store.checkpointNumber;
 
-                
-                SegmentMemoryBuilder[] layers;
                 // snapshot the working segment layers
+                SegmentMemoryBuilder[] layers;              
                 lock (this.store.segmentlayers) {
                     layers = this.store.segmentlayers.ToArray();
+
+                    // BUG: this is not a strong enough atomicity over the working segment...
+                    //   we need to be sure we don't ever see half-written atomic-write-groups 
+                    //   while constructing a cursor
+                    //      (see LayerLogReceiver.cs)
                 }
 
                 DateTime start = DateTime.Now;               

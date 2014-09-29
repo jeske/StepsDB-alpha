@@ -48,7 +48,7 @@ namespace Bend {
                 BlockAccessor ba = new BlockAccessor(cmddata);
                 ISegmentBlockDecoder decoder = new SegmentBlockBasicDecoder(ba);
                 foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in decoder.sortedWalk()) {
-                    // populate our working segment
+                    // add the updates to our working segment...
                     lock (mylayer.segmentlayers) {
 #if false
                             // some status debug code...

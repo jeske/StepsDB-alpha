@@ -319,7 +319,7 @@ namespace BendTests
                 // make sure a log-extend still succeeds.
 
 
-                Assert.Fail("test not finished");
+                Assert.Fail("INTENTIONAL FAIL - test not fully implemented");
 
                 lr.Dispose();
             }            

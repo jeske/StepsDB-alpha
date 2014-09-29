@@ -41,7 +41,7 @@ namespace Bend
     // ---------------[ LayerManager ]---------------------------------------------------------
 
 
-    public class LayerManager : IStepsKVDB, IDisposable
+    public partial class LayerManager : IStepsKVDB, IDisposable
     {
 
         // private int SEGMENT_BLOCKSIZE = 4 * 1024 * 1024;  // 4 MB
@@ -130,8 +130,6 @@ namespace Bend
                 }
             }
         }
-
-
         
         // impl ....
 
@@ -180,31 +178,7 @@ namespace Bend
 
         }
 
-        public void DEBUG_addNewWorkingSegmentWithoutFlush() {
-            // (1) create a new working segment            
-            SegmentMemoryBuilder newlayer = new SegmentMemoryBuilder();
-            SegmentMemoryBuilder checkpointSegment;
-            int checkpoint_segment_size;
-
-
-            Console.WriteLine("************ WARNING ************ Using DEBUG_addNewWorkingSegmentWithoutFlush()");
-
-            lock (flushLock) {
-                lock (this.segmentlayers) {
-                    checkpointSegment = workingSegment;
-                    checkpoint_segment_size = checkpointSegment.RowCount;
-                    workingSegment = newlayer;
-                    segmentlayers.Insert(0, workingSegment);
-                }
-            }
-
-            Console.WriteLine("*********** num memory layers = {0}", segmentlayers.Count);
-
-            this.debugDump();
-
-            // (2) wait a moment, then check that the old working segment was no longer written (or make it readonly)
-        }
-
+      
 
         Object flushLock = new Object();
         public void flushWorkingSegment() {
@@ -624,59 +598,13 @@ namespace Bend
 
 
 
+        // ---------------------------------------------------------------------------------------------
+
+
         public GetStatus getNextRecord(RecordKey lowkey, ref RecordKey found_key, ref RecordData found_record) {
             return (rangemapmgr.getNextRecord(lowkey, false, ref found_key, ref found_record,false));
         }
-
-        public void debugDump()
-        {
-                
-            foreach (ISortedSegment layer in segmentlayers) {
-                Console.WriteLine("--- Memory Layer : " + layer.GetHashCode());
-                debugDump(layer, "  ", new HashSet<string>());
-            }
-
-            freespacemgr.debugDumbCurrentFreespace();
-        }
-
-        
-        private void debugDump(ISortedSegment seg, String indent, HashSet<string> seenGenerations) {
-            HashSet<string> nextSeenGenerations = new HashSet<string>(seenGenerations);
-            RecordKey genkey = new RecordKey().appendParsedKey(".ROOT/GEN");
-
-            // first, print all our keys
-            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
-                String value_str = kvp.Value.ToString();
-                if (value_str.Length < 50) {
-                    Console.WriteLine(indent + kvp.Key + " : " + value_str + "   ");
-                } else {
-                    Console.WriteLine(indent + kvp.Key + " : " + value_str.Substring(0,10) + "..[" + (value_str.Length-40) + " more bytes]");
-                }
-                
-                if (kvp.Key.isSubkeyOf(genkey)) {
-                    nextSeenGenerations.Add(kvp.Key.ToString());
-                }
-                
-            }
-
-            // second, walk the rangemap
-            foreach (KeyValuePair<RecordKey, RecordUpdate> kvp in seg.sortedWalk()) {
-                // see if this is a range key (i.e.   .ROOT/GEN/###/</>   )
-                // .. if so, recurse
-
-                if (kvp.Key.isSubkeyOf(genkey) && kvp.Value.type == RecordUpdateTypes.FULL) {
-                    if (seenGenerations.Contains(kvp.Key.ToString())) {
-                        Console.WriteLine("--- Skipping Tombstoned layer for Key " + kvp.Key.ToString());
-                    } else {
-                        Console.WriteLine("--- Layer for Keys: " + kvp.Key.ToString());
-                        ISortedSegment newseg = rangemapmgr.getSegmentFromMetadata(kvp.Value);
-                        debugDump(newseg, indent + " ",nextSeenGenerations);
-                    }
-                }
-            }
-
-        }
-
+           
         public GetStatus getRecord(RecordKey key, out RecordData record) {
             try {
                 KeyValuePair<RecordKey, RecordData> val = this.FindNext(key, equal_ok: true);
@@ -734,6 +662,7 @@ namespace Bend
         }
 
 
+        // scan using cursor setup..
         private IEnumerable<KeyValuePair<RecordKey, RecordData>> _scan(IScanner<RecordKey> scanner, 
             bool direction_is_forward, bool equal_ok) {
 
@@ -758,7 +687,9 @@ namespace Bend
 
         }
 
-        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan2(IScanner<RecordKey> scanner, bool direction_is_forward) {
+
+        // this scans using the old cursor-free interface
+        private IEnumerable<KeyValuePair<RecordKey, RecordData>> scan_nocursor(IScanner<RecordKey> scanner, bool direction_is_forward) {
             IComparable<RecordKey> lowestKeyTest = null;
             IComparable<RecordKey> highestKeyTest = null;
             if (scanner != null) {
@@ -861,8 +792,5 @@ namespace Bend
             }
         }
     }
-
-
-
 
 }

@@ -95,6 +95,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="DbgGUI\LayerVisualization.cs" />
+    <Compile Include="MTree\LayerManager\LayerManagerDebug.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
@@ -153,7 +154,7 @@
     <Compile Include="MTree\LayerManager\Records\RecordUpdate.cs" />
     <Compile Include="MTree\LayerManager\RootMetadata\FreespaceManager.cs" />
     <Compile Include="MTree\LayerManager\RootMetadata\RangemapManager.cs" />
-    <Compile Include="MTree\LayerManager\RootMetadata\RangeMapmanager_OLD.cs" />
+    <Compile Include="MTree\LayerManager\RootMetadata\RangemapManager_OLD.cs" />
     <Compile Include="MTree\LayerManager\RootMetadata\RangemapManagerTest.cs" />
     <Compile Include="MTree\LayerManager\RootMetadata\SegmentDescriptor.cs" />
     <Compile Include="MTree\LogWriter\ILogReceiver.cs" />
