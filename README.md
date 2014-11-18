@@ -3,9 +3,9 @@ StepsDB-alpha
 
 David W. Jeske ( davidj  at g.m.a.i.l )
 
-StepsDB is currently a research write-optimized database released under the Apache 2.0 license. 
+StepsDB is a research write-optimized database released under the Apache 2.0 license. 
 
-It's current purpose is experimenting with a unique data-structure for a range-split 
+It's purpose is experimenting with a unique data-structure for a range-split 
 log-structured-merge-tree called the "MTree". To learn more about LSM:
 
    http://www.quora.com/How-does-the-Log-Structured-Merge-Tree-work
