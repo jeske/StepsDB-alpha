@@ -18,3 +18,4 @@ Misc/*/*/*/bin/*
 *.suo
 *.user
 TestResult.xml
+*.vssettings
